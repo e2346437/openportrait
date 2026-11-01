@@ -102,3 +102,25 @@ export const oauthCode = sqliteTable("oauth_code", {
   userId: text().notNull(),
   expiresAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
+
+/** An action an AI asked for that waits for the owner's OK (outward and money tools). */
+export const aiApproval = sqliteTable(
+  "ai_approval",
+  {
+    id: text().primaryKey(),
+    connectionId: text()
+      .notNull()
+      .references(() => aiConnection.id, { onDelete: "cascade" }),
+    tool: text().notNull(),
+    tier: text({ enum: ["outward", "money"] }).notNull(),
+    summary: text().notNull(),
+    args: text({ mode: "json" }).notNull(),
+    status: text({ enum: ["pending", "approved", "declined", "expired", "failed"] }).notNull().default("pending"),
+    result: text({ mode: "json" }),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+    expiresAt: integer({ mode: "timestamp_ms" }).notNull(),
+    decidedAt: integer({ mode: "timestamp_ms" }),
+    decidedBy: text().references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [index("ai_approval_status_idx").on(t.status, t.createdAt)],
+);

@@ -19,7 +19,7 @@ export const AREA_LABELS: Record<string, string> = {
   email: "Email",
 };
 /** Areas that have tools today. The rest light up as those parts of OpenPortrait are built. */
-export const LIVE_AREAS = new Set(["studio"]);
+export const LIVE_AREAS = new Set(["studio", "contacts", "leads", "shoots"]);
 
 
 /** The "what can it do" and "which parts of the studio" choices, shared by token creation and the sign-in consent screen. */

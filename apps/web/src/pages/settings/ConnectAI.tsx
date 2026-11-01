@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { Button, Callout, CopyValue, EmptyState, Field, Icon, Panel, StatusChip, Switch, TextInput, useToast, type IconName } from "@openportrait/ui";
+import { Button, Callout, CopyValue, EmptyState, Field, Icon, Panel, StatusChip, Switch, TextInput, copyText, useToast, type IconName } from "@openportrait/ui";
 import { api, type AiActivityItem, type AiConnection, type AiLevel, type AiStatus } from "../../lib/api.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { AREA_LABELS, AccessPicker, LEVELS } from "../../components/AccessPicker.js";
@@ -39,7 +39,7 @@ function NewToken({ token, url, onDone }: { token: string; url: string; onDone: 
         </div>
         <pre className="snippet" tabIndex={0}>{snippetFor(tab, url, token)}</pre>
         <div className="form-actions" style={{ justifyContent: "flex-start" }}>
-          <Button size="sm" icon="copy" onClick={() => void navigator.clipboard?.writeText(snippetFor(tab, url, token)).then(() => toast("Copied"))}>
+          <Button size="sm" icon="copy" onClick={() => void copyText(snippetFor(tab, url, token)).then((ok) => toast(ok ? "Copied" : "Couldn't copy. Select the setup text and copy it yourself.", ok ? "ok" : "bad"))}>
             Copy setup
           </Button>
           <Button size="sm" variant="primary" onClick={onDone}>I've saved it</Button>

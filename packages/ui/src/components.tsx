@@ -12,6 +12,7 @@ import {
   type ReactNode,
   type TextareaHTMLAttributes,
 } from "react";
+import { copyText, selectElementText } from "./clipboard.js";
 import { Icon, type IconName } from "./icons.js";
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" ");
@@ -172,23 +173,31 @@ export function Panel({ title, description, actions, children, footer, flush }: 
 
 /** A value with a one-click copy button, for things people paste into other apps. */
 export function CopyValue({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false);
+  // "copied": the clipboard has it. "selected": copying was blocked, so the value is selected for Ctrl+C.
+  const [state, setState] = useState<"idle" | "copied" | "selected">("idle");
+  const codeRef = useRef<HTMLElement>(null);
   const timer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (timer.current) window.clearTimeout(timer.current);
+  }, []);
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      if (timer.current) window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => setCopied(false), 1600);
-    } catch {
-      // Clipboard can be blocked on plain http; the value is still selectable.
+    const ok = await copyText(value);
+    if (timer.current) window.clearTimeout(timer.current);
+    if (ok) {
+      setState("copied");
+      timer.current = window.setTimeout(() => setState("idle"), 1600);
+    } else {
+      selectElementText(codeRef.current);
+      setState("selected");
+      timer.current = window.setTimeout(() => setState("idle"), 6000);
     }
   };
+  const text = state === "copied" ? "Copied" : state === "selected" ? "Press Ctrl+C" : "Copy";
   return (
     <div className="copy">
-      <code>{value}</code>
-      <Button size="sm" variant="ghost" icon={copied ? "check" : "copy"} onClick={copy} aria-label={`Copy ${label}`}>
-        {copied ? "Copied" : "Copy"}
+      <code ref={codeRef}>{value}</code>
+      <Button size="sm" variant="ghost" icon={state === "copied" ? "check" : "copy"} onClick={copy} aria-label={`Copy ${label}`} aria-live="polite">
+        {text}
       </Button>
     </div>
   );

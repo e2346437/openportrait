@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
-import { Button, Callout, Dialog, Field, Icon, Panel, StatusChip, TextArea, TextInput, useToast } from "@openportrait/ui";
+import { Button, Callout, Dialog, Field, Icon, Panel, StatusChip, TextArea, TextInput, copyText, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
 import { formatDate, formatTime, ms, msToZoned, zonedToMs } from "../../lib/time.js";
@@ -168,7 +168,7 @@ export function ShootDetailPage() {
                 </div>
                 {!folder.exists ? <Callout tone="warn" title="The folder isn't on the share">It may have been moved or deleted. Recreate it to export here again.</Callout> : null}
                 <div className="form-actions" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
-                  <Button size="sm" icon="copy" onClick={() => { void navigator.clipboard?.writeText(folder.path).then(() => toast("Folder name copied")).catch(() => toast("Copy isn't available here. Select the name instead.", "bad")); }}>
+                  <Button size="sm" icon="copy" onClick={() => { void copyText(folder.path).then((ok) => toast(ok ? "Folder name copied" : "Couldn't copy. Select the name and copy it yourself.", ok ? "ok" : "bad")); }}>
                     Copy folder name
                   </Button>
                   <Button size="sm" icon="folder" loading={renaming} onClick={retryFolder}>

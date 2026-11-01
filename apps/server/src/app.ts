@@ -22,6 +22,9 @@ import { authRoutes } from "./routes/auth.js";
 import { catalogRoutes } from "./routes/catalog.js";
 import { calendarRoutes } from "./routes/calendar.js";
 import { googleRoutes } from "./routes/google.js";
+import { bookingRoutes } from "./routes/booking.js";
+import { publicRoutes } from "./routes/public.js";
+import { registerEmailJob } from "./domain/email.js";
 import { registerGoogleSyncJob } from "./google/job.js";
 import { crmRoutes } from "./routes/crm.js";
 import { internetRoutes } from "./routes/internet.js";
@@ -89,6 +92,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   };
   app.decorate("ctx", ctx);
 
+  registerEmailJob(() => settings);
   const requestSync = registerGoogleSyncJob({ config: () => config, settings: () => settings });
 
   // A change to a shoot or the calendar reaches Google within seconds. The timer below is the backstop.
@@ -133,6 +137,9 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(crmRoutes, { prefix: "/api/studio" });
   await app.register(calendarRoutes, { prefix: "/api/studio" });
   await app.register(googleRoutes, { prefix: "/api/studio/google" });
+  await app.register(bookingRoutes, { prefix: "/api/studio" });
+  // Clients reach these without signing in, so they sit outside /api/studio and its access rule.
+  await app.register(publicRoutes, { prefix: "/api/public" });
 
   await app.register(aiRoutes, { prefix: "/api/studio/ai" });
   // Public path with its own bearer-token auth, so it sits outside the Cloudflare Access rule for /studio.

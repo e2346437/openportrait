@@ -3,8 +3,9 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { FastifyInstance } from "fastify";
 import { tables } from "@openportrait/db";
 import { authenticate } from "./connections.js";
-import { toolsFor, type Caller } from "./registry.js";
-import "./tools.js";
+import { queueApproval } from "./approvals.js";
+import { needsApproval, toolsFor, type Caller } from "./registry.js";
+import "./tools/index.js";
 
 const LIMIT_PER_MINUTE = 120;
 const hits = new Map<string, { windowStart: number; count: number }>();
@@ -31,7 +32,7 @@ export async function mcpRoutes(app: FastifyInstance) {
       server.registerTool(t.name, { title: t.title, description: t.description, inputSchema: t.input }, async (args: Record<string, unknown>) => {
         let ok = true;
         try {
-          const result = await t.handler(ctx, args as never, caller);
+          const result = needsApproval(t) ? queueApproval(ctx, caller, t, args) : await t.handler(ctx, args as never, caller);
           return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
         } catch (err) {
           ok = false;

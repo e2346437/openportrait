@@ -18,6 +18,7 @@ import { LeadsPage } from "./pages/leads/Leads.js";
 import { LeadDetailPage } from "./pages/leads/LeadDetail.js";
 import { ShootsPage } from "./pages/shoots/Shoots.js";
 import { ShootDetailPage } from "./pages/shoots/ShootDetail.js";
+import { ApprovalsPage } from "./pages/Approvals.js";
 import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { NotFoundPage } from "./pages/NotFound.js";
 
@@ -69,6 +70,7 @@ export function App() {
                   <Route path="orders" element={<ComingSoonPage area="orders" />} />
                   <Route path="galleries" element={<ComingSoonPage area="galleries" />} />
                   <Route path="incoming" element={<ComingSoonPage area="incoming" />} />
+                  <Route path="approvals" element={<ApprovalsPage />} />
                   <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<Navigate to="studio" replace />} />
                     <Route path="studio" element={<StudioSettingsPage />} />

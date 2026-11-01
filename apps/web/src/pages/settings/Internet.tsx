@@ -171,7 +171,7 @@ export function InternetSettingsPage() {
     <>
       <StatusPanel status={status} check={check} checking={checking} onCheck={runCheck} />
 
-      <Panel title="Connect a Cloudflare Tunnel" description="A tunnel lets clients reach OpenPortrait securely without opening ports on your router. It's free on Cloudflare's standard plan.">
+      <Panel title="Connect a Cloudflare Tunnel" description="A tunnel lets clients reach OpenPortrait securely without opening ports on your router. Creating a tunnel doesn't need a credit card.">
         <ol className="steps" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           <Step n={1} state={stateOf(0)} title="Have a domain on Cloudflare">
             <p>You need a domain, such as yourstudio.com, using Cloudflare for DNS. If yours isn't there yet, add it in Cloudflare and follow their steps to switch nameservers.</p>
@@ -181,16 +181,16 @@ export function InternetSettingsPage() {
           <Step n={2} state={stateOf(1)} title="Create a tunnel">
             <ol>
               <li>
-                In Cloudflare, open <b>Zero Trust</b>, then <b>Networks → Tunnels</b>.
+                In Cloudflare, open <b>Networks</b>, then <b>Tunnels</b>.
               </li>
               <li>
-                Choose <b>Create a tunnel</b>, pick <b>Cloudflared</b>, and name it <span className="mono">openportrait</span>.
+                Choose <b>Create a tunnel</b>, and name it <span className="mono">openportrait</span>.
               </li>
               <li>
-                On the install screen, don't install anything. Copy the command shown and paste it in the next step. OpenPortrait finds the token in it.
+                Choose your operating system and copy the install command. You don't run it, because OpenPortrait already includes cloudflared. Paste it in the next step, and OpenPortrait finds the token in it.
               </li>
             </ol>
-            <ExternalLink href={CF_TUNNELS}>Open Zero Trust</ExternalLink>
+            <ExternalLink href={CF_TUNNELS}>Open Tunnels</ExternalLink>
           </Step>
 
           <Step
@@ -251,18 +251,17 @@ export function InternetSettingsPage() {
 
           <Step n={4} state={stateOf(3)} title="Add a public hostname">
             <p>
-              In the tunnel's <b>Public Hostname</b> tab (called <b>Published application routes</b> in newer dashboards), add a route with these values. A subdomain like <span className="mono">studio</span> works well.
+              Open your tunnel, go to the <b>Routes</b> tab, click <b>Add route</b>, and choose <b>Published application</b>. Enter these values. A subdomain like <span className="mono">studio</span> works well.
             </p>
             <div className="values">
               <span>Subdomain</span>
               <CopyValue value="studio" label="subdomain" />
               <span>Domain</span>
               <span style={{ color: "var(--ink)" }}>Your domain</span>
-              <span>Service type</span>
-              <CopyValue value="HTTP" label="service type" />
-              <span>URL</span>
-              <CopyValue value={`localhost:${port}`} label="service URL" />
+              <span>Service URL</span>
+              <CopyValue value={`http://localhost:${port}`} label="service URL" />
             </div>
+            <p className="hint">Cloudflare creates the DNS record for you.</p>
             {t?.hostnames.length ? (
               <Callout tone="ok" title="Hostname found">
                 Your tunnel serves {t.hostnames.join(", ")}.
@@ -279,22 +278,6 @@ export function InternetSettingsPage() {
             </Button>
           </Step>
         </ol>
-      </Panel>
-
-      <Panel title="Protect your back office" description="Recommended. Adds a Cloudflare sign-in in front of the studio pages, on top of your OpenPortrait password.">
-        <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6, color: "var(--ink-2)" }}>
-          <li>
-            In Zero Trust, open <b>Access → Applications</b> and add a <b>Self-hosted</b> application.
-          </li>
-          <li>Use your public hostname, and add these two paths. Client pages like galleries and booking stay public.</li>
-        </ol>
-        <div className="values">
-          <span>Path</span>
-          <CopyValue value="studio" label="studio path" />
-          <span>Path</span>
-          <CopyValue value="api/studio" label="API path" />
-        </div>
-        <p className="hint">Then add a policy that allows only your email address (and your staff's).</p>
       </Panel>
 
       <details className="more panel" style={{ padding: "var(--s4) var(--s5)" }}>

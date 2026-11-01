@@ -14,6 +14,10 @@ export interface SettingTypes {
   "backup.lastAt": number;
   "ai.enabled": boolean;
   "ai.paused": boolean;
+  /** Folder naming for new shoots (see domain/folders.ts). */
+  "folders.pattern": string;
+  "folders.rawSubdir": string;
+  "folders.deliverySubdir": string;
 }
 
 const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token"]);

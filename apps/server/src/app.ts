@@ -16,7 +16,11 @@ import { Settings } from "./settings.js";
 import { TunnelManager } from "./tunnel.js";
 import { mcpRoutes } from "./ai/mcp.js";
 import { aiRoutes } from "./routes/ai.js";
+import { ensureDefaults } from "./domain/defaults.js";
+import { DomainError } from "./domain/context.js";
 import { authRoutes } from "./routes/auth.js";
+import { catalogRoutes } from "./routes/catalog.js";
+import { crmRoutes } from "./routes/crm.js";
 import { internetRoutes } from "./routes/internet.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { setupRoutes } from "./routes/setup.js";
@@ -59,6 +63,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   });
 
   const db = openDatabase({ file: path.join(config.configDir, "openportrait.db") });
+  ensureDefaults(db);
   const secrets = Secrets.load(config.configDir);
   const settings = new Settings(db, secrets);
   const tunnel = new TunnelManager(app.log);
@@ -98,6 +103,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   });
 
   app.setErrorHandler((err: { statusCode?: number; validation?: unknown; message: string }, req, reply) => {
+    if (err instanceof DomainError) return reply.code(err.status).send({ error: err.code, message: err.message });
     const status = err.statusCode ?? 500;
     if (status >= 500) req.log.error(err);
     reply.code(status).send({ error: status >= 500 ? "server_error" : "bad_request", message: status >= 500 ? "Something went wrong on the server. Check the container log for details." : err.message });
@@ -112,6 +118,8 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(authRoutes, { prefix: "/api/studio/auth" });
   await app.register(settingsRoutes, { prefix: "/api/studio/settings" });
   await app.register(internetRoutes, { prefix: "/api/studio/internet" });
+  await app.register(catalogRoutes, { prefix: "/api/studio" });
+  await app.register(crmRoutes, { prefix: "/api/studio" });
 
   await app.register(aiRoutes, { prefix: "/api/studio/ai" });
   // Public path with its own bearer-token auth, so it sits outside the Cloudflare Access rule for /studio.

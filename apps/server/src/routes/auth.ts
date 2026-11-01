@@ -46,7 +46,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.get("/me", async (req) => ({
     user: req.user,
-    studio: { name: settings.get("studio.name") ?? "" },
+    studio: { name: settings.get("studio.name") ?? "", timezone: settings.get("studio.timezone") ?? "UTC" },
   }));
 
   app.post("/password", { preHandler: requireUser }, async (req, reply) => {

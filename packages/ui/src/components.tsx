@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -151,7 +152,7 @@ export function PageHeader({ title, description, actions }: { title: ReactNode; 
   );
 }
 
-export function Panel({ title, description, actions, children, footer }: { title?: ReactNode; description?: ReactNode; actions?: ReactNode; children: ReactNode; footer?: ReactNode }) {
+export function Panel({ title, description, actions, children, footer, flush }: { title?: ReactNode; description?: ReactNode; actions?: ReactNode; children: ReactNode; footer?: ReactNode; flush?: boolean }) {
   return (
     <section className="panel">
       {title ? (
@@ -163,7 +164,7 @@ export function Panel({ title, description, actions, children, footer }: { title
           {actions}
         </div>
       ) : null}
-      <div className="panel-body">{children}</div>
+      <div className={cx("panel-body", flush && "flush")}>{children}</div>
       {footer ? <div className="panel-foot">{footer}</div> : null}
     </section>
   );
@@ -190,6 +191,51 @@ export function CopyValue({ value, label }: { value: string; label: string }) {
         {copied ? "Copied" : "Copy"}
       </Button>
     </div>
+  );
+}
+
+/** A native modal dialog: focus is trapped, Escape closes it, and the page behind is inert. */
+export function Dialog({ open, onClose, title, description, children, footer, wide }: { open: boolean; onClose: () => void; title: ReactNode; description?: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (open && !el.open) el.showModal();
+    if (!open && el.open) el.close();
+  }, [open]);
+  if (!open) return null;
+  return (
+    <dialog
+      ref={ref}
+      className={cx("dialog", wide && "wide")}
+      aria-labelledby={titleId}
+      onClose={onClose}
+      onClick={(e) => {
+        if (e.target === ref.current) onClose(); // a click on the backdrop
+      }}
+    >
+      <div className="dialog-head">
+        <div>
+          <h2 id={titleId}>{title}</h2>
+          {description ? <p>{description}</p> : null}
+        </div>
+        <Button variant="ghost" size="sm" className="icon" icon="x" aria-label="Close" onClick={onClose} />
+      </div>
+      <div className="dialog-body">{children}</div>
+      {footer ? <div className="dialog-foot">{footer}</div> : null}
+    </dialog>
+  );
+}
+
+/** Initials in a circle, for people lists. */
+export function Avatar({ name, size = 36 }: { name: string; size?: number }) {
+  const parts = name.trim().split(/\s+/);
+  const initials = ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "")).toUpperCase() || "?";
+  return (
+    <span className="avatar sm" style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }} aria-hidden="true">
+      {initials}
+    </span>
   );
 }
 

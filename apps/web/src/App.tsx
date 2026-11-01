@@ -9,6 +9,7 @@ import { ComingSoonPage } from "./pages/ComingSoon.js";
 import { SettingsLayout } from "./pages/settings/SettingsLayout.js";
 import { StudioSettingsPage } from "./pages/settings/Studio.js";
 import { InternetSettingsPage } from "./pages/settings/Internet.js";
+import { ConnectAISettingsPage } from "./pages/settings/ConnectAI.js";
 import { AccountSettingsPage } from "./pages/settings/Account.js";
 import { ShootSettingsPage } from "./pages/settings/Shoots.js";
 import { ClientsPage } from "./pages/clients/Clients.js";
@@ -74,6 +75,7 @@ export function App() {
                     <Route path="shoots" element={<ShootSettingsPage />} />
                     <Route path="calendar" element={<CalendarSettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />
+                    <Route path="ai" element={<ConnectAISettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />
                   </Route>
                   <Route path="*" element={<NotFoundPage />} />

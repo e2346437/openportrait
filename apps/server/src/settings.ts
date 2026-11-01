@@ -12,6 +12,8 @@ export interface SettingTypes {
   "internet.trustCloudflare": boolean;
   "tunnel.token": string; // secret
   "backup.lastAt": number;
+  "ai.enabled": boolean;
+  "ai.paused": boolean;
   /** Folder naming for new shoots (see domain/folders.ts). */
   "folders.pattern": string;
   "folders.rawSubdir": string;

@@ -16,7 +16,7 @@ Clickable prototype of every screen below: https://claude.ai/artifact/EEJivTCVkt
 ```
 /galleries                                  ← Unraid share, mapped in the template
   2026/
-    2026-11-14 Smith Family OP-1042/        ← one gallery (matched by the shoot code)
+    2026-11-14 Family - Smith Family/       ← one gallery, named from the shoot's date, type and subject
       Highlights/                           ← a set
       Full Gallery/                         ← a set
       _hidden/                              ← ignored (leading underscore)
@@ -29,7 +29,10 @@ Rules:
 - **Subfolders are sets.** One level only. Images loose in the gallery folder go into a set named after the gallery, which is hidden if it is empty. Deeper folders are flattened into their top-level set.
 - **Ignored:** names starting with `.` or `_`, `@eaDir`, `#recycle`, `Thumbs.db`, `.DS_Store`, AppleDouble `._*` files, sidecars (`.xmp`, `.json`, `.txt`), RAW files, and partial files (`*.tmp`, `*.part`, `*.crdownload`).
 - **Image types:** JPEG, PNG, TIFF, WebP, and AVIF. HEIC is accepted if the image's libvips build supports it; otherwise the file is flagged as unsupported. Video is out of scope for 1.0.
-- **Creating a gallery in the admin creates its folder** (`/galleries/<year>/<date> <client> <code>/`), so a later local export can go straight there. The folder pattern is a setting.
+- **OpenPortrait creates the folder when a shoot is booked**, from the folder pattern in Settings › Galleries, and stores its path on the shoot. Exporting into that folder is an exact match with nothing to type.
+- **Folder pattern** tokens: `{year}` `{month}` `{date}` `{type}` `{subject}` `{client}` `{location}`. The default is `{year}/{date} {type} - {subject}`, for example `2026/2026-11-14 Headshot - Jane Smith/`. `{type}` is the shoot type's folder label (Headshot, Wedding, Lifestyle, Family…), and `{subject}` is the shoot's subject, which defaults to the client's name.
+- Names are made SMB-safe (no `\ / : * ? " < > |`, no trailing dots or spaces), and a name already in use gets a ` (2)` suffix.
+- **Renaming a shoot never moves its folder.** The gallery detail offers a **Rename folder** button that renames it to the current pattern and updates the stored path.
 
 ## 3. Ingest pipeline
 
@@ -60,10 +63,11 @@ Files are imported as soon as they are stable, so a large export appears in the 
 In order:
 
 1. **Already known.** The folder path belongs to an existing gallery.
-2. **Shoot code.** The folder name, or any parent folder name, contains a shoot code. The pattern is `<PREFIX>-<number>` with the prefix from Settings (default `OP`), matched case-insensitively and on word boundaries. A code that matches a shoot attaches the folder to that shoot's gallery, creating the gallery if needed.
-3. **Otherwise the Unmatched inbox.** The folder waits in the admin with up to three suggestions, scored on the client's surname appearing in the folder name, the shoot date matching a date in the folder name or the photos' capture dates, and recency. One click attaches it, and the photographer can tick "Rename the folder to include the code" so it matches on its own next time.
+2. **Shoot folder.** The folder is the one OpenPortrait created for a shoot (its stored path), or a set folder inside it.
+3. **Parsed name.** For a folder made by hand, the watcher parses its path with the same folder pattern. If the date, type and subject it reads match exactly one shoot (case- and accent-insensitive), the folder attaches to that shoot's gallery, creating the gallery if needed.
+4. **Otherwise the Unmatched inbox.** The folder waits in the admin with up to three suggested shoots, ranked by date (from the folder name, or the photos' capture dates when the name has none), then type, then subject. One click attaches it, and the photographer can tick "Rename the folder to match the shoot" so it follows the pattern from then on.
 
-Nothing is published or emailed automatically from a suggestion. Only an exact code match or a photographer's click attaches a folder.
+Nothing is published or emailed automatically from a suggestion. Only an exact match or a photographer's click attaches a folder.
 
 ### 3.4 Re-exports, renames and deletions
 
@@ -127,7 +131,7 @@ OpenPortrait is always exposed through Cloudflare Tunnel (SPEC.md section 9), so
 
 ### 5.2 Screens
 
-1. **Galleries list.** Cover thumbnail, title, client, shoot code, status chip, photo count, processing progress, views, favorites, downloads, and expiry. Filters by status, search by client or code, sorted by most recent activity.
+1. **Galleries list.** Cover thumbnail, title, client, shoot type and date, status chip, photo count, processing progress, views, favorites, downloads, and expiry. Filters by status, search by client, subject or type, sorted by most recent activity.
 2. **Gallery detail.** A header with status, client, the share link (copy), "Preview as client", and the primary action (Publish, or Email client again). Tabs:
    - **Photos:** sets as a sidebar list (reorder, rename, hide), the photo grid with per-photo state (processing, updated, missing, hidden), multi-select to hide, move, or set the cover, and sort by capture time, filename, or manual order. Drag to reorder.
    - **Favorites:** each client's lists with counts, submitted state, and notes; export the filenames as a Lightroom-ready search string (`DSC_0012 OR DSC_0047 …`) and as CSV.
@@ -193,7 +197,8 @@ Adds to the Gallery entities in SPEC.md section 5. Names follow the Drizzle sche
 | `favorite_list` | `id`, `gallery_id`, `name`, `max_count`, `sort` (photographer-defined lists) |
 | `favorite_selection` | `id`, `favorite_list_id`, `client_email`, `submitted_at`, `locked` |
 | `favorite_item` | `selection_id`, `photo_id`, `note`, `created_at` |
-| `shoot_type` (existing) | adds `gallery_auto_publish` (bool, default false) |
+| `shoot` (existing) | uses `subject`, `shoot_type_id` and `folder_path` from SPEC.md |
+| `shoot_type` (existing) | `name`, `folder_label`, `gallery_auto_publish` (bool, default false) |
 | `download_event` | `id`, `gallery_id`, `photo_id` (nullable for zips), `scope` (photo, set, gallery, favorites), `variant` (web, full), `client_email`, `ip`, `created_at` |
 | `gallery_view` | `id`, `gallery_id`, `client_email` (nullable), `ip_hash`, `created_at` |
 | `zip_job` | `id`, `gallery_id`, `scope`, `variant`, `state`, `parts` (JSON), `expires_at` |
@@ -204,7 +209,7 @@ Gallery views, favorites, downloads and emails also write to the shared `activit
 
 In the app's Settings, under Galleries (not in the Unraid template):
 
-- Shoot code prefix (default `OP`) and new-folder pattern.
+- Folder pattern for new shoots, with a live example (section 2).
 - Defaults for new galleries: access mode (private link), download size, **download lock** (until paid, Highlights early, or no lock), expiry (days after publish), theme, and cover on or off.
 - Watermark for payment-locked previews: image (PNG with transparency), position, size, and opacity, with a live preview.
 - Gallery email template, and whether the photographer is emailed when a list is submitted.

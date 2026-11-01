@@ -18,6 +18,9 @@ import { ensureDefaults } from "./domain/defaults.js";
 import { DomainError } from "./domain/context.js";
 import { authRoutes } from "./routes/auth.js";
 import { catalogRoutes } from "./routes/catalog.js";
+import { calendarRoutes } from "./routes/calendar.js";
+import { googleRoutes } from "./routes/google.js";
+import { registerGoogleSyncJob } from "./google/job.js";
 import { crmRoutes } from "./routes/crm.js";
 import { internetRoutes } from "./routes/internet.js";
 import { settingsRoutes } from "./routes/settings.js";
@@ -84,6 +87,14 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   };
   app.decorate("ctx", ctx);
 
+  const requestSync = registerGoogleSyncJob({ config: () => config, settings: () => settings });
+
+  // A change to a shoot or the calendar reaches Google within seconds. The timer below is the backstop.
+  app.addHook("onResponse", async (req, reply) => {
+    if (req.method === "GET" || reply.statusCode >= 300) return;
+    if (/^\/api\/studio\/(shoots|calendar|leads)/.test(req.url)) requestSync(db);
+  });
+
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
 
@@ -118,6 +129,8 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(internetRoutes, { prefix: "/api/studio/internet" });
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });
+  await app.register(calendarRoutes, { prefix: "/api/studio" });
+  await app.register(googleRoutes, { prefix: "/api/studio/google" });
 
   app.all("/api/*", async (_req, reply) => reply.code(404).send({ error: "not_found", message: "No such endpoint." }));
 
@@ -147,8 +160,11 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     jobs.start();
     scheduleBackup(db);
     const hourly = setInterval(() => scheduleBackup(db), 3_600_000);
+    const googleTimer = setInterval(() => requestSync(db, 0), 5 * 60_000);
+    setTimeout(() => requestSync(db, 0), 10_000).unref();
     app.addHook("onClose", async () => {
       clearInterval(hourly);
+      clearInterval(googleTimer);
       await jobs.stop();
       await tunnel.shutdown();
     });

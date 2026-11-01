@@ -16,6 +16,11 @@ export function SettingsLayout() {
           <Icon name="camera" /> Shoots &amp; folders
         </NavLink>
         {owner ? (
+          <NavLink to="calendar">
+            <Icon name="calendar" /> Google Calendar
+          </NavLink>
+        ) : null}
+        {owner ? (
           <NavLink to="internet">
             <Icon name="globe" /> Internet access
           </NavLink>

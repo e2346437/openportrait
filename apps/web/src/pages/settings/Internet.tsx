@@ -13,7 +13,7 @@ interface CheckResult {
   message: string;
 }
 
-function Step({ n, state, title, children, aside }: { n: number; state: "done" | "current" | "todo"; title: ReactNode; children: ReactNode; aside?: ReactNode }) {
+export function Step({ n, state, title, children, aside }: { n: number; state: "done" | "current" | "todo"; title: ReactNode; children: ReactNode; aside?: ReactNode }) {
   return (
     <li className={`step ${state}`}>
       <span className="step-num" aria-hidden="true">
@@ -31,7 +31,7 @@ function Step({ n, state, title, children, aside }: { n: number; state: "done" |
   );
 }
 
-function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
+export function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <a className="btn sm" href={href} target="_blank" rel="noreferrer noopener" style={{ alignSelf: "flex-start" }}>
       {children} <Icon name="external" width={15} height={15} />

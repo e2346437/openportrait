@@ -124,6 +124,44 @@ describe("access", () => {
   });
 });
 
+describe("resumable uploads", () => {
+  it("resumes where it stopped, lands the file in a set, and never overwrites", async () => {
+    await jpeg(path.join(share, "Park Family/one.jpg"), red);
+    const { id, detail } = await galleryFromShare();
+    const bytes = await sharp({ create: { width: 800, height: 600, channels: 3, background: blue } }).jpeg({ quality: 95 }).toBuffer();
+    const third = Math.ceil(bytes.length / 3);
+    const modified = Date.now() - 120_000;
+    const start = () => studio("POST", "/uploads", { galleryId: id, set: "Extras", filename: "one.jpg", size: bytes.length, lastModified: modified });
+    const send = (uploadId: string, offset: number, chunk: Buffer) =>
+      app.inject({ method: "PATCH", url: `/api/studio/uploads/${uploadId}`, payload: chunk, headers: { cookie: staff, "content-type": "application/offset+octet-stream", "upload-offset": String(offset) } });
+
+    expect((await studio("POST", "/uploads", { galleryId: id, filename: "notes.txt", size: 10 })).statusCode).toBe(415);
+
+    const first = (await start()).json();
+    expect(first.offset).toBe(0);
+    expect((await send(first.id, 0, bytes.subarray(0, third))).json()).toMatchObject({ offset: third, done: false });
+    // The tab closes. Picking the same file again continues from where it stopped.
+    const again = (await start()).json();
+    expect(again).toMatchObject({ id: first.id, offset: third });
+    expect((await send(first.id, 0, bytes.subarray(0, third))).statusCode).toBe(409);
+    expect((await send(first.id, third, bytes.subarray(third, third * 2))).json().done).toBe(false);
+    const done = (await send(first.id, third * 2, bytes.subarray(third * 2))).json();
+    expect(done).toMatchObject({ done: true, filename: "one.jpg" });
+    expect(fs.readFileSync(path.join(share, "Park Family/Extras/one.jpg"))).toEqual(bytes);
+
+    // Same name again lands beside it, not over it.
+    const second = (await start()).json();
+    await send(second.id, 0, bytes);
+    expect(fs.existsSync(path.join(share, "Park Family/Extras/one (2).jpg"))).toBe(true);
+
+    await app.ctx.galleries.syncGallery(id);
+    await app.ctx.jobs.drain();
+    const photos = (await studio("GET", `/galleries/${id}`)).json().photos;
+    expect(photos.map((p: { filename: string }) => p.filename).sort()).toEqual(["one (2).jpg", "one.jpg", "one.jpg"]);
+    expect(detail.photos).toHaveLength(1);
+  });
+});
+
 describe("folder discovery", () => {
   it("treats a folder with a Gallery subfolder as a shoot and never reads Originals", async () => {
     const shoot = path.join(share, "2026/2026-11-14 Family - Smith Family");

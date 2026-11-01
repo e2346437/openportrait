@@ -23,6 +23,7 @@ import { ensureDefaults } from "./domain/defaults.js";
 import { DomainError } from "./domain/context.js";
 import { authRoutes } from "./routes/auth.js";
 import { brandingRoutes } from "./routes/branding.js";
+import { uploadRoutes } from "./routes/uploads.js";
 import { catalogRoutes } from "./routes/catalog.js";
 import { crmRoutes } from "./routes/crm.js";
 import { internetRoutes } from "./routes/internet.js";
@@ -132,6 +133,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(clientGalleryRoutes, { prefix: "/api/g" });
   await app.register(mediaRoutes);
   await app.register(brandingRoutes);
+  await app.register(uploadRoutes, { prefix: "/api/studio/uploads" });
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });
 

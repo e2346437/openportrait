@@ -156,6 +156,7 @@ Counts of unmatched folders and unsorted incoming photos appear as badges in the
 - The link is `APP_URL/g/<slug>`, for example `/g/smith-family-2026`.
 - Access modes, per gallery: **private link** (the default: an unguessable URL), **password**, or **invited emails only** (magic link, same as the client portal). The default for new galleries is set in Settings › Galleries.
 - In private-link and password mode, the client is asked for an email only at the first action that needs one (first favorite or first download), never before seeing the photos. This keeps the first visit to zero steps while still tracking who favorited what.
+- **Registration** (optional, per gallery): visitors give their email, or name and email, before any photo is sent. Passwords and registration can be combined. Nothing about the photos is sent until both are satisfied, and changing a password ends every earlier unlock.
 - Signed-in portal clients go straight in, and their galleries are listed in the portal.
 
 ### 6.2 Layout
@@ -175,6 +176,9 @@ Studios expect fine presentation control (cover photo, focal point, and how the 
 - **Set covers.** Each set has its own cover photo and focal point, used for its card on the gallery's main page and the banner at the top of its set page. A new set defaults to its first photo with a centered point.
 - **Cover layout:** full bleed, split (text panel beside the photo), framed (inset photo with a centered title below), or text only.
 - **Pages:** open on set cards (a main page with one card per set, then a page per set) or straight on the first set's photos; photo grid as rows (justified), columns (masonry) or squares; photo size small, medium or large; spacing none, tight, normal or airy; light or dark background; serif or sans titles.
+- **Menu and start page:** the top menu shows icons, text, or both; the first page can be the set cards, all photos, or one chosen set. File names can be shown under each photo.
+- **Welcome message and placeholder:** a short message on the cover. While a shared gallery has no photos yet, clients see it as a "photos are on the way" page.
+- **Logo:** the studio logo (Settings › Galleries) replaces the studio name on the cover, the sticky bar and the entry screen.
 - **Save as studio default** stores the current choices as the default for new galleries (Settings › Galleries).
 
 Focal points are stored as percentages (`focal_x`, `focal_y`, 0 to 100) and applied with CSS `object-position`/`background-position`, so no extra derivatives are needed. The `og:image` share crop and the email header are rendered server-side with sharp using the same point (attention-based crop as a fallback when none is set).

@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
 import { Button, Dialog, EmptyState, Field, Icon, Panel, Switch, TextInput, useToast } from "@openportrait/ui";
+import { UploadDialog } from "../../galleries/UploadDialog.js";
 import { plural, type GalleryDetail, type StudioPhoto } from "../../lib/galleries.js";
 import type { Patch, Reload } from "./GalleryDetail.js";
 
 type Filter = "all" | "hidden" | "problems";
 
-export function PhotosTab({ data, patch }: { data: GalleryDetail; patch: Patch; reload: Reload }) {
+export function PhotosTab({ data, patch, reload }: { data: GalleryDetail; patch: Patch; reload: Reload }) {
   const toast = useToast();
   const [setId, setSetId] = useState<string | "all">("all");
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editSet, setEditSet] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const { gallery: g, sets, photos } = data;
   const set = sets.find((s) => s.id === setId) ?? null;
 
@@ -52,12 +54,33 @@ export function PhotosTab({ data, patch }: { data: GalleryDetail; patch: Patch; 
     }
   };
 
+  const uploadDialog = (
+    <UploadDialog
+      open={uploading}
+      onClose={() => setUploading(false)}
+      galleryId={g.id}
+      sets={sets}
+      defaultSet={set?.folderName ?? null}
+      onUploaded={() => {
+        // The server reads the new files straight away; check again a moment later for their thumbnails.
+        void reload();
+        window.setTimeout(() => void reload(), 2500);
+      }}
+    />
+  );
+
   if (photos.length === 0) {
     return (
       <Panel>
         <EmptyState icon="image" title="No photos in this folder yet">
-          Export JPEGs from Lightroom or Aftershoot into <span className="mono">{g.folderPath}</span>. They're picked up automatically once they finish copying.
+          Export JPEGs from Lightroom or Aftershoot into <span className="mono">{g.folderPath}</span>, and they're picked up automatically. Away from the share? Upload them here.
+          <div className="empty-act">
+            <Button variant="primary" icon="plus" onClick={() => setUploading(true)}>
+              Upload photos
+            </Button>
+          </div>
         </EmptyState>
+        {uploadDialog}
       </Panel>
     );
   }
@@ -86,6 +109,9 @@ export function PhotosTab({ data, patch }: { data: GalleryDetail; patch: Patch; 
             </Button>
           ) : null}
           <span className="grow-sp" />
+          <Button size="sm" icon="plus" onClick={() => setUploading(true)}>
+            Upload photos
+          </Button>
           {problems || hiddenCount ? (
             <select className="input slim" aria-label="Filter photos" value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
               <option value="all">All photos</option>
@@ -144,6 +170,7 @@ export function PhotosTab({ data, patch }: { data: GalleryDetail; patch: Patch; 
         )}
       </div>
 
+      {uploadDialog}
       {set ? <SetOptions key={set.id} open={editSet} onClose={() => setEditSet(false)} data={data} setId={set.id} patch={patch} /> : null}
     </div>
   );

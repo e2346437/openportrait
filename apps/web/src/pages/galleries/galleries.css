@@ -121,3 +121,28 @@ input.input.date { max-width: 200px; }
 .logo-preview { width: 220px; height: 88px; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: var(--r-md); background: var(--surface-2, var(--surface)); padding: 10px; }
 .logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .logo-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.empty-act { margin-top: var(--s3); display: flex; justify-content: center; }
+.up-target { display: grid; gap: 6px; }
+.up-target .input { width: 100%; }
+.up-drop { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: var(--s6) var(--s4); border: 1.5px dashed var(--line-strong, var(--line)); border-radius: var(--r-lg); color: var(--ink-3); transition: background 0.12s, border-color 0.12s; }
+.up-drop svg { width: 28px; height: 28px; }
+.up-drop b { color: var(--ink); }
+.up-drop .btn { margin-top: 8px; }
+.up-drop.over { background: color-mix(in srgb, var(--accent) 8%, transparent); border-color: var(--accent); }
+.up-drop.off { opacity: 0.6; }
+.up-list { display: grid; gap: var(--s3); }
+.up-sum { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 14px; }
+.up-sum span { color: var(--ink-3); }
+.up-sum .bar { grid-column: 1 / -1; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.up-sum .bar i { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
+.up-fail { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: var(--r-md); background: color-mix(in srgb, var(--bad, #b3261e) 10%, transparent); font-size: 13.5px; }
+.up-list ul { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-md); }
+.up-list li { display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; font-size: 13.5px; border-bottom: 1px solid var(--line); }
+.up-list li:last-child { border-bottom: 0; }
+.up-list li svg { width: 16px; height: 16px; color: var(--ink-3); }
+.up-list li.done svg { color: var(--ok, #2d7a4f); }
+.up-list li.failed svg { color: var(--bad, #b3261e); }
+.up-list .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.up-list .st { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.up-foot { display: flex; justify-content: flex-end; gap: 8px; }

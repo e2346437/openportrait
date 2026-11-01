@@ -123,13 +123,20 @@ Cameras such as the Nikon Z9 can send each photo over the network as it is taken
 
 **Getting from the camera to the server**
 
-Cloudflare Tunnel only carries web traffic for free. Raw FTP or SFTP from a camera can't go through it, because the camera can't run Cloudflare's client software, and Cloudflare's TCP proxying (Spectrum) for arbitrary ports is an Enterprise feature. So in-camera upload uses one of these instead:
+Cloudflare Tunnel only carries web traffic for free. Raw FTP or SFTP from a camera can't go through it, because the camera can't run Cloudflare's client software, and Cloudflare's TCP proxying (Spectrum) for arbitrary ports is an Enterprise feature. So in-camera upload supports these routes, and both remote options are fully supported with their own setup wizard and documentation:
 
 1. **Direct SFTP (recommended for remote shoots):** forward a single port on the router (for example 2222) to the container. Add a **DNS-only (grey cloud)** Cloudflare record such as `upload.example.com` that points at the home IP, kept current by a dynamic-DNS updater that OpenPortrait can run using a Cloudflare API token. The camera connects over a phone hotspot or venue Wi-Fi. Only SFTP is exposed, never the web admin or plain FTP.
 2. **Travel router with WireGuard:** the camera joins a small travel router (for example a GL.iNet) that tunnels home over WireGuard, so the camera reaches the server as if it were on the LAN, with no SFTP port exposed. This is the most secure option and needs extra hardware.
 3. **LAN only:** in the studio, the camera uploads over home Wi-Fi with no internet exposure at all.
 
-The in-app guide (Settings > Camera upload) covers all three, with live checks (port reachable from outside, DNS record pointing home, last upload received).
+**Setup wizards (Settings > Camera upload)**
+
+- **Direct SFTP wizard:** turns on the SFTP server and creates the camera login, then shows the router port-forward values (with links to guides for common routers). It creates the DNS-only `upload.` record and keeps it current through dynamic DNS using a Cloudflare API token limited to DNS edits for that zone. It checks from outside that the port is reachable and the record points home, and finishes with the camera setup card.
+- **WireGuard travel router wizard:** uses Unraid's built-in WireGuard (Settings > VPN Manager), so the container needs no extra privileges. It walks through creating a peer for the travel router, importing the config on a GL.iNet-style router, and pointing the camera at the server's LAN address. It finishes with a test upload and the camera setup card.
+- **At home:** the same camera login works directly on the LAN with no extra setup. The setup card lists both the LAN address and the remote address.
+- Each wizard ends with a live **Send a test photo** check that waits for the camera's first file and confirms it arrived in Incoming.
+
+**Documentation:** `docs/camera-upload-sftp.md` and `docs/camera-upload-wireguard.md` include step-by-step Nikon Z9 menus (other cameras with FTP/SFTP follow the same values), plus troubleshooting for timeouts, authentication failures, and hotspot NAT.
 
 **Sorting incoming photos**
 
@@ -266,7 +273,7 @@ Decided by Eric on 2026-11-01:
 4. **Print store:** after 1.0.
 5. **Database:** SQLite only in 1.0, with the code kept Postgres-ready (Drizzle) so Postgres can be added later. Keep `/config` on a cache pool or disk path, not a `/mnt/user` FUSE path.
 6. **Internet access:** always through a Cloudflare Tunnel, with cloudflared built into the container, an in-app setup guide, and docs (section 9).
-7. **In-camera upload:** a built-in SFTP/FTP server writes to an Incoming share, with a sorting screen that moves files into each shoot's `Originals/RAW/`. Because Cloudflare Tunnel can't carry it, camera upload uses direct SFTP on a DNS-only record, a WireGuard travel router, or the LAN (section 4).
+7. **In-camera upload:** a built-in SFTP/FTP server writes to an Incoming share, with a sorting screen that moves files into each shoot's `Originals/RAW/`. Because Cloudflare Tunnel can't carry it, both remote routes are supported, each with a setup wizard and docs: direct SFTP on a DNS-only Cloudflare record with dynamic DNS, and a WireGuard travel router through Unraid's VPN Manager. At home the camera uploads straight over the LAN (section 4).
 8. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
 
 Still needed: sample Sprout Studio CSV exports (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.

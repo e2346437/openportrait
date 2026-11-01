@@ -16,3 +16,7 @@ Brand assets (logo, icons, colors) live in [`docs/brand`](docs/brand/README.md).
 ## Status
 
 Early planning. See the [product spec and architecture](docs/SPEC.md).
+
+## License
+
+OpenPortrait is free software under the [GNU AGPL-3.0](LICENSE). See [CONTRIBUTING.md](CONTRIBUTING.md) to get involved.

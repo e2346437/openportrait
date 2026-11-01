@@ -19,7 +19,7 @@ It is built first for ERW Photography and released as open source, so everything
 
 - Multi-tenant hosting, where one install serves many studios.
 - Being a photo editor or DAM. Editing stays in Lightroom and Aftershoot.
-- Print lab fulfilment (WHCC, Miller's, and others). The data model leaves room for it later.
+- Print ordering from galleries and lab fulfilment (WHCC, Miller's, and others). These come after 1.0, and the data model leaves room for them.
 
 ## 2. Feature scope
 
@@ -33,10 +33,11 @@ All of these are in scope for 1.0. The milestones in section 9 set the build ord
 | **Calendar** | Studio calendar of shoots, appointments, and personal blocks, with two-way Google Calendar sync. |
 | **Booking pages** | Public, branded pages that sell a package or session type: pick a time, answer questions, pay a deposit, and get a shoot created automatically. |
 | **Schedulers** | Availability rules (weekly hours, date overrides, buffers, minimum notice, max per day), session types and lengths, and mini-session slot lists. Used by booking pages and by direct "book a call" links. |
-| **Quotes and orders** | Package and product catalog, quotes with line items and options, client acceptance, then orders or invoices with payment schedules, card payments through Stripe, and manual payments (cash, check, Venmo). |
+| **Quotes and orders** | Package and product catalog, quotes with line items and options, client acceptance, then orders or invoices with payment schedules, online payments through PayPal (behind a provider interface, so Stripe or Square can be added later), and manual payments (cash, check, Venmo). |
+| **Contracts** | Contract templates with merge fields, client e-signature on booking pages and in the portal (typed or drawn signature, consent checkbox), countersignature by the studio, and a signed PDF with an audit trail (signer name, email, IP address, user agent, timestamps, document hash) stored on the shoot. A booking can require a signed contract before the deposit. |
 | **Credits and coupons** | Client account credit (gift cards, package print credit) applied to orders. Coupon codes (percent or fixed, expiry, usage limits, scoped to products or booking pages). |
 | **Questionnaires** | A form builder (text, choice, date, file upload, and so on), templates attached to shoot types, sent automatically or by hand, and answers stored on the shoot. |
-| **Galleries** | Client galleries fed from the Unraid share or a web upload, with sets, cover images, favorites and proofing, downloads (full, web-size, or per photo), optional watermark, password or email access, expiry dates, and view and download tracking. |
+| **Galleries** | Client galleries fed from the Unraid share or a web upload, with sets, cover images, multiple favorites lists (each with an optional cap, submitted by the client), downloads (full, web-size, or per photo), access by private link (default), password, or invited emails, expiry dates, and view and download tracking. Each gallery has a payment-lock mode chosen when it is published (lock all downloads until paid, Highlights early with the rest when paid, or no lock), and the studio default lives in Settings > Galleries. The watermark shows only while downloads are payment-locked and goes away automatically once the balance is paid; downloaded files are never watermarked. Each shoot type has an auto-publish switch (off by default) that sends the gallery live as soon as an export finishes. |
 | **Email** | SMTP sending, branded templates with merge fields, a message log per contact. Automated workflows (for example "send questionnaire 14 days before the shoot") come after 1.0. |
 
 ## 3. Architecture
@@ -113,7 +114,8 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 - **Scheduler** (availability rules, overrides, buffers) and **SessionType**; **Appointment**
 - **BookingPage** (public slug, linked packages, scheduler, questionnaire, deposit rule)
 - **Product** and **Package** (catalog); **Quote** and **QuoteLine**
-- **Order** (invoice) and **OrderLine**, **PaymentSchedule**, **Payment** (Stripe or manual)
+- **Order** (invoice) and **OrderLine**, **PaymentSchedule**, **Payment** (PayPal or manual; `provider` column for future processors)
+- **ContractTemplate**, **Contract** (rendered snapshot, status, signed PDF path), **Signature** (signer, method, IP, user agent, timestamp, document hash)
 - **Credit** (ledger of client credit) and **Coupon** with **CouponRedemption**
 - **QuestionnaireTemplate** and **Questionnaire** (sent instance with answers)
 - **Gallery**, **GallerySet**, **Photo** (path, content hash, EXIF, derivative status), **FavoriteList**, **DownloadEvent**
@@ -125,7 +127,7 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 | Integration | Approach |
 |---|---|
 | **Google Calendar** | OAuth 2.0 with the photographer's own Google Cloud OAuth client (setup guide in the docs). Two-way sync using sync tokens and incremental polling every few minutes. Push notifications are optional when the install has a public HTTPS URL. Studio events go in a dedicated "OpenPortrait" calendar, and other calendars are read only for busy times. |
-| **Stripe** | Checkout Sessions for deposits and invoice payments, and webhooks for confirmation. Keys are entered in Settings. |
+| **PayPal** | PayPal Checkout (Orders v2 API) for deposits and invoice payments, with webhooks for confirmation. The client ID and secret are entered in Settings. Payments go through a `PaymentProvider` interface, so Stripe and Square can be added as connectors later. |
 | **Email** | Any SMTP provider. |
 | **Sprout Studio import** | A one-time importer for CSV exports (contacts, leads, shoots or projects, invoices and payments where available). Mapping is shown before anything is written. ERW Photography's exports are the test data. |
 | **Lightroom / Aftershoot** | Folder export (section 4). |
@@ -135,7 +137,7 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 - **Staff:** email and password with Argon2id hashing, optional TOTP 2FA, and the roles Owner, Staff, and Assistant.
 - **Clients:** no passwords. Magic-link email sign-in to a client portal (quotes, invoices, questionnaires, galleries). Galleries can also have an optional gallery password or a public link.
 - **Exposure:** the admin UI and client pages run on one port. The docs cover Cloudflare Tunnel (recommended), Nginx Proxy Manager, and SWAG. `APP_URL` sets the public base URL used in emails and links.
-- **Secrets:** a session key is generated on first run and stored in `/config`. Stripe and Google secrets are encrypted at rest with that key.
+- **Secrets:** a session key is generated on first run and stored in `/config`. PayPal and Google secrets are encrypted at rest with that key.
 - **Backups:** a nightly SQLite snapshot in `/config/backups` with retention, plus a one-click export.
 
 ## 8. Unraid packaging
@@ -161,15 +163,19 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 
 1. **Spec** (this document).
 2. **Skeleton and packaging:** repo tooling, Dockerfile, CI image build to GHCR, Unraid template, first-run setup wizard (studio name, owner account), login, Settings, the design system and app shell.
-3. **Business core:** CRM, leads, shoots, calendar and Google sync, schedulers and booking pages, questionnaires, quotes, orders and payments, credits and coupons, and the Sprout import.
+3. **Business core:** CRM, leads, shoots, calendar and Google sync, schedulers and booking pages, questionnaires, contracts and e-signatures, quotes, orders and PayPal payments, credits and coupons, and the Sprout import.
 4. **Galleries:** folder watcher and matching, the upload page, client gallery experience, favorites, downloads, and links to orders.
 
 Each milestone ships as a tagged release that installs and runs on Unraid.
 
-## 10. Open questions
+## 10. Decisions
 
-1. **Contracts and e-signatures.** Sprout includes contracts with e-signing. Do you use them, and should they be in 1.0?
-2. **Payments.** Is Stripe right, or do you take card payments through Square or PayPal today?
-3. **License.** AGPL-3.0 is recommended, since it keeps hosted forks open and leaves room for a paid OpenPortrait Pro under a separate license. MIT is the alternative if maximum adoption matters more.
-4. **Gallery store.** Should clients order prints in the gallery in 1.0, or can that wait?
-5. **Sprout exports.** Which CSV exports can you pull (contacts, leads, projects, invoices, payments)? A sample of each, with personal details redacted, is enough to build the importer.
+Decided by Eric on 2026-11-01:
+
+1. **Contracts and e-signatures** are in 1.0.
+2. **Payments:** PayPal first, behind a provider interface. Manual payments are always available.
+3. **License:** AGPL-3.0 (see `LICENSE`). Outside contributions are accepted under a contributor agreement (see `CONTRIBUTING.md`), so a future paid edition can be offered under a separate license.
+4. **Print store:** after 1.0.
+5. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
+
+Still needed: sample Sprout Studio CSV exports (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.

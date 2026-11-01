@@ -7,15 +7,16 @@ The same steps are in the app under **Settings > Internet access**, with live ch
 ## What you need
 
 - A domain, such as `yourstudio.com`, whose DNS is on Cloudflare. The free plan is enough. If your domain is somewhere else, add it in Cloudflare (**Add a domain**) and switch your registrar's nameservers to the two Cloudflare gives you. That usually takes a few minutes and can take up to a day.
+- A Cloudflare account. Creating a tunnel doesn't need a credit or debit card.
 - OpenPortrait installed and set up (see [install-docker.md](install-docker.md)).
 
 ## Setup (about five minutes)
 
 ### 1. Create a tunnel
 
-1. In the Cloudflare dashboard, open **Zero Trust**, then **Networks > Tunnels**.
-2. Click **Create a tunnel**, choose **Cloudflared**, and name it `openportrait`.
-3. On the install screen, **don't install anything**. OpenPortrait already includes cloudflared. Copy the command shown for any operating system; it contains your token (a long value starting with `eyJ`).
+1. In the Cloudflare dashboard, open **Networks**, then **Tunnels**.
+2. Click **Create a tunnel**, and name it `openportrait`. Then click **Create tunnel**.
+3. Choose your operating system and copy the install command. **Don't run it.** OpenPortrait already includes cloudflared. The command contains your token (a long value starting with `eyJ`).
 
 ### 2. Give the token to OpenPortrait
 
@@ -28,14 +29,16 @@ Within a few seconds the status changes to **Connected**, and Cloudflare shows t
 
 ### 3. Add a public hostname
 
-In the tunnel's **Public Hostname** tab (called **Published application routes** in newer dashboards), add a route:
+Open your tunnel, go to the **Routes** tab, click **Add route**, and choose **Published application**. Enter:
 
 | Field | Value |
 |---|---|
 | Subdomain | `studio` (or anything you like) |
 | Domain | your domain |
-| Service type | `HTTP` |
-| URL | `localhost:8080` |
+| Path | leave empty |
+| Service URL | `http://localhost:8080` |
+
+Click **Add route**. Cloudflare confirms with "Route added successfully" and creates the DNS record for you.
 
 Use `localhost:8080` even though OpenPortrait runs in a container: the built-in cloudflared runs inside the same container. If you changed `PORT`, use that port.
 
@@ -43,15 +46,9 @@ Use `localhost:8080` even though OpenPortrait runs in a container: the built-in 
 
 Back in **Settings > Internet access**, click **Run the test**. OpenPortrait asks Cloudflare for your public address and checks that the answer comes from this server, not some other one. Your public address is filled in automatically and used in every link the app sends.
 
-## Protect your back office (recommended)
+## Studio sign-in
 
-Client pages need to stay public, but the studio pages don't. Cloudflare Access can put a sign-in in front of them, on top of your OpenPortrait password, at no cost for up to 50 users.
-
-1. In Zero Trust, open **Access > Applications** and add a **Self-hosted** application.
-2. Use your public hostname, and add two paths: `studio` and `api/studio`.
-3. Add a policy that allows only your email address (and your staff's).
-
-Galleries (`/g`), booking pages (`/book`), the client portal (`/portal`), contract signing (`/sign`) and `/api/health` are not under those paths, so clients never see the Cloudflare sign-in.
+The studio is protected by OpenPortrait's own login, so you don't need any other sign-in in front of it.
 
 On your home network you can always reach the studio directly at `http://<server-ip>:8080/studio`, which doesn't go through Cloudflare.
 

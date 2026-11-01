@@ -83,19 +83,30 @@ Neither Lightroom (cloud or Classic) nor Aftershoot has an integration point Ope
 1. In the Unraid template, the photographer maps a gallery share such as `/mnt/user/galleries` to `/galleries`.
 2. From the workstation, they export from Lightroom Classic, Lightroom (cloud desktop app), or Aftershoot straight into that share over SMB.
 3. OpenPortrait watches `/galleries`. It uses inotify where it works and a periodic rescan as a backstop, because SMB writes onto Unraid's user-share filesystem are not always reported.
-4. Each new folder is matched to a shoot:
-   - **By shoot code:** each shoot gets a short code (for example `OP-1042`). A folder whose name contains the code attaches automatically.
-   - **Otherwise:** the folder lands in an **Unmatched folders** inbox in the admin UI. One click attaches it to a shoot, with fuzzy matching on client name and date as suggestions.
+4. Each new folder is matched to a shoot by its name (see **Folder names** below). A folder OpenPortrait created, or one whose name parses to a single shoot's date, type, and subject, attaches automatically. Anything else lands in an **Unmatched folders** inbox in the admin UI. One click attaches it to a shoot, with suggestions ranked by date, type, and subject name.
 5. Subfolders become gallery sets. A file counts as stable once its size stops changing for a short time, so half-written exports are never picked up.
 6. Originals are never modified or moved. Previews go to `/cache`.
 
-Suggested layout, which is not required:
+### Folder names
+
+Gallery folders are named from the shoot's **subject name**, **shoot date**, and **shoot type** (Headshot, Wedding, Lifestyle, and so on), not from codes.
+
+- Every shoot has a **subject** field, the people being photographed (for example "Jane Smith" or "Emma & Liam"). It defaults to the client's name and can differ from the person paying.
+- When a shoot is booked, OpenPortrait creates its folder on the share right away, so it's ready as an export target in Lightroom or Aftershoot. The folder path is stored on the shoot, so it always matches exactly, even if names are later edited.
+- The pattern is a setting (Settings > Galleries) built from tokens: `{year}`, `{month}`, `{date}` (YYYY-MM-DD), `{type}`, `{subject}`, `{client}`, and `{location}`. A live preview shows the result. The default is:
 
 ```
-/galleries/2026/2026-11-14 Smith Family OP-1042/
+{year}/{date} {type} - {subject}
+
+/galleries/2026/2026-11-14 Headshot - Jane Smith/
     Highlights/
     Full Gallery/
 ```
+
+- Names are made safe for Windows, macOS, and SMB (no `/ \ : * ? " < > |`, no trailing dots or spaces). If two shoots would get the same name, a short suffix is added (`... - Jane Smith (2)`).
+- For folders created by hand, the watcher parses the name with the same pattern. If the date, type, and subject match exactly one shoot, it attaches. If not, the folder goes to the Unmatched inbox.
+- Renaming a shoot or changing its date doesn't silently move its folder, because that would break export presets that point at it. The shoot page offers a **Rename folder** button instead.
+- Shoots still have an internal ID for links and the database, but it never needs to appear in folder names.
 
 ### Remote: web upload page
 
@@ -109,7 +120,7 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 
 - **Contact**, **Household** (optional grouping), **Tag**, **Note**, **Activity**
 - **Lead** (source, stage, inquiry answers) → converts to **Shoot**
-- **Shoot** (code, type, status, contacts, dates/locations as **ShootEvent**)
+- **Shoot** (subject name, type, status, folder path, contacts, dates/locations as **ShootEvent**); **ShootType** (name, folder label, auto-publish switch, default questionnaire and contract)
 - **CalendarEvent** (shoot events, appointments, blocks, with a Google event ID and etag for sync)
 - **Scheduler** (availability rules, overrides, buffers) and **SessionType**; **Appointment**
 - **BookingPage** (public slug, linked packages, scheduler, questionnaire, deposit rule)

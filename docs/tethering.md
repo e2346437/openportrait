@@ -1,6 +1,6 @@
 # SFTP Tethering
 
-Tethering shows each photo on a big screen the moment your camera finishes uploading it, so you can check focus, light and expression on a monitor, laptop or tablet while you shoot. It works with the camera upload described in [SPEC.md](SPEC.md) section 4: the camera sends files over SFTP, and OpenPortrait watches the folder they land in.
+Tethering shows each photo on a big screen the moment your camera finishes uploading it, so you can check focus, light and expression on a monitor, laptop or tablet while you shoot. It works with the camera upload described in [SPEC.md](SPEC.md) section 4: the camera sends files over SFTP (or FTP/FTPS, see [camera-upload.md](camera-upload.md)), and OpenPortrait watches the folder they land in. Opening a live view also opens the upload server when it is set to "only when needed".
 
 ## Using it
 

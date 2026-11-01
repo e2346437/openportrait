@@ -33,6 +33,8 @@ import { internetRoutes } from "./routes/internet.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { setupRoutes } from "./routes/setup.js";
 import { tetherRoutes } from "./routes/tether.js";
+import { uploadRoutes } from "./routes/upload.js";
+import { UploadManager } from "./upload/manager.js";
 
 const PACKAGE_VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version as string;
 /** The image tag when running the published image (set at build time), otherwise the package version. */
@@ -44,6 +46,7 @@ export interface AppContext {
   secrets: Secrets;
   settings: Settings;
   tunnel: TunnelManager;
+  uploads: UploadManager;
   jobs: JobRunner;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
   publicUrl(): string;
@@ -77,6 +80,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   const settings = new Settings(db, secrets);
   const tunnel = new TunnelManager(app.log);
   const jobs = new JobRunner(db, { logger: app.log });
+  const uploads = new UploadManager({ config, db, settings, log: app.log, lanAddresses });
 
   const ctx: AppContext = {
     config,
@@ -84,6 +88,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     secrets,
     settings,
     tunnel,
+    uploads,
     jobs,
     publicUrl() {
       const host = tunnel.getStatus().hostnames[0];
@@ -139,6 +144,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });
   await app.register(tetherRoutes, { prefix: "/api/studio/tether" });
+  await app.register(uploadRoutes, { prefix: "/api/studio/upload" });
   await app.register(calendarRoutes, { prefix: "/api/studio" });
   await app.register(googleRoutes, { prefix: "/api/studio/google" });
   await app.register(bookingRoutes, { prefix: "/api/studio" });
@@ -178,6 +184,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   if (startBackground) {
     tunnel.setToken(settings.get("tunnel.token") || config.tunnelToken);
     jobs.start();
+    uploads.start();
     scheduleBackup(db);
     const hourly = setInterval(() => scheduleBackup(db), 3_600_000);
     const googleTimer = setInterval(() => requestSync(db, 0), 5 * 60_000);
@@ -185,6 +192,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     app.addHook("onClose", async () => {
       clearInterval(hourly);
       clearInterval(googleTimer);
+      await uploads.stop();
       await jobs.stop();
       await tunnel.shutdown();
     });

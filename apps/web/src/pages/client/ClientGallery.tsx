@@ -74,6 +74,7 @@ export function ClientGalleryPage() {
   const design = data?.gallery.design;
   const sets = data?.sets ?? [];
   const showCards = design?.landing === "cards" && sets.length > 1;
+  const allPhotos = setId === "all";
   const currentSet = sets.find((s) => s.id === setId) ?? null;
   const visible = useMemo(() => (data ? (currentSet ? data.photos.filter((p) => p.setId === currentSet.id) : data.photos) : []), [data, currentSet]);
   const list = data?.lists.find((l) => l.id === activeList) ?? data?.lists[0] ?? null;
@@ -163,6 +164,19 @@ export function ClientGalleryPage() {
   const dateText = formatDate(g.date, { month: "long", day: "numeric", year: "numeric" });
   const studioName = data.studio.name;
 
+  const shareGallery = async () => {
+    const url = window.location.origin + window.location.pathname;
+    try {
+      if (navigator.share) await navigator.share({ title: g.title, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setNotice("Link copied. Paste it anywhere to share.");
+      }
+    } catch {
+      /* the share sheet was dismissed */
+    }
+  };
+
   const heart = (p: PhotoBase, cls: string, withLabel = false) => {
     const on = picked.has(p.id);
     return (
@@ -201,8 +215,8 @@ export function ClientGalleryPage() {
               {plural(data.photos.length, "photo")}
             </p>
           </div>
-          <a className="btn onphoto" href="#photos">
-            View gallery
+          <a className="cover-down" href="#photos" aria-label="View the photos">
+            <Icon name="chevronDown" />
           </a>
         </div>
       </header>
@@ -215,9 +229,14 @@ export function ClientGalleryPage() {
           </div>
           {sets.length > 1 ? (
             <div className="gsets">
-              <button type="button" aria-pressed={!currentSet} onClick={() => goSet(null)}>
+              <button type="button" aria-pressed={!currentSet && !allPhotos} onClick={() => goSet(null)}>
                 {showCards ? "Home" : "All"}
               </button>
+              {showCards ? (
+                <button type="button" aria-pressed={allPhotos} onClick={() => goSet("all")}>
+                  All photos
+                </button>
+              ) : null}
               {sets.map((s) => (
                 <button key={s.id} type="button" aria-pressed={currentSet?.id === s.id} onClick={() => goSet(s.id)}>
                   {s.name}
@@ -247,8 +266,11 @@ export function ClientGalleryPage() {
           </p>
         ) : null}
 
-        {showCards && !currentSet ? (
-          <div className="setcards">
+        {showCards && !currentSet && !allPhotos ? (
+          <section className="landing" aria-labelledby="choose-set">
+            <h2 id="choose-set">Choose a folder</h2>
+            <p>Open a folder to enter the gallery, or view all photos.</p>
+            <div className="setcards">
             {sets.map((s) => (
               <button key={s.id} type="button" className="setcard" onClick={() => goSet(s.id)}>
                 <div className="sc-img" style={s.cover ? { backgroundImage: `url(${s.cover.preview}), url(${s.cover.placeholder ?? ""})`, backgroundPosition: focalPos(s.coverFocalX, s.coverFocalY) } : undefined} />
@@ -256,7 +278,11 @@ export function ClientGalleryPage() {
                 <span>{plural(s.count, "photo")}</span>
               </button>
             ))}
-          </div>
+            </div>
+            <button type="button" className="all-photos" onClick={() => goSet("all")}>
+              View all photos
+            </button>
+          </section>
         ) : (
           <>
             {currentSet && showCards ? (
@@ -287,6 +313,34 @@ export function ClientGalleryPage() {
           </>
         )}
       </main>
+
+      <section className="next" aria-labelledby="next-h">
+        <h2 id="next-h">What to do next?</h2>
+        <div className="next-grid">
+          {data.lists.length ? (
+            <button type="button" onClick={() => (me.email ? setDrawer(true) : setGate({ kind: "drawer" }))}>
+              <Icon name="heart" />
+              <b>Choose your favorites</b>
+              <span>Pick your favorite images in this gallery and send them to us.</span>
+            </button>
+          ) : null}
+          <button type="button" onClick={shareGallery}>
+            <Icon name="send" />
+            <b>Share gallery</b>
+            <span>Show off this gallery and share the link with family and friends.</span>
+          </button>
+          {data.studio.email ? (
+            <a href={`mailto:${data.studio.email}?subject=${encodeURIComponent(g.title)}`}>
+              <Icon name="help" />
+              <b>Have questions?</b>
+              <span>Send {studioName || "us"} a note and we'll get right back to you.</span>
+            </a>
+          ) : null}
+        </div>
+        <a className="to-top" href="#top" aria-label="Back to the top" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+          <Icon name="chevronUp" />
+        </a>
+      </section>
 
       <footer className="cfoot">
         <span>

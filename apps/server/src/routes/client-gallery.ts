@@ -92,7 +92,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     const lists = db.select().from(favoriteList).where(eq(favoriteList.galleryId, g.id)).all();
     reply.header("Cache-Control", "private, no-store");
     return {
-      studio: { name: settings.get("studio.name") ?? "" },
+      studio: { name: settings.get("studio.name") ?? "", email: settings.get("studio.email") ?? "" },
       gallery: {
         title: g.title,
         slug: g.slug,

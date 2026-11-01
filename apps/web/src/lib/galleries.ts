@@ -126,7 +126,7 @@ export interface ClientCover {
 }
 
 export interface ClientGallery {
-  studio: { name: string };
+  studio: { name: string; email: string };
   gallery: {
     title: string;
     slug: string;

@@ -11,6 +11,7 @@ import { watermarkHash } from "../galleries/derivatives.js";
 import { verifyPassword } from "../auth.js";
 import { planZip, splitParts, streamZip, zipFilename, type Scope } from "../galleries/zip.js";
 import { email, parse } from "../validate.js";
+import { notifyFavorites } from "../galleries/mail.js";
 
 const { gallery, gallerySet, photo, favoriteList, favoriteSelection, favoriteItem, galleryView, galleryVisitor, downloadEvent } = tables;
 
@@ -254,6 +255,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     const n = db.select({ id: favoriteItem.photoId }).from(favoriteItem).where(eq(favoriteItem.selectionId, ctx.sel.id)).all().length;
     if (n === 0) return reply.code(409).send({ error: "empty", message: "Add at least one photo before sending." });
     db.update(favoriteSelection).set({ submittedAt: new Date() }).where(eq(favoriteSelection.id, ctx.sel.id)).run();
+    notifyFavorites({ db, settings, config: app.ctx.config, actorId: null, publicUrl: app.ctx.publicUrl }, ctx.g, ctx.who, ctx.list.name, n);
     return { me: me(ctx.g, ctx.who) };
   });
 

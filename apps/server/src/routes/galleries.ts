@@ -9,6 +9,8 @@ import { fillCovers } from "../galleries/derivatives.js";
 import { newId, titleFromFolder } from "../galleries/files.js";
 import { designOf, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
 import { parse } from "../validate.js";
+import { emailPanel, sendGalleryEmail } from "../galleries/mail.js";
+import { DomainError } from "../domain/context.js";
 
 const { gallery, gallerySet, photo, ingestFolder, favoriteList, favoriteSelection, favoriteItem, galleryView, downloadEvent } = tables;
 
@@ -225,6 +227,28 @@ export async function galleryRoutes(app: FastifyInstance) {
     if (!g) return notFound(reply);
     db.update(gallery).set({ status: "draft", updatedAt: new Date() }).where(eq(gallery.id, g.id)).run();
     return detail(g.id);
+  });
+
+  const mailCtx = () => ({ db, settings: app.ctx.settings, config: app.ctx.config, actorId: null, publicUrl: app.ctx.publicUrl });
+
+  app.get<{ Params: { id: string } }>("/:id/email", async (req, reply) => {
+    const g = db.select().from(gallery).where(eq(gallery.id, req.params.id)).get();
+    if (!g) return notFound(reply);
+    return emailPanel(mailCtx(), g);
+  });
+
+  app.post<{ Params: { id: string } }>("/:id/email", async (req, reply) => {
+    const body = parse(z.object({ to: z.array(z.string()).min(1, "Choose who to send it to.").max(20), subject: z.string().trim().min(1, "Add a subject.").max(200), message: z.string().trim().min(1, "Write a message.").max(5000) }), req.body ?? {}, reply);
+    if (!body) return;
+    const g = db.select().from(gallery).where(eq(gallery.id, req.params.id)).get();
+    if (!g) return notFound(reply);
+    try {
+      const queued = sendGalleryEmail(mailCtx(), g, body);
+      return { queued, ...emailPanel(mailCtx(), g) };
+    } catch (e) {
+      if (e instanceof DomainError) return reply.code(e.status).send({ error: e.code, message: e.message });
+      throw e;
+    }
   });
 
   /** Marks the gallery paid by hand (until PayPal lands, and for cash or check payments). */

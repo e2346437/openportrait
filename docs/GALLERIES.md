@@ -207,6 +207,14 @@ Focal points are stored as percentages (`focal_x`, `focal_y`, 0 to 100) and appl
 
 The gallery links to the client's orders in the portal: an **Order** button opens the client's order and invoice list for the shoot, and when an unpaid balance gates downloads, the download dialog links to that invoice. Print ordering comes after 1.0 (SPEC.md). Until then, a lightweight **Request prints** action on favorites lists sends the photographer a print request (photos plus notes), which they turn into a quote or order in the existing Orders feature.
 
+### 6.x Gallery emails
+
+Emails go through the shared email base (Settings > Email, logged in `email_log` with the gallery's id).
+
+- **Email client** (on a shared gallery): pick people from the shoot's contacts or anyone who registered to view, or type addresses. The wording is editable and a "View your gallery" button is added. It refuses, with a plain reason, when email isn't set up, the gallery isn't shared, or no public address is set. A password is never put in the email.
+- **Favorites notice**: when a client sends a favorites list, the studio email address gets a note with a link to the Favorites tab. Skipped quietly when email isn't set up.
+- The dialog lists what was sent for the gallery and whether it arrived.
+
 ## 7. Data model
 
 Adds to the Gallery entities in SPEC.md section 5. Names follow the Drizzle schema conventions set up in milestone 2.

@@ -146,3 +146,20 @@ input.input.date { max-width: 200px; }
 .up-list .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .up-list .st { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .up-foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Email dialog */
+.em-form { display: grid; gap: var(--s4); }
+.em-to { border: 0; margin: 0; padding: 0; display: grid; gap: var(--s2); min-width: 0; }
+.em-pick { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-md); font-size: 14px; cursor: pointer; }
+.em-pick input { margin-top: 3px; accent-color: var(--accent); }
+.em-pick .mono { color: var(--ink-3); font-size: 12.5px; overflow-wrap: anywhere; }
+.em-sent { margin-top: var(--s5); }
+.em-sent ul { list-style: none; margin: 8px 0 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-md); max-height: 220px; overflow: auto; }
+.em-sent li { display: grid; grid-template-columns: 18px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 12px; font-size: 13.5px; border-bottom: 1px solid var(--line); }
+.em-sent li:last-child { border-bottom: 0; }
+.em-sent li svg { width: 16px; height: 16px; color: var(--ink-3); }
+.em-sent .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.em-sent .when { color: var(--ink-3); font-size: 12.5px; }
+.em-sent .err { color: var(--bad, #b3261e); }
+@media (max-width: 560px) { .em-sent li { grid-template-columns: 18px 1fr auto; } .em-sent .when { display: none; } }
+.em-to legend { padding: 0; }

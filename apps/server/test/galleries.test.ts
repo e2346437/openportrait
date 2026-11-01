@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "@openportrait/config";
 import { buildApp } from "../src/app.js";
 import { discover, listGalleryFiles } from "../src/galleries/discover.js";
+import { setTransportFactory } from "../src/domain/email.js";
 import { splitParts } from "../src/galleries/zip.js";
 import { isImageFile, resolveInside, titleFromFolder } from "../src/galleries/files.js";
 
@@ -451,5 +452,57 @@ describe("gallery settings", () => {
     await jpeg(path.join(share, "Ortiz/Finals/a.jpg"), red);
     const { detail } = await galleryFromShare();
     expect(detail.gallery).toMatchObject({ folderPath: "Ortiz/Finals", downloadLock: "until_paid" });
+  });
+});
+
+describe("gallery emails", () => {
+  const smtp = { host: "smtp.example.com", port: 587, security: "starttls", user: "u", password: "pw-secret", fromName: "Test Studio", fromAddress: "hello@example.com" };
+  const red = { r: 200, g: 30, b: 30 };
+
+  it("emails the link, lists what was sent, and tells the studio when favorites arrive", async () => {
+    const sent: Array<{ to: unknown; subject: string; text: string }> = [];
+    setTransportFactory(() => ({ sendMail: async (m: { to: unknown; subject: string; text: string }) => (sent.push({ to: m.to, subject: m.subject, text: m.text }), {} as never) }));
+    try {
+      await jpeg(path.join(share, "Vega/Gallery/a.jpg"), red);
+      const { id, slug } = await galleryFromShare();
+      app.ctx.settings.set("studio.email", "owner@example.com");
+      const body = { to: ["kim@example.com"], subject: "Your photos", message: "Hi Kim,\n\nHere they are." };
+
+      // Each missing piece gets its own plain refusal.
+      expect((await studio("POST", `/galleries/${id}/email`, body)).json().error).toBe("not_configured");
+      await studio("PUT", "/email", smtp);
+      expect((await studio("POST", `/galleries/${id}/email`, body)).json().error).toBe("not_live");
+      await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
+      expect((await studio("POST", `/galleries/${id}/email`, body)).json().error).toBe("no_url");
+      app.ctx.settings.set("internet.publicUrl", "https://photos.example.com");
+      expect((await studio("POST", `/galleries/${id}/email`, { ...body, to: ["nope"] })).statusCode).toBe(400);
+
+      const res = await studio("POST", `/galleries/${id}/email`, body);
+      expect(res.statusCode).toBe(200);
+      expect(res.json().queued).toBe(1);
+      await app.ctx.jobs.drain();
+      expect(sent[0]!.text).toContain(`https://photos.example.com/g/${slug}`);
+
+      // A registered visitor becomes a suggested recipient.
+      await studio("PATCH", `/galleries/${id}`, { registration: "email_name" });
+      await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "Lee@Example.com", name: "Lee Park" } });
+      const panel = (await studio("GET", `/galleries/${id}/email`)).json();
+      expect(panel.recipients).toEqual([{ name: "Lee Park", email: "lee@example.com", contactId: null }]);
+      expect(panel.sent).toMatchObject([{ to: "kim@example.com", kind: "gallery.share", status: "sent" }]);
+
+      // Sending favorites notifies the studio.
+      const detail = (await studio("GET", `/galleries/${id}`)).json();
+      const listId = detail.lists[0].id;
+      const who = await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "Lee@Example.com", name: "Lee Park" } });
+      const cookie = `op_client=${who.cookies.find((c) => c.name === "op_client")!.value}`;
+      await app.inject({ method: "PUT", url: `/api/g/${slug}/lists/${listId}/photos/${detail.photos[0].id}`, headers: { cookie }, payload: {} });
+      await app.inject({ method: "POST", url: `/api/g/${slug}/lists/${listId}/submit`, headers: { cookie } });
+      await app.ctx.jobs.drain();
+      const note = sent.find((m) => m.to === "owner@example.com");
+      expect(note?.subject).toMatch(/sent favorites/);
+      expect(note?.text).toContain(`/studio/galleries/${id}?tab=favorites`);
+    } finally {
+      setTransportFactory(null);
+    }
   });
 });

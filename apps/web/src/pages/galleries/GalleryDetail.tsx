@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { Button, Callout, CopyValue, Dialog, EmptyState, Icon, PageHeader, Spinner, StatusChip, Tabs, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { LOCK_LABELS, plural, type DownloadLock, type GalleryDetail } from "../../lib/galleries.js";
+import { EmailDialog } from "../../galleries/EmailDialog.js";
 import { DesignTab } from "./DesignTab.js";
 import { FavoritesTab } from "./FavoritesTab.js";
 import { PhotosTab } from "./PhotosTab.js";
@@ -21,6 +22,7 @@ export function GalleryDetailPage() {
   const [data, setData] = useState<GalleryDetail | null>(null);
   const [error, setError] = useState<{ status: number; message: string } | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [emailing, setEmailing] = useState(false);
   const [defaultLock, setDefaultLock] = useState<DownloadLock>("none");
   const tab = (params.get("tab") as TabId | null) ?? "photos";
 
@@ -128,6 +130,11 @@ export function GalleryDetailPage() {
               <Icon name="external" /> {live ? "View" : "Preview"}
             </a>
             {live ? (
+              <Button icon="mail" onClick={() => setEmailing(true)}>
+                Email client
+              </Button>
+            ) : null}
+            {live ? (
               <Button
                 onClick={async () => {
                   if (await patch("/unpublish", {}, "POST")) toast("Gallery is private again");
@@ -171,6 +178,8 @@ export function GalleryDetailPage() {
         {tab === "favorites" ? <FavoritesTab data={data} patch={patch} /> : null}
         {tab === "settings" ? <SettingsTab data={{ ...data, gallery: g }} patch={patch} onDeleted={() => navigate("/studio/galleries")} /> : null}
       </div>
+
+      <EmailDialog open={emailing} onClose={() => setEmailing(false)} galleryId={g.id} />
 
       <PublishDialog
         open={publishing}

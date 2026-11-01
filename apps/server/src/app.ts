@@ -22,6 +22,7 @@ import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
 import { ensureDefaults } from "./domain/defaults.js";
 import { DomainError } from "./domain/context.js";
 import { authRoutes } from "./routes/auth.js";
+import { brandingRoutes } from "./routes/branding.js";
 import { catalogRoutes } from "./routes/catalog.js";
 import { crmRoutes } from "./routes/crm.js";
 import { internetRoutes } from "./routes/internet.js";
@@ -130,6 +131,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   // Client pages and their media are public; the private link (and signed media URLs) are the key.
   await app.register(clientGalleryRoutes, { prefix: "/api/g" });
   await app.register(mediaRoutes);
+  await app.register(brandingRoutes);
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });
 

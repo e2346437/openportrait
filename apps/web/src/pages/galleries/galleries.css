@@ -113,3 +113,11 @@ input.input.date { max-width: 200px; }
 .lr { background: var(--surface-2); border-radius: var(--r); padding: 10px 12px; color: var(--ink-2); overflow-wrap: anywhere; max-height: 140px; overflow: auto; width: 100%; font: 400 12.5px/1.5 var(--mono); }
 .notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
 .notes svg { width: 15px; height: 15px; vertical-align: -2px; color: var(--ink-3); }
+
+.dstack { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.form-actions.start { justify-content: flex-start; align-self: end; }
+
+.logo-row { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
+.logo-preview { width: 220px; height: 88px; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: var(--r-md); background: var(--surface-2, var(--surface)); padding: 10px; }
+.logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.logo-acts { display: flex; gap: 8px; flex-wrap: wrap; }

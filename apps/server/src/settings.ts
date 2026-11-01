@@ -8,6 +8,8 @@ export interface SettingTypes {
   "studio.name": string;
   "studio.email": string;
   "studio.timezone": string;
+  /** Set when a logo has been uploaded; changes with each upload. */
+  "studio.logoVersion": number;
   "internet.publicUrl": string;
   "internet.trustCloudflare": boolean;
   "tunnel.token": string; // secret

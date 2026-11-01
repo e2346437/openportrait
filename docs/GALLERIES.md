@@ -169,7 +169,7 @@ Counts of unmatched folders and unsorted incoming photos appear as badges in the
 
 ### 6.2a Presentation (Design tab)
 
-Eric wants presentation control close to what Sprout galleries offer (cover photo, focal point, and how the cover carries through the main page and set pages). OpenPortrait matches the capability with its own design. Each gallery has a **Design** tab in the admin:
+Studios expect fine presentation control (cover photo, focal point, and how the cover carries through the main page and set pages). OpenPortrait provides this with its own design. Each gallery has a **Design** tab in the admin:
 
 - **Cover photo and focal point.** Pick any photo as the gallery cover, then click or drag a point on it (arrow keys nudge it) to mark what must stay in frame. Every crop of that photo uses the point: the desktop cover, the phone cover, the gallery-list thumbnail, the email header, and the social share image. Live crop previews show all of these while dragging.
 - **Set covers.** Each set has its own cover photo and focal point, used for its card on the gallery's main page and the banner at the top of its set page. A new set defaults to its first photo with a centered point.

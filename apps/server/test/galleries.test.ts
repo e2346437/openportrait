@@ -71,6 +71,59 @@ describe("shoots", () => {
   });
 });
 
+describe("access", () => {
+  it("hides everything behind a password and then behind registration, and remembers both", async () => {
+    await jpeg(path.join(share, "Kim Family/a.jpg"), red);
+    const { id, slug } = await galleryFromShare();
+    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
+    expect((await studio("PATCH", `/galleries/${id}`, { accessMode: "password" })).statusCode).toBe(400);
+    const set = await studio("PATCH", `/galleries/${id}`, { accessMode: "password", password: "open sesame", registration: "email_name", welcomeMessage: "Hi Kims!" });
+    expect(set.json().gallery).toMatchObject({ accessMode: "password", hasPassword: true, registration: "email_name" });
+    expect(JSON.stringify(set.json().gallery)).not.toContain("open sesame");
+
+    const get = (cookie = "") => app.inject({ method: "GET", url: `/api/g/${slug}`, headers: cookie ? { cookie } : {} });
+    let r = (await get()).json();
+    expect(r.gate).toEqual({ password: true, register: "email_name" });
+    expect(r.photos).toEqual([]);
+    expect(r.gallery.cover).toBeNull();
+
+    const wrong = await app.inject({ method: "POST", url: `/api/g/${slug}/unlock`, payload: { password: "nope" } });
+    expect(wrong.statusCode).toBe(401);
+    const right = await app.inject({ method: "POST", url: `/api/g/${slug}/unlock`, payload: { password: "open sesame" } });
+    expect(right.statusCode).toBe(200);
+    const pass = right.cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+
+    r = (await get(pass)).json();
+    expect(r.gate).toEqual({ password: false, register: "email_name" });
+
+    const noName = await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "kim@example.com" } });
+    expect(noName.statusCode).toBe(400);
+    const reg = await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "kim@example.com", name: "Kim Lee" } });
+    const both = `${pass}; ${reg.cookies.map((c) => `${c.name}=${c.value}`).join("; ")}`;
+    r = (await get(both)).json();
+    expect(r.gate).toBeUndefined();
+    expect(r.photos).toHaveLength(1);
+    expect(r.gallery.welcomeMessage).toBe("Hi Kims!");
+
+    // A new password locks out everyone who knew the old one.
+    await studio("PATCH", `/galleries/${id}`, { password: "different one" });
+    expect((await get(both)).json().gate).toEqual({ password: true, register: null });
+    // Staff previewing are never gated.
+    expect((await app.inject({ method: "GET", url: `/api/g/${slug}`, headers: { cookie: staff } })).json().photos).toHaveLength(1);
+  });
+
+  it("stores a studio logo as a small PNG and serves it publicly", async () => {
+    const png = await sharp({ create: { width: 1200, height: 400, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 1 } } }).png().toBuffer();
+    const put = await app.inject({ method: "PUT", url: "/api/studio/branding/logo", payload: png, headers: { cookie: staff, "content-type": "image/png" } });
+    expect(put.statusCode).toBe(200);
+    const got = await app.inject({ method: "GET", url: put.json().logo });
+    expect(got.statusCode).toBe(200);
+    expect((await sharp(got.rawPayload).metadata()).width).toBe(600);
+    expect((await app.inject({ method: "DELETE", url: "/api/studio/branding/logo", headers: { cookie: staff } })).statusCode).toBe(200);
+    expect((await app.inject({ method: "GET", url: "/api/branding/logo" })).statusCode).toBe(404);
+  });
+});
+
 describe("folder discovery", () => {
   it("treats a folder with a Gallery subfolder as a shoot and never reads Originals", async () => {
     const shoot = path.join(share, "2026/2026-11-14 Family - Smith Family");

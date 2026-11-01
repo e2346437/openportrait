@@ -12,7 +12,7 @@ const LAYOUTS: Array<{ id: GalleryDesign["layout"]; label: string; sketch: strin
 
 type Target = { kind: "gallery" } | { kind: "set"; id: string };
 
-/** Cover photo, focal point and presentation, as in Sprout's gallery design (docs/GALLERIES.md section 6.2a). */
+/** Cover photo, focal point and presentation (docs/GALLERIES.md section 6.2a). */
 export function DesignTab({ data, patch }: { data: GalleryDetail; patch: Patch }) {
   const { gallery: g, sets, photos } = data;
   const design = g.design;
@@ -149,7 +149,27 @@ export function DesignTab({ data, patch }: { data: GalleryDetail; patch: Patch }
         <Panel title="Gallery page">
           <div className="dopts">
             <span className="label">First page shows</span>
-            <Segmented label="First page shows" value={design.landing} onChange={(v) => setDesign({ landing: v })} options={[{ value: "cards", label: "Set cards" }, { value: "photos", label: "All photos" }]} />
+            <div className="dstack">
+              <Segmented
+                label="First page shows"
+                value={design.landing}
+                onChange={(v) => setDesign({ landing: v, ...(v === "set" && !design.startSetId ? { startSetId: sets.find((s) => !s.hidden)?.id ?? null } : {}) })}
+                options={[{ value: "cards", label: "Set cards" }, { value: "photos", label: "All photos" }, ...(sets.length > 1 ? [{ value: "set" as const, label: "One set" }] : [])]}
+              />
+              {design.landing === "set" ? (
+                <select className="input" aria-label="Set to open on" value={design.startSetId ?? ""} onChange={(e) => setDesign({ startSetId: e.target.value || null })}>
+                  {sets.filter((s) => !s.hidden).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+            </div>
+            <span className="label">Menu shows</span>
+            <Segmented label="Menu shows" value={design.nav} onChange={(v) => setDesign({ nav: v })} options={[{ value: "icons", label: "Icons" }, { value: "text", label: "Text" }, { value: "both", label: "Both" }]} />
+            <span className="label">File names</span>
+            <Segmented label="File names" value={design.filenames ? "on" : "off"} onChange={(v) => setDesign({ filenames: v === "on" })} options={[{ value: "off", label: "Hidden" }, { value: "on", label: "Shown" }]} />
             <span className="label">Photo grid</span>
             <Segmented label="Photo grid" value={design.grid} onChange={(v) => setDesign({ grid: v })} options={[{ value: "justified", label: "Rows" }, { value: "masonry", label: "Columns" }, { value: "square", label: "Squares" }]} />
             <span className="label">Photo size</span>

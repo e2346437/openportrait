@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Callout, CopyValue, Dialog, Field, Panel, TextInput, useToast } from "@openportrait/ui";
+import { Button, Callout, CopyValue, Dialog, Field, Panel, TextArea, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { LOCK_LABELS, formatDate, type DownloadLock, type DownloadSize, type GalleryDetail } from "../../lib/galleries.js";
 import type { Patch } from "./GalleryDetail.js";
@@ -11,6 +11,65 @@ const SIZES: Array<{ id: DownloadSize; title: string; body: string }> = [
 ];
 
 const dateInput = (ms: number | null) => (ms ? new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 10) : "");
+
+const REGISTRATION: Array<{ id: GalleryDetail["gallery"]["registration"]; title: string; body: string }> = [
+  { id: "none", title: "Not required", body: "Anyone with the link sees the photos. Email is asked when they favorite or download." },
+  { id: "email", title: "Email first", body: "Visitors enter their email before they see any photos." },
+  { id: "email_name", title: "Name and email first", body: "Visitors enter their name and email before they see any photos." },
+];
+
+function AccessPanel({ g, patch }: { g: GalleryDetail["gallery"]; patch: Patch }) {
+  const toast = useToast();
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState(g.welcomeMessage ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const protectedByPassword = g.accessMode === "password";
+  const savePassword = async () => {
+    setBusy(true);
+    setError(null);
+    const next = await patch("", { accessMode: "password", password });
+    setBusy(false);
+    if (next) {
+      setPassword("");
+      toast(protectedByPassword ? "Password changed" : "Password turned on");
+    } else setError("Use at least 4 characters.");
+  };
+  return (
+    <Panel title="Access" description="Who can open this gallery, and what they see first.">
+      <fieldset className="opts">
+        <legend className="label">Registration</legend>
+        {REGISTRATION.map((r) => (
+          <label key={r.id} className="opt">
+            <input type="radio" name="registration" checked={g.registration === r.id} onChange={() => patch("", { registration: r.id })} />
+            <span className="t">
+              <b>{r.title}</b>
+              <span>{r.body}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      <div className="form-grid">
+        <Field label={protectedByPassword ? "Change password" : "Password"} error={error} hint={protectedByPassword ? "Changing it locks out everyone who had the old one." : "Leave empty to let anyone with the link in."}>
+          {(p) => <TextInput {...p} type="text" autoComplete="off" value={password} placeholder={protectedByPassword ? "New password" : "Set a password"} onChange={(e) => setPassword(e.target.value)} />}
+        </Field>
+        <div className="form-actions start">
+          <Button loading={busy} disabled={password.length < 4} onClick={savePassword}>
+            {protectedByPassword ? "Change password" : "Turn on password"}
+          </Button>
+          {protectedByPassword ? (
+            <Button variant="ghost" onClick={async () => (await patch("", { accessMode: "link" })) && toast("Password removed")}>
+              Remove password
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      <Field label="Welcome message" hint="Shown on the cover. Before any photos are in, it's the placeholder clients see instead.">
+        {(p) => <TextArea {...p} rows={3} maxLength={1500} value={message} placeholder="Thank you for choosing us! Your photos will be here soon." onChange={(e) => setMessage(e.target.value)} onBlur={() => message.trim() !== (g.welcomeMessage ?? "") && patch("", { welcomeMessage: message.trim() || null })} />}
+      </Field>
+    </Panel>
+  );
+}
 
 export function SettingsTab({ data, patch, onDeleted }: { data: GalleryDetail; patch: Patch; onDeleted: () => void }) {
   const g = data.gallery;
@@ -59,6 +118,8 @@ export function SettingsTab({ data, patch, onDeleted }: { data: GalleryDetail; p
         </div>
         <CopyValue value={g.url} label="gallery link" />
       </Panel>
+
+      <AccessPanel g={g} patch={patch} />
 
       <Panel title="Downloads" description="What clients can download, and when.">
         <fieldset className="opts">

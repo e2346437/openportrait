@@ -42,6 +42,7 @@ export function ClientGalleryPage() {
   const [activeList, setActiveList] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const [reloads, setReloads] = useState(0);
   useEffect(() => {
     let alive = true;
     call<ClientGallery>(encodeURIComponent(slug))
@@ -55,7 +56,7 @@ export function ClientGalleryPage() {
     return () => {
       alive = false;
     };
-  }, [slug]);
+  }, [slug, reloads]);
 
   useEffect(() => {
     if (!data) return;
@@ -75,7 +76,10 @@ export function ClientGalleryPage() {
   const sets = data?.sets ?? [];
   const showCards = design?.landing === "cards" && sets.length > 1;
   const allPhotos = setId === "all";
-  const currentSet = sets.find((s) => s.id === setId) ?? null;
+  // A gallery can open straight on one chosen set; "All" then asks for everything explicitly.
+  const startId = design?.landing === "set" ? design.startSetId : null;
+  const currentSet = sets.find((s) => s.id === (setId ?? startId)) ?? null;
+  const homeParam = design?.landing === "set" ? "all" : null;
   const visible = useMemo(() => (data ? (currentSet ? data.photos.filter((p) => p.setId === currentSet.id) : data.photos) : []), [data, currentSet]);
   const list = data?.lists.find((l) => l.id === activeList) ?? data?.lists[0] ?? null;
   const selection = me.selections.find((s) => s.listId === list?.id);
@@ -150,6 +154,7 @@ export function ClientGalleryPage() {
   };
 
   if (error) return <ClientMessage error={error} />;
+  if (data?.gate) return <GateScreen slug={slug} data={data} onThrough={() => setReloads((n) => n + 1)} />;
   if (!data || !design) {
     return (
       <div className="client t-light boot" aria-busy="true" aria-label="Loading gallery">
@@ -195,7 +200,7 @@ export function ClientGalleryPage() {
     ) : null;
 
   return (
-    <div className={`client t-${design.theme} f-${design.font}`}>
+    <div className={`client t-${design.theme} f-${design.font} nav-${design.nav}`}>
       {g.preview ? (
         <div className="preview-bar" role="status">
           <Icon name="eye" /> Preview. Clients can't see this gallery until you share it.
@@ -203,7 +208,7 @@ export function ClientGalleryPage() {
       ) : null}
 
       <header className={`cover l-${design.layout}`} style={design.layout === "full" ? coverStyle : undefined}>
-        {studioName ? <div className="studio-mark">{studioName}</div> : null}
+        {data.studio.logo ? <img className="studio-logo" src={data.studio.logo} alt={studioName || "Studio logo"} /> : studioName ? <div className="studio-mark">{studioName}</div> : null}
         {design.layout === "split" && cover ? <div className="split-img" style={coverStyle} role="img" aria-label="Cover photo" /> : null}
         {design.layout === "framed" && cover ? <div className="frame-img" style={coverStyle} role="img" aria-label="Cover photo" /> : null}
         <div className="cover-in">
@@ -214,6 +219,7 @@ export function ClientGalleryPage() {
               {dateText ? " · " : ""}
               {plural(data.photos.length, "photo")}
             </p>
+            {g.welcomeMessage ? <p className="welcome">{g.welcomeMessage}</p> : null}
           </div>
           <a className="cover-down" href="#photos" aria-label="View the photos">
             <Icon name="chevronDown" />
@@ -224,21 +230,29 @@ export function ClientGalleryPage() {
       <nav className="gbar" aria-label="Gallery">
         <div className="gbar-in">
           <div className="gname">
-            <b>{g.title}</b>
-            {studioName ? <span>{studioName}</span> : null}
+            {data.studio.logo ? (
+              <img className="gname-logo" src={data.studio.logo} alt={studioName || g.title} />
+            ) : (
+              <>
+                <b>{g.title}</b>
+                {studioName ? <span>{studioName}</span> : null}
+              </>
+            )}
           </div>
           {sets.length > 1 ? (
             <div className="gsets">
-              <button type="button" aria-pressed={!currentSet && !allPhotos} onClick={() => goSet(null)}>
-                {showCards ? "Home" : "All"}
+              <button type="button" aria-pressed={!currentSet && !allPhotos} aria-label={showCards ? "Home" : "All photos"} onClick={() => goSet(homeParam)}>
+                <Icon name={showCards ? "grid" : "image"} />
+                <span className="nl">{showCards ? "Home" : "All"}</span>
               </button>
               {showCards ? (
                 <button type="button" aria-pressed={allPhotos} onClick={() => goSet("all")}>
-                  All photos
+                  <Icon name="image" />
+                  <span className="nl">All photos</span>
                 </button>
               ) : null}
               {sets.map((s) => (
-                <button key={s.id} type="button" aria-pressed={currentSet?.id === s.id} onClick={() => goSet(s.id)}>
+                <button key={s.id} type="button" className="setlink" aria-pressed={currentSet?.id === s.id} onClick={() => goSet(s.id)}>
                   {s.name}
                 </button>
               ))}
@@ -254,6 +268,10 @@ export function ClientGalleryPage() {
                 {totalPicked ? <span className="cnt">{totalPicked}</span> : null}
               </button>
             ) : null}
+            <button type="button" className="gbtn" aria-label="Share gallery" onClick={shareGallery}>
+              <Icon name="send" />
+              <span className="lbl">Share</span>
+            </button>
           </div>
         </div>
       </nav>
@@ -295,7 +313,13 @@ export function ClientGalleryPage() {
                 </div>
               </div>
             ) : null}
-            {visible.length ? (
+            {data.photos.length === 0 ? (
+              <div className="placeholder">
+                <Icon name="image" />
+                <h2>Your photos are on the way</h2>
+                <p>{g.welcomeMessage || "We're still preparing this gallery. Check back soon, and we'll let you know when it's ready."}</p>
+              </div>
+            ) : visible.length ? (
               <PhotoGrid
                 photos={visible}
                 design={design}
@@ -314,6 +338,7 @@ export function ClientGalleryPage() {
         )}
       </main>
 
+      {data.photos.length ? (
       <section className="next" aria-labelledby="next-h">
         <h2 id="next-h">What to do next?</h2>
         <div className="next-grid">
@@ -341,6 +366,7 @@ export function ClientGalleryPage() {
           <Icon name="chevronUp" />
         </a>
       </section>
+      ) : null}
 
       <footer className="cfoot">
         <span>
@@ -383,6 +409,70 @@ export function ClientGalleryPage() {
           <div className="toast">{notice}</div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Shown before any photo: a password, registration (email, or email and name), or both. */
+function GateScreen({ slug, data, onThrough }: { slug: string; data: ClientGallery; onThrough: () => void }) {
+  const gate = data.gate!;
+  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const cover = data.gallery.cover;
+  const needName = gate.register === "email_name";
+  const studio = data.studio.name;
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setErrors({});
+    try {
+      if (gate.password) await call(`${encodeURIComponent(slug)}/unlock`, "POST", { password });
+    } catch (e2) {
+      setErrors({ password: (e2 as Error).message });
+      setBusy(false);
+      return;
+    }
+    try {
+      if (gate.register) await call(`${encodeURIComponent(slug)}/identify`, "POST", { email, ...(needName ? { name } : {}) });
+    } catch (e2) {
+      const err = e2 as ClientError;
+      setErrors({ [err.message.toLowerCase().includes("name") ? "name" : "email"]: err.message });
+      setBusy(false);
+      return;
+    }
+    onThrough();
+  };
+  return (
+    <div className={`client t-${data.gallery.design.theme} f-${data.gallery.design.font} gatepage`}>
+      {cover ? <div className="gate-bg" style={{ backgroundImage: `url(${cover.preview}), url(${cover.placeholder ?? ""})`, backgroundPosition: focalPos(data.gallery.coverFocalX, data.gallery.coverFocalY) }} aria-hidden="true" /> : null}
+      <form className="gatecard" onSubmit={submit} noValidate>
+        {data.studio.logo ? <img className="gate-logo" src={data.studio.logo} alt={studio} /> : studio ? <div className="studio-mark static">{studio}</div> : null}
+        <h1>{data.gallery.title}</h1>
+        <p>{gate.password ? "This gallery is private. Enter the password you were given to view it." : "Enter your details to view this gallery."}</p>
+        {gate.password ? (
+          <Field label="Password" error={errors.password}>
+            {(p) => <TextInput {...p} type="password" autoComplete="off" required value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />}
+          </Field>
+        ) : null}
+        {gate.register ? (
+          <>
+            {needName ? (
+              <Field label="Your name" error={errors.name}>
+                {(p) => <TextInput {...p} autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} autoFocus={!gate.password} />}
+              </Field>
+            ) : null}
+            <Field label="Email" error={errors.email}>
+              {(p) => <TextInput {...p} type="email" autoComplete="email" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus={!gate.password && !needName} />}
+            </Field>
+          </>
+        ) : null}
+        <Button type="submit" variant="primary" block loading={busy} disabled={(gate.password && !password) || (!!gate.register && (!email.includes("@") || (needName && !name.trim())))}>
+          View gallery
+        </Button>
+      </form>
     </div>
   );
 }

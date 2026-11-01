@@ -7,7 +7,13 @@ const now = sql`(unixepoch('subsec') * 1000)`;
 /** Presentation choices from the gallery Design tab (docs/GALLERIES.md section 6.2a). */
 export interface GalleryDesign {
   layout: "full" | "split" | "framed" | "minimal";
-  landing: "cards" | "photos";
+  /** First page: set cards, every photo, or one chosen set (startSetId). */
+  landing: "cards" | "photos" | "set";
+  startSetId: string | null;
+  /** How the top menu labels its links. */
+  nav: "icons" | "text" | "both";
+  /** Show each photo's file name under it. */
+  filenames: boolean;
   grid: "justified" | "masonry" | "square";
   size: "s" | "m" | "l";
   spacing: 0 | 4 | 8 | 18;
@@ -15,7 +21,7 @@ export interface GalleryDesign {
   font: "serif" | "sans";
 }
 
-export const DEFAULT_DESIGN: GalleryDesign = { layout: "full", landing: "cards", grid: "justified", size: "m", spacing: 8, theme: "light", font: "serif" };
+export const DEFAULT_DESIGN: GalleryDesign = { layout: "full", landing: "cards", startSetId: null, nav: "both", filenames: false, grid: "justified", size: "m", spacing: 8, theme: "light", font: "serif" };
 
 /**
  * A client gallery. Its photos live under `folderPath` (relative to GALLERIES_DIR):
@@ -42,6 +48,10 @@ export const gallery = sqliteTable(
     design: text({ mode: "json" }).$type<Partial<GalleryDesign>>(),
     accessMode: text({ enum: ["link", "password", "invited"] }).notNull().default("link"),
     passwordHash: text(),
+    /** Who must give contact details before seeing photos. */
+    registration: text({ enum: ["none", "email", "email_name"] }).notNull().default("none"),
+    /** Shown on the cover and, while a gallery has no photos yet, as its placeholder. */
+    welcomeMessage: text(),
     downloadSize: text({ enum: ["none", "web", "full"] }).notNull().default("full"),
     downloadLock: text({ enum: ["until_paid", "highlights_early", "none"] }).notNull().default("none"),
     unlockedAt: integer({ mode: "timestamp_ms" }),
@@ -201,4 +211,18 @@ export const downloadEvent = sqliteTable(
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
   },
   (t) => [index("download_event_idx").on(t.galleryId, t.createdAt)],
+);
+
+/** Who has registered to view a gallery (when the gallery asks for contact details first). */
+export const galleryVisitor = sqliteTable(
+  "gallery_visitor",
+  {
+    galleryId: text()
+      .notNull()
+      .references(() => gallery.id, { onDelete: "cascade" }),
+    email: text().notNull(),
+    name: text(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [primaryKey({ columns: [t.galleryId, t.email] })],
 );

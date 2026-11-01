@@ -7,9 +7,10 @@ import { tables } from "@openportrait/db";
 import { derivativePath, renderVariant, VARIANTS, type Variant } from "../galleries/derivatives.js";
 import { newId, resolveInside } from "../galleries/files.js";
 import { designOf, downloadState, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
+import { verifyPassword } from "../auth.js";
 import { email, parse } from "../validate.js";
 
-const { gallery, gallerySet, photo, favoriteList, favoriteSelection, favoriteItem, galleryView, downloadEvent } = tables;
+const { gallery, gallerySet, photo, favoriteList, favoriteSelection, favoriteItem, galleryView, galleryVisitor, downloadEvent } = tables;
 
 export const CLIENT_COOKIE = "op_client";
 const CLIENT_COOKIE_DAYS = 365;
@@ -23,6 +24,12 @@ type Gallery = typeof tables.gallery.$inferSelect;
 export async function clientGalleryRoutes(app: FastifyInstance) {
   const { db, secrets, settings } = app.ctx;
 
+  /** The studio logo, if one was uploaded; the version in the URL lets browsers cache it. */
+  const studioLogo = () => {
+    const v = settings.get("studio.logoVersion");
+    return v ? `/api/branding/logo?v=${v}` : null;
+  };
+
   const clientEmail = (req: FastifyRequest): string | null => {
     const raw = req.cookies[CLIENT_COOKIE];
     if (!raw) return null;
@@ -30,6 +37,18 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     if (!encoded || !sig) return null;
     const value = Buffer.from(encoded, "base64url").toString("utf8");
     return secrets.verify("client", value, sig) ? value : null;
+  };
+
+  /** The cookie that remembers a visitor entered this gallery's password. It stops working when the password changes. */
+  const passCookie = (g: Gallery) => `op_gp_${g.id}`;
+  const passToken = (g: Gallery) => secrets.sign("gallery-password", `${g.id}:${g.passwordHash ?? ""}`);
+
+  /** What a visitor still has to do before seeing photos. Staff previewing skip it. */
+  const gateFor = (req: FastifyRequest, g: Gallery, who: string | null) => {
+    if (req.user) return null;
+    const password = g.accessMode === "password" && !!g.passwordHash && req.cookies[passCookie(g)] !== passToken(g);
+    const register = g.registration !== "none" && !who ? g.registration : null;
+    return password || register ? { password, register } : null;
   };
 
   /** Finds a gallery a visitor may see: live and not expired, or any gallery for signed-in staff (preview). */
@@ -91,10 +110,24 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
 
     const lists = db.select().from(favoriteList).where(eq(favoriteList.galleryId, g.id)).all();
     reply.header("Cache-Control", "private, no-store");
+    const gate = gateFor(req, g, who);
+    if (gate) {
+      // Nothing about the photos is sent until the visitor gets through. A password hides even the cover.
+      return {
+        studio: { name: settings.get("studio.name") ?? "", email: settings.get("studio.email") ?? "", logo: studioLogo() },
+        gate,
+        gallery: { title: g.title, slug: g.slug, preview: false, design: designOf(g), cover: gate.password ? null : coverOf(g.coverPhotoId, visible[0]), coverFocalX: g.coverFocalX, coverFocalY: g.coverFocalY, welcomeMessage: null, date: null },
+        sets: [],
+        photos: [],
+        lists: [],
+        me: { email: null, selections: [] },
+      };
+    }
     return {
-      studio: { name: settings.get("studio.name") ?? "", email: settings.get("studio.email") ?? "" },
+      studio: { name: settings.get("studio.name") ?? "", email: settings.get("studio.email") ?? "", logo: studioLogo() },
       gallery: {
         title: g.title,
+        welcomeMessage: g.welcomeMessage,
         slug: g.slug,
         preview: g.status !== "live",
         design: designOf(g),
@@ -126,11 +159,29 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
   app.post<{ Params: { slug: string } }>("/:slug/identify", { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (req, reply) => {
     const g = load(req, reply);
     if (!g) return;
-    const body = parse(z.object({ email }), req.body, reply);
+    const body = parse(z.object({ email, name: z.string().trim().max(100).optional() }), req.body, reply);
     if (!body) return;
+    if (g.registration === "email_name" && !body.name) return reply.code(400).send({ error: "invalid", field: "name", message: "Enter your name." });
+    if (body.name || g.registration !== "none") {
+      db.insert(galleryVisitor)
+        .values({ galleryId: g.id, email: body.email, name: body.name || null })
+        .onConflictDoUpdate({ target: [galleryVisitor.galleryId, galleryVisitor.email], set: body.name ? { name: body.name } : { email: body.email } })
+        .run();
+    }
     const value = `${Buffer.from(body.email).toString("base64url")}.${secrets.sign("client", body.email)}`;
     reply.setCookie(CLIENT_COOKIE, value, { path: "/", httpOnly: true, sameSite: "lax", secure: req.protocol === "https" || req.headers["x-forwarded-proto"] === "https", maxAge: CLIENT_COOKIE_DAYS * 86_400 });
     return { me: me(g, body.email) };
+  });
+
+  app.post<{ Params: { slug: string } }>("/:slug/unlock", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {
+    const g = load(req, reply);
+    if (!g) return;
+    const body = parse(z.object({ password: z.string().min(1).max(100) }), req.body, reply);
+    if (!body) return;
+    const ok = g.passwordHash ? await verifyPassword(g.passwordHash, body.password) : false;
+    if (!ok) return reply.code(401).send({ error: "wrong_password", field: "password", message: "That password isn't right. Check it with your photographer." });
+    reply.setCookie(passCookie(g), passToken(g), { path: "/", httpOnly: true, sameSite: "lax", secure: req.protocol === "https" || req.headers["x-forwarded-proto"] === "https", maxAge: 30 * 86_400 });
+    return { ok: true };
   });
 
   app.post<{ Params: { slug: string } }>("/:slug/forget", async (_req, reply) => {
@@ -206,6 +257,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     const g = load(req, reply);
     if (!g) return;
     const who = clientEmail(req);
+    if (gateFor(req, g, who)) return reply.code(401).send({ error: "gate", message: "Open the gallery first." });
     if (!who && !req.user) return reply.code(401).send({ error: "identify", message: "Enter your email to download." });
     const p = db.select().from(photo).where(and(eq(photo.id, req.params.photoId), eq(photo.galleryId, g.id), eq(photo.state, "ready"), eq(photo.hidden, false))).get();
     if (!p) return reply.code(404).send({ error: "not_found", message: "That photo is no longer in the gallery." });

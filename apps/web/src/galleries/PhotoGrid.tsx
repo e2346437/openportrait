@@ -3,7 +3,7 @@ import { COLUMN_WIDTH, justify, ROW_HEIGHT, useWidth, type GalleryDesign, type P
 
 interface Props<P extends PhotoBase> {
   photos: P[];
-  design: Pick<GalleryDesign, "grid" | "size" | "spacing">;
+  design: Pick<GalleryDesign, "grid" | "size" | "spacing"> & { filenames?: boolean };
   onOpen: (photo: P) => void;
   /** Buttons drawn over a tile (favorite, download). */
   actions?: (photo: P) => ReactNode;
@@ -23,6 +23,7 @@ export function PhotoGrid<P extends PhotoBase>({ photos, design, onOpen, actions
       <button type="button" className="tile-open" onClick={() => onOpen(p)} aria-label={`Open ${p.filename}`}>
         {p.thumb ? <img src={p.thumb} alt="" loading="lazy" decoding="async" width={p.width ?? undefined} height={p.height ?? undefined} /> : null}
       </button>
+      {design.filenames ? <span className="fname">{p.filename}</span> : null}
       {overlay?.(p)}
       {actions ? <div className="tacts">{actions(p)}</div> : null}
     </div>

@@ -5,7 +5,10 @@ export type DownloadSize = "none" | "web" | "full";
 
 export interface GalleryDesign {
   layout: "full" | "split" | "framed" | "minimal";
-  landing: "cards" | "photos";
+  landing: "cards" | "photos" | "set";
+  startSetId: string | null;
+  nav: "icons" | "text" | "both";
+  filenames: boolean;
   grid: "justified" | "masonry" | "square";
   size: "s" | "m" | "l";
   spacing: 0 | 4 | 8 | 18;
@@ -65,6 +68,10 @@ export interface GalleryDetail {
     design: GalleryDesign;
     downloadSize: DownloadSize;
     downloadLock: DownloadLock;
+    accessMode: "link" | "password";
+    hasPassword: boolean;
+    registration: "none" | "email" | "email_name";
+    welcomeMessage: string | null;
     unlockedAt: number | null;
     expiresAt: number | null;
     publishedAt: number | null;
@@ -126,18 +133,21 @@ export interface ClientCover {
 }
 
 export interface ClientGallery {
-  studio: { name: string; email: string };
+  studio: { name: string; email: string; logo: string | null };
+  /** Present while the visitor still has to enter a password or register. */
+  gate?: { password: boolean; register: "email" | "email_name" | null };
   gallery: {
     title: string;
     slug: string;
+    welcomeMessage: string | null;
     preview: boolean;
     design: GalleryDesign;
     cover: ClientCover | null;
     coverFocalX: number;
     coverFocalY: number;
-    downloadSize: DownloadSize;
-    downloadLock: DownloadLock;
-    unlocked: boolean;
+    downloadSize?: DownloadSize;
+    downloadLock?: DownloadLock;
+    unlocked?: boolean;
     date: number | null;
   };
   sets: Array<{ id: string; name: string; count: number; cover: ClientCover | null; coverFocalX: number; coverFocalY: number; download: { allowed: true } | { allowed: false; reason: "off" | "locked" } }>;

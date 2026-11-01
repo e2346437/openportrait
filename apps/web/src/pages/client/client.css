@@ -149,7 +149,7 @@
 .dr-empty b { color: var(--ink); }
 .client .toasts { z-index: 100; }
 
-/* Cover, in Sprout's quieter style: a letterspaced serif title and a chevron instead of a button */
+/* Cover, in a quiet style: a letterspaced serif title and a chevron instead of a button */
 .cover h1 { font: 400 clamp(34px, 4.6vw, 60px) / 1.05 var(--serif); letter-spacing: 0.06em; margin: 0 0 10px; }
 .client.f-sans .cover h1 { letter-spacing: 0; }
 .cover p { letter-spacing: 0.12em; text-transform: uppercase; font-size: 12px; }
@@ -186,3 +186,34 @@
 .cfoot { border-top: 0; padding-top: 0; }
 
 .landing .setcard .sc-img { width: 100%; }
+
+/* Studio logo, navigation labels, welcome text, filenames, placeholder and the entry screen */
+.studio-logo { position: absolute; z-index: 1; top: 20px; left: max(24px, env(safe-area-inset-left)); max-height: 56px; max-width: min(240px, 50vw); object-fit: contain; }
+.cover.l-framed .studio-logo, .cover.l-minimal .studio-logo { position: static; display: block; margin: 20px auto 0; }
+.cover.l-minimal .studio-logo { margin-left: max(24px, env(safe-area-inset-left)); }
+.cover .welcome { max-width: 52ch; margin-top: 14px; font-size: 16px; line-height: 1.55; letter-spacing: 0; text-transform: none; font-weight: 400; opacity: 0.95; white-space: pre-line; }
+.cover.l-full .studio-logo { background: rgba(255, 255, 255, 0.9); padding: 8px 14px; border-radius: 10px; max-height: 64px; box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); }
+.gname-logo { max-height: 40px; max-width: 180px; object-fit: contain; object-position: left center; }
+.gsets button { display: inline-flex; align-items: center; gap: 7px; }
+.gsets button svg, .gbtn svg { width: 18px; height: 18px; flex: none; }
+.nav-icons .gsets button:not(.setlink) .nl, .nav-icons .gbtn .lbl { display: none; }
+.nav-icons .gbtn { width: 40px; padding: 0; justify-content: center; position: relative; }
+.nav-icons .gbtn .cnt { position: absolute; top: 2px; right: 0; }
+.nav-text .gsets button:not(.setlink) svg, .nav-text .gbtn svg { display: none; }
+.nav-text .gbtn .lbl { display: inline; }
+.nav-both .gbtn .lbl { display: inline; }
+@media (max-width: 640px) { .nav-both .gbtn .lbl, .nav-text .gbtn .lbl { display: none; } .nav-text .gbtn svg { display: block; } }
+.fname { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 10px 7px; font-size: 11.5px; letter-spacing: 0.02em; color: #fff; background: linear-gradient(transparent, rgba(0, 0, 0, 0.55)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.placeholder { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: var(--s8) 20px; max-width: 520px; margin: 0 auto; }
+.placeholder svg { width: 34px; height: 34px; color: var(--g-ink-2); }
+.placeholder h2 { font: 400 30px/1.15 var(--serif); }
+.placeholder p { color: var(--g-ink-2); line-height: 1.55; white-space: pre-line; }
+.gatepage { position: relative; display: grid; place-items: center; padding: 24px; min-height: 100dvh; overflow: hidden; }
+.gate-bg { position: absolute; inset: -24px; background-size: cover; filter: blur(22px) saturate(0.9); opacity: 0.42; }
+.gatecard { position: relative; width: min(100%, 400px); display: flex; flex-direction: column; gap: 14px; padding: 32px 28px; background: var(--g-bg); border: 1px solid var(--g-line); border-radius: 16px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18); text-align: center; }
+.gatecard h1 { font: 400 32px/1.1 var(--serif); }
+.gatecard > p { color: var(--g-ink-2); font-size: 14.5px; line-height: 1.5; }
+.gatecard .field { text-align: left; }
+.gatecard .gate-logo { max-height: 56px; max-width: 220px; margin: 0 auto 4px; object-fit: contain; }
+.gatecard .studio-mark.static { position: static; }
+.client.f-sans .gatecard h1, .client.f-sans .placeholder h2 { font-family: var(--sans); font-weight: 600; letter-spacing: -0.03em; }

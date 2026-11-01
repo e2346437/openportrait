@@ -4,7 +4,7 @@ import { and, asc, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm"
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
-import { requireOwner, requireUser } from "../auth.js";
+import { hashPassword, requireOwner, requireUser } from "../auth.js";
 import { fillCovers } from "../galleries/derivatives.js";
 import { newId, titleFromFolder } from "../galleries/files.js";
 import { designOf, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
@@ -17,7 +17,10 @@ const focal = z.number().min(0).max(100);
 const Design = z
   .object({
     layout: z.enum(["full", "split", "framed", "minimal"]),
-    landing: z.enum(["cards", "photos"]),
+    landing: z.enum(["cards", "photos", "set"]),
+    startSetId: z.string().nullable(),
+    nav: z.enum(["icons", "text", "both"]),
+    filenames: z.boolean(),
     grid: z.enum(["justified", "masonry", "square"]),
     size: z.enum(["s", "m", "l"]),
     spacing: z.union([z.literal(0), z.literal(4), z.literal(8), z.literal(18)]),
@@ -43,6 +46,11 @@ const GalleryPatch = z
     downloadSize: z.enum(["none", "web", "full"]),
     downloadLock: lock,
     expiresAt: z.number().int().positive().nullable(),
+    registration: z.enum(["none", "email", "email_name"]),
+    welcomeMessage: z.string().trim().max(1500).nullable(),
+    /** "password" needs `password` too; "link" clears it. */
+    accessMode: z.enum(["link", "password"]),
+    password: z.string().min(4, "Use at least 4 characters.").max(100),
   })
   .partial();
 
@@ -150,6 +158,10 @@ export async function galleryRoutes(app: FastifyInstance) {
         design: designOf(g),
         downloadSize: g.downloadSize,
         downloadLock: g.downloadLock,
+        accessMode: g.accessMode,
+        hasPassword: !!g.passwordHash,
+        registration: g.registration,
+        welcomeMessage: g.welcomeMessage,
         unlockedAt: g.unlockedAt?.getTime() ?? null,
         expiresAt: g.expiresAt?.getTime() ?? null,
         publishedAt: g.publishedAt?.getTime() ?? null,
@@ -176,10 +188,17 @@ export async function galleryRoutes(app: FastifyInstance) {
     if (body.coverPhotoId && !db.select({ id: photo.id }).from(photo).where(and(eq(photo.id, body.coverPhotoId), eq(photo.galleryId, g.id))).get()) {
       return reply.code(400).send({ error: "invalid", field: "coverPhotoId", message: "That photo is not in this gallery." });
     }
-    const { design, expiresAt, ...rest } = body;
+    const { design, expiresAt, password, accessMode, ...rest } = body;
+    const access: { accessMode?: "link" | "password"; passwordHash?: string | null } = {};
+    if (accessMode === "link") Object.assign(access, { accessMode: "link", passwordHash: null });
+    if (accessMode === "password" || password) {
+      if (!password && !g.passwordHash) return reply.code(400).send({ error: "invalid", field: "password", message: "Choose a password for this gallery." });
+      Object.assign(access, { accessMode: "password", ...(password ? { passwordHash: await hashPassword(password) } : {}) });
+    }
     db.update(gallery)
       .set({
         ...rest,
+        ...access,
         ...(design ? { design: { ...(g.design ?? {}), ...design } } : {}),
         ...(expiresAt !== undefined ? { expiresAt: expiresAt === null ? null : new Date(expiresAt) } : {}),
         updatedAt: new Date(),

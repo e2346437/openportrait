@@ -1,0 +1,4 @@
+.in-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s4); }
+.in-title { margin: 0 0 2px; font-size: 17px; font-weight: 600; font-family: var(--mono); overflow-wrap: anywhere; }
+.in-target { max-width: 100%; min-width: 0; background: var(--surface); color: var(--ink); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

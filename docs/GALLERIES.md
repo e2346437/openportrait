@@ -156,6 +156,7 @@ Counts of unmatched folders and unsorted incoming photos appear as badges in the
 - The link is `APP_URL/g/<slug>`, for example `/g/smith-family-2026`.
 - Access modes, per gallery: **private link** (the default: an unguessable URL), **password**, or **invited emails only** (magic link, same as the client portal). The default for new galleries is set in Settings › Galleries.
 - In private-link and password mode, the client is asked for an email only at the first action that needs one (first favorite or first download), never before seeing the photos. This keeps the first visit to zero steps while still tracking who favorited what.
+- **Registration** (optional, per gallery): visitors give their email, or name and email, before any photo is sent. Passwords and registration can be combined. Nothing about the photos is sent until both are satisfied, and changing a password ends every earlier unlock.
 - Signed-in portal clients go straight in, and their galleries are listed in the portal.
 
 ### 6.2 Layout
@@ -169,12 +170,15 @@ Counts of unmatched folders and unsorted incoming photos appear as badges in the
 
 ### 6.2a Presentation (Design tab)
 
-Eric wants presentation control close to what Sprout galleries offer (cover photo, focal point, and how the cover carries through the main page and set pages). OpenPortrait matches the capability with its own design. Each gallery has a **Design** tab in the admin:
+Studios expect fine presentation control (cover photo, focal point, and how the cover carries through the main page and set pages). OpenPortrait provides this with its own design. Each gallery has a **Design** tab in the admin:
 
 - **Cover photo and focal point.** Pick any photo as the gallery cover, then click or drag a point on it (arrow keys nudge it) to mark what must stay in frame. Every crop of that photo uses the point: the desktop cover, the phone cover, the gallery-list thumbnail, the email header, and the social share image. Live crop previews show all of these while dragging.
 - **Set covers.** Each set has its own cover photo and focal point, used for its card on the gallery's main page and the banner at the top of its set page. A new set defaults to its first photo with a centered point.
 - **Cover layout:** full bleed, split (text panel beside the photo), framed (inset photo with a centered title below), or text only.
 - **Pages:** open on set cards (a main page with one card per set, then a page per set) or straight on the first set's photos; photo grid as rows (justified), columns (masonry) or squares; photo size small, medium or large; spacing none, tight, normal or airy; light or dark background; serif or sans titles.
+- **Menu and start page:** the top menu shows icons, text, or both; the first page can be the set cards, all photos, or one chosen set. File names can be shown under each photo.
+- **Welcome message and placeholder:** a short message on the cover. While a shared gallery has no photos yet, clients see it as a "photos are on the way" page.
+- **Logo:** the studio logo (Settings › Galleries) replaces the studio name on the cover, the sticky bar and the entry screen.
 - **Save as studio default** stores the current choices as the default for new galleries (Settings › Galleries).
 
 Focal points are stored as percentages (`focal_x`, `focal_y`, 0 to 100) and applied with CSS `object-position`/`background-position`, so no extra derivatives are needed. The `og:image` share crop and the email header are rendered server-side with sharp using the same point (attention-based crop as a fallback when none is set).
@@ -193,15 +197,23 @@ Focal points are stored as percentages (`focal_x`, `focal_y`, 0 to 100) and appl
   - **Highlights early:** the Highlights set (any set marked "early") downloads now; the rest unlocks when paid.
   - **No lock:** downloads open as soon as the gallery is published.
 - While anything is locked, the download dialog says why ("Full gallery downloads open once your final balance is paid") and links to the invoice. When the payment clears (PayPal webhook or a manual payment entry), the lock lifts automatically and the client can be emailed.
-- **Watermark:** previews of locked photos are watermarked, and the watermark disappears automatically once the balance is paid. Downloaded files are never watermarked. Galleries with no lock never show a watermark.
+- **Watermark:** previews and thumbnails of photos whose downloads are still waiting on payment carry the studio's wording (Settings › Galleries, default the studio name) in a diagonal repeat. Paying removes it with no extra step, a gallery with no lock never shows one, and downloaded files are never watermarked. Sets marked for early download stay clean.
 - Optional download PIN, separate from the gallery password.
-- **Download all** or a whole set or the favorites builds a zip in the background. Zips of up to 2 GB stream immediately. Larger ones are split into parts, and the client gets an email when they are ready. Zips are cached in `/cache` for 7 days.
+- **Download** offers everything, one set, or the client's favorites as zip files. They are streamed as they are built, so nothing waits and nothing is stored. A zip over 2 GB is split into numbered parts that each open on any device. Only sets the lock allows are included.
 - Single photos download straight from the lightbox.
 - Every download is logged with who, what, and which size.
 
 ### 6.5 Orders
 
 The gallery links to the client's orders in the portal: an **Order** button opens the client's order and invoice list for the shoot, and when an unpaid balance gates downloads, the download dialog links to that invoice. Print ordering comes after 1.0 (SPEC.md). Until then, a lightweight **Request prints** action on favorites lists sends the photographer a print request (photos plus notes), which they turn into a quote or order in the existing Orders feature.
+
+### 6.x Gallery emails
+
+Emails go through the shared email base (Settings > Email, logged in `email_log` with the gallery's id).
+
+- **Email client** (on a shared gallery): pick people from the shoot's contacts or anyone who registered to view, or type addresses. The wording is editable and a "View your gallery" button is added. It refuses, with a plain reason, when email isn't set up, the gallery isn't shared, or no public address is set. A password is never put in the email.
+- **Favorites notice**: when a client sends a favorites list, the studio email address gets a note with a link to the Favorites tab. Skipped quietly when email isn't set up.
+- The dialog lists what was sent for the gallery and whether it arrived.
 
 ## 7. Data model
 

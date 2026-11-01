@@ -14,6 +14,11 @@ import { clientIp } from "./client-ip.js";
 import { Secrets } from "./secrets.js";
 import { Settings } from "./settings.js";
 import { TunnelManager } from "./tunnel.js";
+import { registerDerivativesJob } from "./galleries/derivatives.js";
+import { GalleryIngest } from "./galleries/ingest.js";
+import { startGalleryWatcher } from "./galleries/watcher.js";
+import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
+import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
 import { mcpRoutes } from "./ai/mcp.js";
 import { oauthRoutes, oauthStudioRoutes } from "./ai/oauth.js";
 import { aiRoutes } from "./routes/ai.js";
@@ -21,6 +26,8 @@ import { automationRoutes } from "./routes/automation.js";
 import { ensureDefaults } from "./domain/defaults.js";
 import { DomainError } from "./domain/context.js";
 import { authRoutes } from "./routes/auth.js";
+import { brandingRoutes } from "./routes/branding.js";
+import { uploadRoutes as photoUploadRoutes } from "./routes/uploads.js";
 import { catalogRoutes } from "./routes/catalog.js";
 import { calendarRoutes } from "./routes/calendar.js";
 import { googleRoutes } from "./routes/google.js";
@@ -33,6 +40,7 @@ import { internetRoutes } from "./routes/internet.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { setupRoutes } from "./routes/setup.js";
 import { tetherRoutes } from "./routes/tether.js";
+import { incomingRoutes } from "./routes/incoming.js";
 import { uploadRoutes } from "./routes/upload.js";
 import { UploadManager } from "./upload/manager.js";
 
@@ -48,6 +56,7 @@ export interface AppContext {
   tunnel: TunnelManager;
   uploads: UploadManager;
   jobs: JobRunner;
+  galleries: GalleryIngest;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
   publicUrl(): string;
   ip(req: import("fastify").FastifyRequest): string;
@@ -80,6 +89,8 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   const settings = new Settings(db, secrets);
   const tunnel = new TunnelManager(app.log);
   const jobs = new JobRunner(db, { logger: app.log });
+  const galleries = new GalleryIngest({ db, settings, galleriesDir: config.galleriesDir, settleSeconds: config.ingestSettleSeconds, logger: app.log });
+  registerDerivativesJob(config);
   const uploads = new UploadManager({ config, db, settings, log: app.log, lanAddresses });
 
   const ctx: AppContext = {
@@ -90,6 +101,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     tunnel,
     uploads,
     jobs,
+    galleries,
     publicUrl() {
       const host = tunnel.getStatus().hostnames[0];
       return settings.get("internet.publicUrl") || config.appUrl || (host ? `https://${host}` : "");
@@ -141,9 +153,17 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(authRoutes, { prefix: "/api/studio/auth" });
   await app.register(settingsRoutes, { prefix: "/api/studio/settings" });
   await app.register(internetRoutes, { prefix: "/api/studio/internet" });
+  await app.register(galleryRoutes, { prefix: "/api/studio/galleries" });
+  await app.register(ingestRoutes, { prefix: "/api/studio/ingest" });
+  // Client pages and their media are public; the private link (and signed media URLs) are the key.
+  await app.register(clientGalleryRoutes, { prefix: "/api/g" });
+  await app.register(mediaRoutes);
+  await app.register(brandingRoutes);
+  await app.register(photoUploadRoutes, { prefix: "/api/studio/uploads" });
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });
   await app.register(tetherRoutes, { prefix: "/api/studio/tether" });
+  await app.register(incomingRoutes, { prefix: "/api/studio/incoming" });
   await app.register(uploadRoutes, { prefix: "/api/studio/upload" });
   await app.register(calendarRoutes, { prefix: "/api/studio" });
   await app.register(googleRoutes, { prefix: "/api/studio/google" });
@@ -187,17 +207,21 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     uploads.start();
     scheduleBackup(db);
     const hourly = setInterval(() => scheduleBackup(db), 3_600_000);
+    fs.mkdirSync(config.galleriesDir, { recursive: true });
+    const stopWatcher = startGalleryWatcher({ dir: config.galleriesDir, ingest: galleries, rescanMinutes: config.watchRescanMinutes, settleSeconds: config.ingestSettleSeconds, logger: app.log });
     const googleTimer = setInterval(() => requestSync(db, 0), 5 * 60_000);
     setTimeout(() => requestSync(db, 0), 10_000).unref();
     app.addHook("onClose", async () => {
       clearInterval(hourly);
       clearInterval(googleTimer);
+      await stopWatcher();
       await uploads.stop();
       await jobs.stop();
       await tunnel.shutdown();
     });
   }
   app.addHook("onClose", async () => {
+    galleries.close();
     db.$client.close();
   });
 

@@ -4,13 +4,13 @@ Status: draft for review (step 1 of the project plan). Open questions are listed
 
 ## 1. What OpenPortrait is
 
-OpenPortrait is a self-hosted replacement for Sprout Studio. One install serves one studio: the photographer, any staff, and their clients. It runs as a single Docker container. Gallery images stay on the photographer's own storage (an Unraid share) instead of paid cloud storage.
+OpenPortrait is a self-hosted alternative to hosted studio-management services. One install serves one studio: the photographer, any staff, and their clients. It runs as a single Docker container. Gallery images stay on the photographer's own storage (an Unraid share) instead of paid cloud storage.
 
 It is built first for ERW Photography and released as open source, so everything studio-specific (name, logo, colors, email copy, packages) is a setting, not code.
 
 ### Goals
 
-- Cover the Sprout Studio workflows ERW Photography uses every week (section 2).
+- Cover the studio workflows a working photographer uses every week (section 2).
 - Get edited photos into client galleries with no manual upload when the editing machine is on the local network.
 - Install from Unraid Community Applications with an icon, a WebUI link, and clearly labeled settings.
 - Feel like a polished product. See the design standards in `CLAUDE.md`.
@@ -197,7 +197,7 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 Google sync details (as built): shoot times are the source of truth, so one deleted in Google is restored on the next pass, while appointments and time off deleted in Google are deleted locally. Edits made in Google to a time or place come back; a shoot time's title is always rebuilt from the shoot. Events created in the OpenPortrait Google calendar import as appointments. Other calendars store busy times only, never titles. All-day items end at the start of the day after their last day. Changes in the app are pushed within seconds, and a five-minute poll is the backstop. Setup guide: [`docs/google-calendar.md`](google-calendar.md).
 | **PayPal** | PayPal Checkout (Orders v2 API) for deposits and invoice payments, with webhooks for confirmation. The client ID and secret are entered in Settings. Payments go through a `PaymentProvider` interface, so Stripe and Square can be added as connectors later. |
 | **Email** | Any SMTP provider. |
-| **Sprout Studio import** | A one-time importer for CSV exports (contacts, leads, shoots or projects, invoices and payments where available). Mapping is shown before anything is written. ERW Photography's exports are the test data. |
+| **Studio data import** | A one-time importer for CSV exports (contacts, leads, shoots or projects, invoices and payments where available). Mapping is shown before anything is written. ERW Photography's exports are the test data. |
 | **Lightroom / Aftershoot** | Folder export (section 4). |
 
 ## 7. Access and security
@@ -388,7 +388,7 @@ Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Dr
 
 1. **Spec** (this document).
 2. **Skeleton and packaging:** repo tooling, Dockerfile with built-in cloudflared, CI image build to GHCR, Unraid template, first-run setup wizard (studio name, owner account), login, Settings including the Internet access guide, the design system and app shell.
-3. **Business core:** CRM, leads, shoots, calendar and Google sync, schedulers and booking pages, questionnaires, contracts and e-signatures, quotes, orders and PayPal payments, credits and coupons, and the Sprout import.
+3. **Business core:** CRM, leads, shoots, calendar and Google sync, schedulers and booking pages, questionnaires, contracts and e-signatures, quotes, orders and PayPal payments, credits and coupons, and the data import.
 4. **Galleries:** folder watcher and matching, the upload page, client gallery experience, favorites, downloads, and links to orders.
 
 5. **AI access (MCP) and automation mode:** section 10. The foundation and OAuth can land right after the skeleton, and write tools and automations arrive with the modules they control.
@@ -410,4 +410,4 @@ Decided by Eric on 2026-11-01:
 
 9. **AI access:** proposed in section 10. Eric chose on 2026-11-01 that outward and money actions need approval by default. The rest of the design, the failsafe default, and the first clients to verify are awaiting confirmation.
 
-Still needed: sample Sprout Studio CSV exports (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.
+Still needed: sample CSV exports from the studio's current system (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.

@@ -204,7 +204,7 @@ export function CopyValue({ value, label }: { value: string; label: string }) {
 }
 
 /** A native modal dialog: focus is trapped, Escape closes it, and the page behind is inert. */
-export function Dialog({ open, onClose, title, description, children, footer, wide }: { open: boolean; onClose: () => void; title: ReactNode; description?: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+export function Dialog({ open, onClose, title, description, children, footer, wide }: { open: boolean; onClose: () => void; title: ReactNode; description?: ReactNode; children?: ReactNode; footer?: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
@@ -231,7 +231,7 @@ export function Dialog({ open, onClose, title, description, children, footer, wi
         </div>
         <Button variant="ghost" size="sm" className="icon" icon="x" aria-label="Close" onClick={onClose} />
       </div>
-      <div className="dialog-body">{children}</div>
+      {children ? <div className="dialog-body">{children}</div> : null}
       {footer ? <div className="dialog-foot">{footer}</div> : null}
     </dialog>
   );
@@ -281,3 +281,31 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 export const useToast = () => useContext(ToastContext);
+
+/** Tabs that keep the selected one in the URL hash is the caller's job; this is just the accessible strip. */
+export function Tabs<T extends string>({ value, onChange, tabs, label }: { value: T; onChange: (v: T) => void; tabs: Array<{ id: T; label: ReactNode; icon?: IconName; count?: number }>; label: string }) {
+  return (
+    <div className="tabs" role="tablist" aria-label={label}>
+      {tabs.map((t) => (
+        <button key={t.id} type="button" role="tab" aria-selected={value === t.id} onClick={() => onChange(t.id)}>
+          {t.icon ? <Icon name={t.icon} /> : null}
+          {t.label}
+          {t.count !== undefined ? <span className="ct">{t.count}</span> : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** A row of mutually exclusive choices (a styled radio group). */
+export function Segmented<T extends string | number>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: Array<{ value: T; label: ReactNode }>; label: string }) {
+  return (
+    <div className="seg" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button key={String(o.value)} type="button" role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}

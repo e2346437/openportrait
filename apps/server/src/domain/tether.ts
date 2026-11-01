@@ -72,6 +72,8 @@ type Tracked = { size: number; mtimeMs: number; changedAt: number; firstSeen: nu
 export interface TetherEvents {
   onPhoto(photo: LandedPhoto): void;
   onProgress(uploading: UploadingFile[]): void;
+  /** A photo was rejected; `latest` is what the screen should show now, or null when nothing is left. */
+  onRemoved?(latest: LandedPhoto | null, total: number): void;
 }
 
 /**
@@ -133,6 +135,39 @@ export class FolderTracker {
       if (!latest || t.landedAt > latest.at) latest = this.photo(rel, t);
     }
     return { latest, total, uploading: this.uploading() };
+  }
+
+  /** Every finished photo, oldest first, so a screen can step back and forth through the set. */
+  list(): LandedPhoto[] {
+    if (!this.primed) this.tick();
+    const out: LandedPhoto[] = [];
+    for (const [rel, t] of this.files) if (t.state === "landed") out.push(this.photo(rel, t));
+    return out.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
+  }
+
+  /**
+   * Deletes a photo the client doesn't like, for good, along with any file of the same shot in that folder
+   * (a camera set to RAW+JPEG sends both). Nothing is kept anywhere, so the client can trust it's gone.
+   */
+  remove(rel: string): number {
+    const dir = path.dirname(path.join(this.root, rel));
+    const stem = path.basename(rel, path.extname(rel));
+    const gone: string[] = [];
+    try {
+      for (const name of fs.readdirSync(dir)) {
+        if (path.basename(name, path.extname(name)) !== stem || !isPhotoFile(name)) continue;
+        fs.unlinkSync(path.join(dir, name));
+        gone.push(name);
+      }
+    } catch {
+      /* report what was removed so far */
+    }
+    if (!gone.length) return 0;
+    const relDir = path.posix.dirname(rel);
+    for (const name of gone) this.files.delete(relDir === "." ? name : `${relDir}/${name}`);
+    const snap = this.snapshot();
+    for (const l of this.listeners) l.onRemoved?.(snap.latest, snap.total);
+    return gone.length;
   }
 
   private photo(rel: string, t: Tracked): LandedPhoto {

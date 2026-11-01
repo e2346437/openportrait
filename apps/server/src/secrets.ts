@@ -35,6 +35,18 @@ export class Secrets {
     return Buffer.concat([decipher.update(Buffer.from(data, "base64")), decipher.final()]).toString("utf8");
   }
 
+  /** URL-safe HMAC of `data` under a purpose-specific subkey (signed media URLs, gallery cookies). */
+  sign(purpose: string, data: string): string {
+    const sub = crypto.createHmac("sha256", this.key).update(`subkey:${purpose}`).digest();
+    return crypto.createHmac("sha256", sub).update(data).digest("base64url").slice(0, 32);
+  }
+
+  verify(purpose: string, data: string, signature: string): boolean {
+    const expected = Buffer.from(this.sign(purpose, data));
+    const given = Buffer.from(signature);
+    return expected.length === given.length && crypto.timingSafeEqual(expected, given);
+  }
+
   /** Stable per-install identifier derived from the key (never reveals the key). */
   instanceId(): string {
     return crypto.createHmac("sha256", this.key).update("instance-id").digest("hex").slice(0, 16);

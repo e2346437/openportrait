@@ -85,6 +85,7 @@ export async function tetherRoutes(app: FastifyInstance) {
     const unsubscribe = tracker.subscribe({
       onPhoto: (p: LandedPhoto) => send("photo", { ...p, total: tracker.snapshot().total }),
       onProgress: (uploading: UploadingFile[]) => send("progress", { uploading }),
+      onRemoved: (latest, total) => send("removed", { latest, total }),
     });
     // A comment line every 15 seconds keeps proxies from closing a quiet connection.
     // A live view open means cameras should be able to upload: keep an on-demand upload server open while it is.
@@ -100,6 +101,12 @@ export async function tetherRoutes(app: FastifyInstance) {
       unsubscribe();
     };
     req.raw.on("close", done);
+  });
+
+  /** The photos in this set so far, oldest first, for the back and forward buttons. */
+  app.get("/:source/list", async (req) => {
+    const source = (req.params as { source: string }).source;
+    return { photos: trackerFor(source, resolve(req, source)).list() };
   });
 
   const PhotoQuery = z.object({ path: z.string().min(1).max(1000), v: z.string().optional() });
@@ -128,5 +135,25 @@ export async function tetherRoutes(app: FastifyInstance) {
       if (err instanceof PreviewError) return reply.code(422).send({ error: "no_preview", message: err.message });
       throw err;
     }
+  });
+
+  /** "I don't like that one": deletes the photo at once, for good, and tells every screen showing this folder. */
+  app.delete("/:source/photo", async (req, reply) => {
+    const source = (req.params as { source: string }).source;
+    const q = parse(PhotoQuery, req.query, reply);
+    if (!q) return;
+    const r = resolve(req, source);
+    let file: string;
+    try {
+      file = resolveInside(r.dir, q.path);
+    } catch {
+      return reply.code(400).send({ error: "invalid", message: "That file isn't inside the watched folder." });
+    }
+    if (!isPhotoFile(file.split(/[\\/]/).pop() ?? "") || !fs.existsSync(file)) return reply.code(404).send({ error: "not_found", message: "That photo is no longer there." });
+    const rel = q.path.replace(/\\/g, "/");
+    const t = trackerFor(source, r);
+    const removed = t.remove(rel);
+    if (!removed) return reply.code(500).send({ error: "failed", message: "Couldn't delete that photo." });
+    return { ok: true, removed };
   });
 }

@@ -1,0 +1,19 @@
+import type { FastifyInstance } from "fastify";
+import { z } from "zod";
+import { requireUser } from "../auth.js";
+import { listIncoming, moveToShoot } from "../domain/incoming.js";
+import { serviceContext } from "./crm.js";
+import { parse } from "../validate.js";
+
+/** The Incoming screen: camera files uploaded over SFTP, waiting to be sorted into shoots. */
+export async function incomingRoutes(app: FastifyInstance) {
+  app.addHook("preHandler", requireUser);
+
+  app.get("/", async (req) => listIncoming(serviceContext(app, req)));
+
+  app.post("/move", async (req, reply) => {
+    const body = parse(z.object({ shootId: z.string().min(1, "Choose a shoot."), paths: z.array(z.string().min(1)).min(1, "Choose at least one photo.").max(2000) }), req.body ?? {}, reply);
+    if (!body) return;
+    return moveToShoot(serviceContext(app, req), body.shootId, body.paths);
+  });
+}

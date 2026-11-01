@@ -100,6 +100,12 @@ export async function tetherRoutes(app: FastifyInstance) {
     req.raw.on("close", done);
   });
 
+  /** The photos in this set so far, oldest first, for the back and forward buttons. */
+  app.get("/:source/list", async (req) => {
+    const source = (req.params as { source: string }).source;
+    return { photos: trackerFor(source, resolve(req, source)).list() };
+  });
+
   const PhotoQuery = z.object({ path: z.string().min(1).max(1000), v: z.string().optional() });
   app.get("/:source/photo", async (req, reply) => {
     const source = (req.params as { source: string }).source;

@@ -137,6 +137,14 @@ export class FolderTracker {
     return { latest, total, uploading: this.uploading() };
   }
 
+  /** Every finished photo, oldest first, so a screen can step back and forth through the set. */
+  list(): LandedPhoto[] {
+    if (!this.primed) this.tick();
+    const out: LandedPhoto[] = [];
+    for (const [rel, t] of this.files) if (t.state === "landed") out.push(this.photo(rel, t));
+    return out.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
+  }
+
   /**
    * Deletes a photo the client doesn't like, for good, along with any file of the same shot in that folder
    * (a camera set to RAW+JPEG sends both). Nothing is kept anywhere, so the client can trust it's gone.

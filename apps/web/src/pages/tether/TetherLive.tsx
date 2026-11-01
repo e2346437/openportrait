@@ -19,6 +19,9 @@ export function TetherLivePage() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const tether = useTether(source);
   const { current, markShown } = tether;
+  // Browsing: null follows the newest photo; an id holds the screen on an earlier one while new photos keep arriving.
+  const [pinned, setPinned] = useState<string | null>(null);
+  const [history, setHistory] = useState<TetherPhoto[]>([]);
   const [chromeVisible, setChromeVisible] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -40,13 +43,34 @@ export function TetherLivePage() {
     [setSearch],
   );
 
+  useEffect(() => {
+    let stop = false;
+    void api<{ photos: TetherPhoto[] }>(`/tether/${encodeURIComponent(source)}/list`)
+      .then((r) => !stop && setHistory(r.photos))
+      .catch(() => undefined);
+    return () => {
+      stop = true;
+    };
+  }, [source, tether.total, current?.photo.id, tether.conn]);
+  useEffect(() => setPinned(null), [source]);
+
+  const pinnedPhoto = pinned ? history.find((p) => p.id === pinned) ?? null : null;
+  const target = pinnedPhoto ?? current?.photo ?? null;
+  const at = target ? history.findIndex((p) => p.id === target.id) : -1;
+  const behind = !!pinnedPhoto && !!current && current.photo.id !== pinnedPhoto.id;
+  const step = (d: -1 | 1) => {
+    const next = history[at + d];
+    if (!next) return;
+    setPinned(next.id === history[history.length - 1]?.id ? null : next.id);
+  };
+
   // Preload each new photo, then swap it in, so the screen never goes blank between frames.
   useEffect(() => {
-    if (!current) {
+    if (!target) {
       setShown(null);
       return;
     }
-    const { photo } = current;
+    const photo = target;
     if (shown?.photo.id === photo.id && shown.photo.at === photo.at) return;
     setLoadingId(photo.id);
     const img = new Image();
@@ -68,7 +92,7 @@ export function TetherLivePage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.photo.id, current?.photo.at, source]);
+  }, [target?.id, target?.at, source]);
 
   // Deleting can't be undone, so the first tap asks and the second (within a few seconds) does it.
   const [confirming, setConfirming] = useState(false);
@@ -85,6 +109,8 @@ export function TetherLivePage() {
     setDeleting(true);
     try {
       await api(`/tether/${encodeURIComponent(source)}/photo?path=${encodeURIComponent(shown.photo.id)}`, { method: "DELETE" });
+      const neighbour = history[at - 1] ?? history[at + 1] ?? null;
+      setPinned(pinned && neighbour && neighbour.id !== history[history.length - 1]?.id ? neighbour.id : null);
       setShown(null);
     } catch {
       /* the photo stays on screen, which tells you it wasn't deleted */
@@ -125,11 +151,13 @@ export function TetherLivePage() {
       if ((e.target as HTMLElement).closest("input")) return;
       wake();
       if (e.key === "f" || e.key === "F") void toggleFullscreen();
+      if (e.key === "ArrowLeft") step(-1);
+      if (e.key === "ArrowRight") step(1);
       if (e.key === "b" || e.key === "B") setBg(light ? "#000000" : "#ffffff");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [wake, toggleFullscreen, setBg, light]);
+  }, [wake, toggleFullscreen, setBg, light, history, at]);
 
   const up = tether.uploading;
   const lead = up[0];
@@ -178,6 +206,21 @@ export function TetherLivePage() {
             )}
           </div>
         )}
+        {history.length > 1 ? (
+          <>
+            <button type="button" className="tether-btn icon tether-nav prev" aria-label="Previous photo (left arrow)" onClick={() => step(-1)} disabled={at <= 0}>
+              <Icon name="chevronLeft" />
+            </button>
+            <button type="button" className="tether-btn icon tether-nav next" aria-label="Next photo (right arrow)" onClick={() => step(1)} disabled={at < 0 || at >= history.length - 1}>
+              <Icon name="chevronRight" />
+            </button>
+          </>
+        ) : null}
+        {behind ? (
+          <button type="button" className="tether-btn tether-latest" onClick={() => setPinned(null)}>
+            New photo arrived · Jump to latest
+          </button>
+        ) : null}
         {loadingId && shown && <span className="tether-loading" role="status" aria-label="Loading the next photo"><Spinner /></span>}
       </main>
 
@@ -188,7 +231,7 @@ export function TetherLivePage() {
           </Link>
           <div>
             <b>{tether.label || "Tethering"}</b>
-            <span>{tether.total} {tether.total === 1 ? "photo" : "photos"} in this folder</span>
+            <span>{at >= 0 ? `${at + 1} of ${history.length}` : `${tether.total} ${tether.total === 1 ? "photo" : "photos"}`} in this folder</span>
           </div>
         </div>
         <div className="tether-tools">

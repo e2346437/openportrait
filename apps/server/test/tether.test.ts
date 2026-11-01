@@ -130,6 +130,8 @@ describe("tether routes", () => {
     fs.mkdirSync(dir, { recursive: true });
     for (const n of ["DSC_0001.jpg", "DSC_0001.NEF", "DSC_0002.jpg"]) fs.writeFileSync(path.join(dir, n), Buffer.alloc(100, 1));
     const del = (p: string) => app.inject({ method: "DELETE", url: `/api/studio/tether/incoming/photo?path=${encodeURIComponent(p)}`, headers: { cookie } });
+    const listed = (await app.inject({ method: "GET", url: "/api/studio/tether/incoming/list", headers: { cookie } })).json().photos;
+    expect(listed.map((p: { name: string }) => p.name).sort()).toEqual(["DSC_0001.NEF", "DSC_0001.jpg", "DSC_0002.jpg"]);
     expect((await del("../../etc/passwd.jpg")).statusCode).toBe(400);
     expect((await del("Z9/nope.jpg")).statusCode).toBe(404);
     expect((await del("Z9/DSC_0001.jpg")).json()).toEqual({ ok: true, removed: 2 });

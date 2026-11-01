@@ -176,6 +176,7 @@ Decided by Eric on 2026-11-01:
 2. **Payments:** PayPal first, behind a provider interface. Manual payments are always available.
 3. **License:** AGPL-3.0 (see `LICENSE`). Outside contributions are accepted under a contributor agreement (see `CONTRIBUTING.md`), so a future paid edition can be offered under a separate license.
 4. **Print store:** after 1.0.
-5. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
+5. **Database:** SQLite only in 1.0, with the code kept Postgres-ready (Drizzle) so Postgres can be added later. Keep `/config` on a cache pool or disk path, not a `/mnt/user` FUSE path.
+6. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
 
 Still needed: sample Sprout Studio CSV exports (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.

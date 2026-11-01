@@ -15,6 +15,13 @@
       "when": 1793561468960,
       "tag": "0001_exotic_wilson_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793562603134,
+      "tag": "0002_gigantic_skrulls",
+      "breakpoints": true
     }
   ]
 }

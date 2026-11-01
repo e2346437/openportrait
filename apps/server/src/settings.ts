@@ -10,18 +10,6 @@ export interface SettingTypes {
   "studio.timezone": string;
   /** Set when a logo has been uploaded; changes with each upload. */
   "studio.logoVersion": number;
-  "email.host": string;
-  "email.port": number;
-  /** How to secure the connection: STARTTLS (587), TLS (465), or none. */
-  "email.security": "starttls" | "tls" | "none";
-  "email.user": string;
-  "email.password": string; // secret
-  "email.fromName": string;
-  "email.fromAddress": string;
-  "email.replyTo": string;
-  "email.template.galleryReady": { subject?: string; body?: string };
-  /** Email the studio when a client sends a favorites list. */
-  "galleries.notifyOnSubmit": boolean;
   "internet.publicUrl": string;
   "internet.trustCloudflare": boolean;
   "tunnel.token": string; // secret
@@ -40,7 +28,7 @@ export interface SettingTypes {
   "folders.deliverySubdir": string;
 }
 
-const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token", "email.password"]);
+const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token"]);
 
 export class Settings {
   constructor(

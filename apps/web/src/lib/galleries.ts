@@ -82,10 +82,6 @@ export interface GalleryDetail {
   sets: StudioSet[];
   photos: StudioPhoto[];
   lists: FavoriteListInfo[];
-  /** People on this gallery's shoot who have an email address. */
-  recipients: Array<{ contactId: string | null; name: string; email: string }>;
-  emailReady: boolean;
-  emails: Array<{ id: string; kind: string; toEmail: string; subject: string; status: "sent" | "failed"; error: string | null; at: number }>;
 }
 
 export interface GallerySummary {

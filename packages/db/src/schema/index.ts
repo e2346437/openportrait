@@ -5,4 +5,3 @@ export * from "./jobs.js";
 export * from "./galleries.js";
 export * from "./people.js";
 export * from "./pipeline.js";
-export * from "./email.js";

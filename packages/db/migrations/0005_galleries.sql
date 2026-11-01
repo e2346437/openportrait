@@ -146,21 +146,4 @@ CREATE TABLE `photo` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `photo_path_idx` ON `photo` (`rel_path`);--> statement-breakpoint
 CREATE INDEX `photo_gallery_idx` ON `photo` (`gallery_id`,`set_id`,`sort`);--> statement-breakpoint
-CREATE INDEX `photo_hash_idx` ON `photo` (`gallery_id`,`content_hash`);--> statement-breakpoint
-CREATE TABLE `message` (
-	`id` text PRIMARY KEY NOT NULL,
-	`kind` text NOT NULL,
-	`to_email` text NOT NULL,
-	`to_name` text,
-	`subject` text NOT NULL,
-	`body` text NOT NULL,
-	`status` text NOT NULL,
-	`error` text,
-	`contact_id` text,
-	`shoot_id` text,
-	`gallery_id` text,
-	`created_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL
-);
---> statement-breakpoint
-CREATE INDEX `message_gallery_idx` ON `message` (`gallery_id`,`created_at`);--> statement-breakpoint
-CREATE INDEX `message_contact_idx` ON `message` (`contact_id`,`created_at`);
+CREATE INDEX `photo_hash_idx` ON `photo` (`gallery_id`,`content_hash`);

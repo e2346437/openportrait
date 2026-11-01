@@ -53,9 +53,6 @@ importers:
       fastify:
         specifier: ^5.12.7
         version: 5.12.7
-      nodemailer:
-        specifier: ^10.3.1
-        version: 10.3.1
       sharp:
         specifier: ^0.35.5
         version: 0.35.5(@types/node@22.20.5)
@@ -63,9 +60,6 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
-      '@types/nodemailer':
-        specifier: ^8.0.2
-        version: 8.0.2
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -1034,9 +1028,6 @@ packages:
   '@types/node@22.20.5':
     resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
 
-  '@types/nodemailer@8.0.2':
-    resolution: {integrity: sha512-c7M5ox8p0nEOfbJ2E9Qcmt8/QCu/VzsiAhzBiZbvky2PhKZDHpKB3sQHBM5MEZNkCfBOaS6S9//AGPRTNB7IaA==}
-
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
     peerDependencies:
@@ -1642,10 +1633,6 @@ packages:
   node-addon-api@8.9.2:
     resolution: {integrity: sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg==}
     engines: {node: ^18 || ^20 || >= 21}
-
-  nodemailer@10.3.1:
-    resolution: {integrity: sha512-uF0AFsJC07Y1vdW7p580DKAnh7rAO+4UPSSB3mDCPNDufoiaOebV6JmrzpxB14OjEEEiBsNdYoM2Y+fN8M7BBA==}
-    engines: {node: '>=20.0.0'}
 
   object-assign@4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
@@ -2609,10 +2596,6 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/nodemailer@8.0.2':
-    dependencies:
-      '@types/node': 22.20.5
-
   '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
       '@types/react': 19.3.0
@@ -3159,8 +3142,6 @@ snapshots:
       content-type: 2.1.0
 
   node-addon-api@8.9.2: {}
-
-  nodemailer@10.3.1: {}
 
   object-assign@4.1.1: {}
 

@@ -12,7 +12,6 @@ import { InternetSettingsPage } from "./pages/settings/Internet.js";
 import { ConnectAISettingsPage } from "./pages/settings/ConnectAI.js";
 import { AccountSettingsPage } from "./pages/settings/Account.js";
 import { ShootSettingsPage } from "./pages/settings/Shoots.js";
-import { EmailSettingsPage } from "./pages/settings/Email.js";
 import { ClientsPage } from "./pages/clients/Clients.js";
 import { ContactDetailPage } from "./pages/clients/ContactDetail.js";
 import { LeadsPage } from "./pages/leads/Leads.js";
@@ -84,7 +83,6 @@ export function App() {
                     <Route path="studio" element={<StudioSettingsPage />} />
                     <Route path="galleries" element={<GallerySettingsPage />} />
                     <Route path="shoots" element={<ShootSettingsPage />} />
-                    <Route path="email" element={<EmailSettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />
                     <Route path="ai" element={<ConnectAISettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />

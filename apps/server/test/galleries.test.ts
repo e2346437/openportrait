@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import nodemailer from "nodemailer";
 import sharp from "sharp";
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -14,7 +13,6 @@ let app: FastifyInstance;
 let root: string;
 let share: string;
 let staff: string;
-let sent: Array<{ to: string; subject: string; text: string; html: string }>;
 
 async function jpeg(file: string, color: { r: number; g: number; b: number }, width = 300, height = 200) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -32,13 +30,7 @@ beforeEach(async () => {
   const config = loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web"), INGEST_SETTLE_SECONDS: "0" });
   share = config.galleriesDir;
   fs.mkdirSync(share, { recursive: true });
-  sent = [];
-  const mail = nodemailer.createTransport({ jsonTransport: true });
-  mail.sendMail = (async (m: { to: string; subject: string; text: string; html: string }) => {
-    sent.push(m);
-    return { messageId: "x" };
-  }) as never;
-  app = await buildApp({ config, startBackground: false, logger: false, mailTransport: mail });
+  app = await buildApp({ config, startBackground: false, logger: false });
   const res = await app.inject({ method: "POST", url: "/api/studio/setup", payload: { studioName: "Test Studio", ownerName: "Pat", email: "pat@example.com", password: "correct horse battery", timezone: "UTC" } });
   staff = `op_session=${res.cookies.find((c) => c.name === "op_session")!.value}`;
 });
@@ -167,80 +159,6 @@ describe("resumable uploads", () => {
     const photos = (await studio("GET", `/galleries/${id}`)).json().photos;
     expect(photos.map((p: { filename: string }) => p.filename).sort()).toEqual(["one (2).jpg", "one.jpg", "one.jpg"]);
     expect(detail.photos).toHaveLength(1);
-  });
-});
-
-describe("gallery emails", () => {
-  it("emails the link to the shoot's people, tells the studio about favorites, and logs both", async () => {
-    app.ctx.settings.set("internet.publicUrl", "https://studio.example.com");
-    const type = (await studio("GET", "/shoot-types")).json().types[0];
-    const contact = (await studio("POST", "/contacts", { firstName: "Dana", lastName: "Lee", email: "dana@example.com" })).json();
-    const created = (await studio("POST", "/shoots", { primaryContactId: contact.contact?.id ?? contact.id, shootTypeId: type.id, subject: "Dana & Sam", events: [{ startsAt: Date.UTC(2026, 10, 14, 15), endsAt: Date.UTC(2026, 10, 14, 17) }] })).json();
-    await jpeg(path.join(share, created.shoot.folder.path, "Gallery/a.jpg"), red);
-    await studio("POST", "/ingest/rescan");
-    await app.ctx.jobs.drain();
-    const g = (await studio("GET", "/galleries")).json().galleries[0];
-
-    let detail = (await studio("GET", `/galleries/${g.id}`)).json();
-    expect(detail.recipients).toEqual([expect.objectContaining({ email: "dana@example.com", name: expect.stringContaining("Dana") })]);
-    expect((await studio("POST", `/galleries/${g.id}/email`, { to: [{ email: "dana@example.com" }] })).statusCode).toBe(409); // still a draft
-
-    await studio("POST", `/galleries/${g.id}/publish`, { downloadLock: "none" });
-    const res = await studio("POST", `/galleries/${g.id}/email`, { to: [{ email: "dana@example.com" }, { email: "sam@example.com", name: "Sam" }], message: "So lovely working with you." });
-    expect(res.statusCode).toBe(200);
-    expect(sent.map((m) => m.to)).toEqual(expect.arrayContaining([expect.stringContaining("dana@example.com"), expect.stringContaining("sam@example.com")]));
-    const first = sent[0]!;
-    expect(first.subject).toBe("Your photos from Test Studio are ready");
-    expect(first.text).toContain("Hi Dana,");
-    expect(first.text).toContain("So lovely working with you.");
-    expect(first.html).toContain(`https://studio.example.com/g/${detail.gallery.slug}`);
-    detail = res.json();
-    expect(detail.emails).toHaveLength(2);
-    expect(detail.emails.every((m: { status: string }) => m.status === "sent")).toBe(true);
-
-    // A client sends favorites: the studio is emailed.
-    const slug = detail.gallery.slug;
-    const me = await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "dana@example.com" } });
-    const cookie = me.cookies.map((c) => `${c.name}=${c.value}`).join("; ");
-    const data = (await app.inject({ method: "GET", url: `/api/g/${slug}`, headers: { cookie } })).json();
-    await app.inject({ method: "PUT", url: `/api/g/${slug}/lists/${data.lists[0].id}/photos/${data.photos[0].id}`, payload: {}, headers: { cookie } });
-    sent.length = 0;
-    expect((await app.inject({ method: "POST", url: `/api/g/${slug}/lists/${data.lists[0].id}/submit`, payload: {}, headers: { cookie } })).statusCode).toBe(200);
-    await new Promise((r) => setTimeout(r, 50));
-    expect(sent).toHaveLength(1);
-    expect(sent[0]!.to).toContain("pat@example.com");
-    expect(sent[0]!.subject).toContain("dana@example.com sent a favorite");
-  });
-
-  it("explains a failed send instead of throwing", async () => {
-    await jpeg(path.join(share, "Wu Family/a.jpg"), red);
-    const { id } = await galleryFromShare();
-    app.ctx.settings.set("internet.publicUrl", "https://studio.example.com");
-    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
-    (app.ctx.mailer as unknown as { override: unknown }).override = { sendMail: async () => { throw Object.assign(new Error("nope"), { code: "EAUTH" }); } };
-    const res = await studio("POST", `/galleries/${id}/email`, { to: [{ email: "wu@example.com" }] });
-    expect(res.statusCode).toBe(200);
-    expect(res.json().results[0]).toMatchObject({ ok: false, error: "The mail server refused the username or password." });
-    expect(res.json().emails[0]).toMatchObject({ status: "failed" });
-  });
-
-  it("refuses to email a link that wouldn't work outside the studio", async () => {
-    await jpeg(path.join(share, "Ng Family/a.jpg"), red);
-    const { id } = await galleryFromShare();
-    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
-    const res = await studio("POST", `/galleries/${id}/email`, { to: [{ email: "ng@example.com" }] });
-    expect(res.statusCode).toBe(409);
-    expect(res.json().error).toBe("no_url");
-    expect(sent).toHaveLength(0);
-  });
-
-  it("saves SMTP settings without ever returning the password", async () => {
-    const put = await studio("PUT", "/email/settings", { host: "smtp.example.com", port: 587, security: "starttls", user: "me", password: "hunter22", fromName: "Studio", fromAddress: "hi@example.com", replyTo: "", galleryReady: { subject: "Hello {{client_name}}", body: "Your photos: {{gallery_link}}" }, notifyOnSubmit: false });
-    expect(put.statusCode).toBe(200);
-    expect(put.json()).toMatchObject({ host: "smtp.example.com", hasPassword: true, galleryReady: { subject: "Hello {{client_name}}" }, notifyOnSubmit: false });
-    expect(JSON.stringify(put.json())).not.toContain("hunter22");
-    expect((await studio("PUT", "/email/settings", { ...put.json(), password: "", fromAddress: "nope" })).statusCode).toBe(400);
-    expect((await studio("GET", "/email/settings")).json().hasPassword).toBe(true);
   });
 });
 

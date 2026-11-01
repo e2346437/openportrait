@@ -7,6 +7,8 @@ CREATE TABLE `email_log` (
 	`body_html` text,
 	`kind` text DEFAULT 'other' NOT NULL,
 	`contact_id` text,
+	`shoot_id` text,
+	`gallery_id` text,
 	`status` text DEFAULT 'queued' NOT NULL,
 	`error` text,
 	`created_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL,
@@ -16,6 +18,7 @@ CREATE TABLE `email_log` (
 --> statement-breakpoint
 CREATE INDEX `email_log_created_idx` ON `email_log` (`created_at`);--> statement-breakpoint
 CREATE INDEX `email_log_contact_idx` ON `email_log` (`contact_id`);--> statement-breakpoint
+CREATE INDEX `email_log_gallery_idx` ON `email_log` (`gallery_id`);--> statement-breakpoint
 CREATE TABLE `scheduler` (
 	`id` text PRIMARY KEY NOT NULL,
 	`slug` text NOT NULL,

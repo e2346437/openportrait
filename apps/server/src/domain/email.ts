@@ -124,6 +124,8 @@ export interface OutgoingEmail {
   html?: string;
   kind?: string;
   contactId?: string | null;
+  shootId?: string | null;
+  galleryId?: string | null;
 }
 
 /**
@@ -134,7 +136,7 @@ export function queueEmail(ctx: { db: Db; settings: Settings }, mail: OutgoingEm
   if (!getEmailConfig(ctx.settings)) return null;
   if (!EMAIL.test(mail.to)) return null;
   const id = crypto.randomUUID();
-  ctx.db.insert(emailLog).values({ id, toAddress: mail.to, toName: mail.toName ?? null, subject: mail.subject, bodyText: mail.text, bodyHtml: mail.html ?? null, kind: mail.kind ?? "other", contactId: mail.contactId ?? null }).run();
+  ctx.db.insert(emailLog).values({ id, toAddress: mail.to, toName: mail.toName ?? null, subject: mail.subject, bodyText: mail.text, bodyHtml: mail.html ?? null, kind: mail.kind ?? "other", contactId: mail.contactId ?? null, shootId: mail.shootId ?? null, galleryId: mail.galleryId ?? null }).run();
   enqueue(ctx.db, "email.send", { id });
   return id;
 }
@@ -190,7 +192,7 @@ export async function sendTestEmail(ctx: ServiceContext, to: string): Promise<{ 
 
 export function recentEmails(ctx: ServiceContext, limit = 50) {
   return ctx.db
-    .select({ id: emailLog.id, toAddress: emailLog.toAddress, subject: emailLog.subject, kind: emailLog.kind, status: emailLog.status, error: emailLog.error, createdAt: emailLog.createdAt, sentAt: emailLog.sentAt, contactId: emailLog.contactId })
+    .select({ id: emailLog.id, toAddress: emailLog.toAddress, subject: emailLog.subject, kind: emailLog.kind, status: emailLog.status, error: emailLog.error, createdAt: emailLog.createdAt, sentAt: emailLog.sentAt, contactId: emailLog.contactId, shootId: emailLog.shootId, galleryId: emailLog.galleryId })
     .from(emailLog)
     .orderBy(desc(emailLog.createdAt))
     .limit(Math.min(limit, 200))

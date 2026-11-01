@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { and, eq, notInArray } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import { newId, type ServiceContext } from "../domain/context.js";
-import { dateParts } from "../domain/folders.js";
+import { addDays, startOfDay, ymdIn } from "../domain/time.js";
 import { GoogleAuthError, SyncTokenExpired, type GoogleApi, type GoogleEvent } from "./api.js";
 
 const { calendarEntry, shootEvent, shoot, shootType, contact, googleCalendar, googleLink, busyBlock } = tables;
@@ -25,23 +25,8 @@ const hashOf = (s: Shape) => crypto.createHash("sha1").update(JSON.stringify([s.
 
 // ---- time zone helpers ----
 
-/** Midnight at the start of `ymd` in `tz`, as epoch ms. */
-export function startOfDay(ymd: string, tz: string): number {
-  const [y, m, d] = ymd.split("-").map(Number) as [number, number, number];
-  const guess = Date.UTC(y, m - 1, d);
-  // Find the zone's offset at that moment, then correct once (handles DST changes).
-  const offsetAt = (t: number) => {
-    const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(new Date(t));
-    const g = (type: string) => Number(p.find((x) => x.type === type)?.value);
-    return Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute"), g("second")) - t;
-  };
-  let t = guess - offsetAt(guess);
-  t = guess - offsetAt(t);
-  return t;
-}
-
-const ymdOf = (ms: number, tz: string) => dateParts(new Date(ms), tz).date;
-const addDays = (ymd: string, n: number) => new Date(Date.UTC(...(ymd.split("-").map(Number) as [number, number, number]).map((v, i) => (i === 1 ? v - 1 : v)) as [number, number, number]) + n * DAY).toISOString().slice(0, 10);
+export { startOfDay };
+const ymdOf = ymdIn;
 
 // ---- local <-> Google ----
 

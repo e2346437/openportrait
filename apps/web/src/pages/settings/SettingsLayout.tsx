@@ -21,6 +21,11 @@ export function SettingsLayout() {
           </NavLink>
         ) : null}
         {owner ? (
+          <NavLink to="email">
+            <Icon name="mail" /> Email
+          </NavLink>
+        ) : null}
+        {owner ? (
           <NavLink to="internet">
             <Icon name="globe" /> Internet access
           </NavLink>

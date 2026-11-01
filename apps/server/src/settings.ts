@@ -28,9 +28,23 @@ export interface SettingTypes {
   "google.needsReconnect": boolean;
   "google.lastSyncAt": number;
   "google.lastError": string;
+  /** Outgoing email (SMTP). The password is the studio's own, encrypted at rest. */
+  "email.host": string;
+  "email.port": number;
+  "email.security": "none" | "starttls" | "tls";
+  "email.user": string;
+  "email.password": string; // secret
+  "email.fromName": string;
+  "email.fromAddress": string;
+  "email.replyTo": string;
+  /** The public inquiry form (see domain/inquiry.ts). */
+  "inquiry.enabled": boolean;
+  "inquiry.intro": string;
+  "inquiry.thanks": string;
+  "inquiry.notify": boolean;
 }
 
-const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token", "google.clientSecret", "google.refreshToken"]);
+const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token", "google.clientSecret", "google.refreshToken", "email.password"]);
 
 export class Settings {
   constructor(

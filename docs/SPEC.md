@@ -84,7 +84,7 @@ Neither Lightroom (cloud or Classic) nor Aftershoot has an integration point Ope
 2. From the workstation, they export from Lightroom Classic, Lightroom (cloud desktop app), or Aftershoot straight into that share over SMB.
 3. OpenPortrait watches `/galleries`. It uses inotify where it works and a periodic rescan as a backstop, because SMB writes onto Unraid's user-share filesystem are not always reported.
 4. Each new folder is matched to a shoot by its name (see **Folder names** below). A folder OpenPortrait created, or one whose name parses to a single shoot's date, type, and subject, attaches automatically. Anything else lands in an **Unmatched folders** inbox in the admin UI. One click attaches it to a shoot, with suggestions ranked by date, type, and subject name.
-5. Subfolders become gallery sets. A file counts as stable once its size stops changing for a short time, so half-written exports are never picked up.
+5. Only the shoot's **delivery folder** (default `Gallery/`) feeds the client gallery, and its subfolders become gallery sets. Other subfolders, such as `Originals/RAW/`, are never shown to clients. A file counts as stable once its size stops changing for a short time, so half-written exports are never picked up.
 6. Originals are never modified or moved. Previews go to `/cache`.
 
 ### Folder names
@@ -99,14 +99,48 @@ Gallery folders are named from the shoot's **subject name**, **shoot date**, and
 {year}/{date} {type} - {subject}
 
 /galleries/2026/2026-11-14 Headshot - Jane Smith/
-    Highlights/
-    Full Gallery/
+    Originals/RAW/       ← camera files (from in-camera upload or a card)
+    Gallery/             ← Lightroom/Aftershoot exports; this is what clients see
+        Highlights/
+        Full Gallery/
 ```
 
+- The subfolders created inside each shoot folder are a setting too (default `Originals/RAW` and `Gallery`), as is which one is the delivery folder.
 - Names are made safe for Windows, macOS, and SMB (no `/ \ : * ? " < > |`, no trailing dots or spaces). If two shoots would get the same name, a short suffix is added (`... - Jane Smith (2)`).
 - For folders created by hand, the watcher parses the name with the same pattern. If the date, type, and subject match exactly one shoot, it attaches. If not, the folder goes to the Unmatched inbox.
 - Renaming a shoot or changing its date doesn't silently move its folder, because that would break export presets that point at it. The shoot page offers a **Rename folder** button instead.
 - Shoots still have an internal ID for links and the database, but it never needs to appear in folder names.
+
+### In-camera upload (FTP/SFTP from the camera)
+
+Cameras such as the Nikon Z9 can send each photo over the network as it is taken. OpenPortrait includes a built-in upload server for this.
+
+**Server**
+- A built-in server for **SFTP** (recommended, one port, encrypted), plus **FTPS** and plain **FTP** for cameras that need them. Each protocol is off until it's turned on in Settings > Camera upload.
+- Each camera gets its own login, created in Settings with a generated password and a printable setup card listing the exact values to enter on the camera (host, port, protocol, user, password, folder). Logins can upload only, cannot delete or overwrite, and are limited to their own folder.
+- Files land in an **Incoming** area, a separate Unraid share (for example `/mnt/user/incoming` mapped to `/incoming`), in one folder per camera and day: `/incoming/Z9/2026-11-14/`. It's visible on the network, so Lightroom or Aftershoot can import straight from it.
+- Brute-force protection: failed logins are rate-limited and repeat offenders are blocked for a while, and the activity log shows every connection.
+
+**Getting from the camera to the server**
+
+Cloudflare Tunnel only carries web traffic for free. Raw FTP or SFTP from a camera can't go through it, because the camera can't run Cloudflare's client software, and Cloudflare's TCP proxying (Spectrum) for arbitrary ports is an Enterprise feature. So in-camera upload uses one of these instead:
+
+1. **Direct SFTP (recommended for remote shoots):** forward a single port on the router (for example 2222) to the container. Add a **DNS-only (grey cloud)** Cloudflare record such as `upload.example.com` that points at the home IP, kept current by a dynamic-DNS updater that OpenPortrait can run using a Cloudflare API token. The camera connects over a phone hotspot or venue Wi-Fi. Only SFTP is exposed, never the web admin or plain FTP.
+2. **Travel router with WireGuard:** the camera joins a small travel router (for example a GL.iNet) that tunnels home over WireGuard, so the camera reaches the server as if it were on the LAN, with no SFTP port exposed. This is the most secure option and needs extra hardware.
+3. **LAN only:** in the studio, the camera uploads over home Wi-Fi with no internet exposure at all.
+
+The in-app guide (Settings > Camera upload) covers all three, with live checks (port reachable from outside, DNS record pointing home, last upload received).
+
+**Sorting incoming photos**
+
+The **Incoming** screen shows thumbnails of new camera files, using the JPEG preview embedded in each RAW file (NEF, CR3, ARW, and so on), grouped by camera and capture time.
+- OpenPortrait suggests a shoot for each group by matching capture times against shoots on the calendar.
+- The photographer selects photos (or a whole group) and picks **Move to shoot**. They are moved into that shoot's `Originals/RAW/` folder, with checksums verified before the incoming copy is removed.
+- Or the photographer ignores the screen and points Lightroom or Aftershoot at the Incoming folder directly. Nothing in Incoming is ever deleted automatically. An optional cleanup only offers to remove files older than N days that have already been moved.
+
+**Delivery**
+
+After editing, Lightroom or Aftershoot exports to the shoot's `Gallery/` folder, and the normal watcher picks the photos up from there for the client gallery (and auto-publishes them if the shoot type allows it).
 
 ### Remote: web upload page
 
@@ -163,6 +197,9 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 | WebUI port | Port | `8080` | |
 | App data | Path | `/mnt/user/appdata/openportrait` → `/config` | Database, keys, backups |
 | Galleries | Path | `/mnt/user/galleries` → `/galleries` | Gallery originals share |
+| Incoming | Path | `/mnt/user/incoming` → `/incoming` | Camera uploads (SFTP/FTP) before sorting |
+| SFTP port | Port | `2222` | In-camera upload over SFTP (off until turned on in Settings) |
+| FTP ports | Port (advanced) | `2121`, passive `30000-30009` | Only needed for cameras without SFTP |
 | Cache | Path | `/mnt/user/appdata/openportrait/cache` → `/cache` | Previews; can live on a cache pool |
 | `PUID` / `PGID` / `UMASK` | Variable | `99` / `100` / `022` | Unraid's nobody:users |
 | `TZ` | Variable | from Unraid | |
@@ -229,6 +266,7 @@ Decided by Eric on 2026-11-01:
 4. **Print store:** after 1.0.
 5. **Database:** SQLite only in 1.0, with the code kept Postgres-ready (Drizzle) so Postgres can be added later. Keep `/config` on a cache pool or disk path, not a `/mnt/user` FUSE path.
 6. **Internet access:** always through a Cloudflare Tunnel, with cloudflared built into the container, an in-app setup guide, and docs (section 9).
-7. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
+7. **In-camera upload:** a built-in SFTP/FTP server writes to an Incoming share, with a sorting screen that moves files into each shoot's `Originals/RAW/`. Because Cloudflare Tunnel can't carry it, camera upload uses direct SFTP on a DNS-only record, a WireGuard travel router, or the LAN (section 4).
+8. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
 
 Still needed: sample Sprout Studio CSV exports (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.

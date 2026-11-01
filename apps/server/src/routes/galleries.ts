@@ -6,7 +6,7 @@ import { z } from "zod";
 import { tables } from "@openportrait/db";
 import { hashPassword, requireOwner, requireUser } from "../auth.js";
 import { fillCovers } from "../galleries/derivatives.js";
-import { newId, titleFromFolder } from "../galleries/files.js";
+import { newId, resolveInside, titleFromFolder } from "../galleries/files.js";
 import { designOf, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
 import { parse } from "../validate.js";
 import { emailPanel, sendGalleryEmail } from "../galleries/mail.js";
@@ -306,6 +306,33 @@ export async function galleryRoutes(app: FastifyInstance) {
       .run();
     fillCovers(db, req.params.id);
     return detail(req.params.id) ?? notFound(reply);
+  });
+
+  /**
+   * Deletes a photo for good: its file in the gallery folder, its previews, and its place in any favorites.
+   * Used when a client says "I don't like that one" while looking at it with the photographer.
+   */
+  app.delete<{ Params: { id: string; photoId: string } }>("/:id/photos/:photoId", async (req, reply) => {
+    const p = db.select().from(photo).where(and(eq(photo.id, req.params.photoId), eq(photo.galleryId, req.params.id))).get();
+    if (!p) return reply.code(404).send({ error: "not_found", message: "That photo is already gone." });
+    try {
+      fs.rmSync(resolveInside(app.ctx.config.galleriesDir, p.relPath), { force: true });
+    } catch (err) {
+      return reply.code(500).send({ error: "failed", message: `Couldn't delete the file: ${(err as Error).message}` });
+    }
+    const dir = path.join(app.ctx.config.cacheDir, "galleries", p.galleryId);
+    try {
+      for (const f of fs.readdirSync(dir)) if (f.startsWith(`${p.id}-`)) fs.rmSync(path.join(dir, f), { force: true });
+    } catch {
+      /* no previews were made yet */
+    }
+    db.transaction((tx) => {
+      tx.update(gallery).set({ coverPhotoId: null }).where(and(eq(gallery.id, p.galleryId), eq(gallery.coverPhotoId, p.id))).run();
+      tx.update(gallerySet).set({ coverPhotoId: null }).where(and(eq(gallerySet.galleryId, p.galleryId), eq(gallerySet.coverPhotoId, p.id))).run();
+      tx.delete(photo).where(eq(photo.id, p.id)).run();
+    });
+    fillCovers(db, p.galleryId);
+    return { ok: true };
   });
 
   // Favorites lists and what clients picked.

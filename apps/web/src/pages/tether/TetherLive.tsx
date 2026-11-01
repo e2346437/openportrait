@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { Icon, Spinner } from "@openportrait/ui";
+import { api } from "../../lib/api.js";
 import { formatBytes, isLight, isLocalHost, loadBg, parseBg, photoUrl, saveBg, useTether, type TetherPhoto } from "../../lib/tether.js";
 import { BackgroundPicker } from "./BackgroundPicker.js";
 import "./tether.css";
@@ -41,7 +42,10 @@ export function TetherLivePage() {
 
   // Preload each new photo, then swap it in, so the screen never goes blank between frames.
   useEffect(() => {
-    if (!current) return;
+    if (!current) {
+      setShown(null);
+      return;
+    }
     const { photo } = current;
     if (shown?.photo.id === photo.id && shown.photo.at === photo.at) return;
     setLoadingId(photo.id);
@@ -65,6 +69,30 @@ export function TetherLivePage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.photo.id, current?.photo.at, source]);
+
+  // Deleting can't be undone, so the first tap asks and the second (within a few seconds) does it.
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  useEffect(() => {
+    if (!confirming) return;
+    const t = window.setTimeout(() => setConfirming(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [confirming]);
+  useEffect(() => setConfirming(false), [shown?.photo.id]);
+  const deleteShown = async () => {
+    if (!shown) return;
+    if (!confirming) return setConfirming(true);
+    setDeleting(true);
+    try {
+      await api(`/tether/${encodeURIComponent(source)}/photo?path=${encodeURIComponent(shown.photo.id)}`, { method: "DELETE" });
+      setShown(null);
+    } catch {
+      /* the photo stays on screen, which tells you it wasn't deleted */
+    } finally {
+      setDeleting(false);
+      setConfirming(false);
+    }
+  };
 
   // Controls fade away while you shoot and return on any movement.
   const wake = useCallback(() => {
@@ -170,6 +198,12 @@ export function TetherLivePage() {
             {live && tether.ping !== null && <span className={`ping ${pingTone}`}> · {tether.ping} ms</span>}
             {live && <span className="tether-route"> · {local ? "On your network" : "Via internet"}</span>}
           </span>
+          {shown ? (
+            <button type="button" className={`tether-btn del${confirming ? " sure" : ""}`} aria-label={confirming ? "Tap again to delete this photo for good" : "Delete this photo"} onClick={deleteShown} disabled={deleting} tabIndex={showChrome ? 0 : -1}>
+              <Icon name="trash" />
+              {confirming ? <span>Delete for good?</span> : null}
+            </button>
+          ) : null}
           <button type="button" className="tether-btn icon" aria-label="Background colour" aria-expanded={panelOpen} onClick={() => setPanelOpen((v) => !v)} tabIndex={showChrome ? 0 : -1}>
             <span className="swatch" style={{ background: bg }} />
           </button>

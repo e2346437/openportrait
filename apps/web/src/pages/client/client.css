@@ -224,3 +224,5 @@ section.next { border-top: 1px solid var(--g-line); padding: var(--s7) max(16px,
 .zips li span { color: var(--g-ink-2); font-size: 13px; }
 .zparts { display: flex; gap: 6px; flex-wrap: wrap; }
 .client .zips .btn { text-decoration: none; }
+.lbb.del.sure { background: #b3261e; color: #fff; }
+.lbb.del:disabled { opacity: 0.6; }

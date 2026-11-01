@@ -125,6 +125,18 @@ describe("tether routes", () => {
     expect(none.statusCode).toBe(422);
   });
 
+  it("deletes a disliked photo for good, with its same-named companions, and tells the screen", async () => {
+    const dir = path.join(app.ctx.config.incomingDir, "Z9");
+    fs.mkdirSync(dir, { recursive: true });
+    for (const n of ["DSC_0001.jpg", "DSC_0001.NEF", "DSC_0002.jpg"]) fs.writeFileSync(path.join(dir, n), Buffer.alloc(100, 1));
+    const del = (p: string) => app.inject({ method: "DELETE", url: `/api/studio/tether/incoming/photo?path=${encodeURIComponent(p)}`, headers: { cookie } });
+    expect((await del("../../etc/passwd.jpg")).statusCode).toBe(400);
+    expect((await del("Z9/nope.jpg")).statusCode).toBe(404);
+    expect((await del("Z9/DSC_0001.jpg")).json()).toEqual({ ok: true, removed: 2 });
+    expect(fs.readdirSync(dir)).toEqual(["DSC_0002.jpg"]);
+    expect(fs.existsSync(path.join(dir, ".rejected"))).toBe(false);
+  });
+
   it("streams a photo event when a file lands", async () => {
     const events: Array<{ event: string; data: any }> = [];
     const req = http.get(`${base}/api/studio/tether/incoming/events`, { headers: { cookie } }, (res) => {

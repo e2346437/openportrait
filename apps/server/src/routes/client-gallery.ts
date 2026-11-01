@@ -136,6 +136,8 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
         welcomeMessage: g.welcomeMessage,
         slug: g.slug,
         preview: g.status !== "live",
+        /** Only signed-in staff get this: it switches on the Delete button when you're looking through the gallery with a client. */
+        staffId: req.user ? g.id : null,
         design: designOf(g),
         cover: coverOf(g.coverPhotoId, visible[0]),
         coverFocalX: g.coverFocalX,

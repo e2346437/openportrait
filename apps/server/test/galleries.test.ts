@@ -551,3 +551,27 @@ describe("incoming", () => {
     expect(fs.existsSync(path.join(incoming, "again"))).toBe(false);
   });
 });
+
+describe("deleting a disliked photo", () => {
+  it("removes the file, its previews and its favorites for good, and only for staff", async () => {
+    await jpeg(path.join(share, "Moss/Gallery/a.jpg"), red);
+    await jpeg(path.join(share, "Moss/Gallery/b.jpg"), blue);
+    const { id, slug, detail } = await galleryFromShare();
+    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
+    const a = detail.photos.find((p: { filename: string }) => p.filename === "a.jpg");
+
+    // Staff see the delete switch, clients never do.
+    const asStaff = await app.inject({ url: `/api/g/${slug}`, headers: { cookie: staff } });
+    expect(asStaff.json().gallery.staffId).toBe(id);
+    expect((await app.inject({ url: `/api/g/${slug}` })).json().gallery.staffId).toBeNull();
+
+    expect((await app.inject({ method: "DELETE", url: `/api/studio/galleries/${id}/photos/${a.id}` })).statusCode).toBe(401);
+    expect((await studio("DELETE", `/galleries/${id}/photos/${a.id}`)).json()).toEqual({ ok: true });
+    expect(fs.existsSync(path.join(share, "Moss/Gallery/a.jpg"))).toBe(false);
+    expect(fs.existsSync(path.join(share, "Moss/Gallery/b.jpg"))).toBe(true);
+    expect((await studio("DELETE", `/galleries/${id}/photos/${a.id}`)).statusCode).toBe(404);
+    const after = (await studio("GET", `/galleries/${id}`)).json();
+    expect(after.photos.map((p: { filename: string }) => p.filename)).toEqual(["b.jpg"]);
+    expect(after.gallery.coverPhotoId).toBe(after.photos[0].id);
+  });
+});

@@ -141,6 +141,8 @@ export interface ClientGallery {
     slug: string;
     welcomeMessage: string | null;
     preview: boolean;
+    /** Set only for signed-in staff, who get a Delete button in the large photo view. */
+    staffId: string | null;
     design: GalleryDesign;
     cover: ClientCover | null;
     coverFocalX: number;

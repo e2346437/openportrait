@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { useParams, useSearchParams } from "react-router";
 import { Button, Dialog, Field, Icon, Mark, Spinner, TextArea, TextInput } from "@openportrait/ui";
 import { focalPos, formatDate, plural, type ClientGallery, type ClientMe, type PhotoBase } from "../../lib/galleries.js";
+import { api as studioApi } from "../../lib/api.js";
 import { Lightbox } from "../../galleries/Lightbox.js";
 import { PhotoGrid } from "../../galleries/PhotoGrid.js";
 
@@ -396,6 +397,16 @@ export function ClientGalleryPage() {
             <>
               {data.lists.length ? heart(p, "lbb", true) : null}
               {download(p, "lbb", true)}
+              {g.staffId ? (
+                <StaffDelete
+                  galleryId={g.staffId}
+                  photoId={p.id}
+                  onGone={() => {
+                    setData((d) => (d ? { ...d, photos: d.photos.filter((x) => x.id !== p.id) } : d));
+                    setOpen(visible.length <= 1 ? null : Math.min(open, visible.length - 2));
+                  }}
+                />
+              ) : null}
             </>
           )}
         />
@@ -731,5 +742,45 @@ function ClientMessage({ error }: { error: ClientError }) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** For the photographer sitting with a client: "I don't like that one" deletes the file for good, after one more tap to be sure. */
+function StaffDelete({ galleryId, photoId, onGone }: { galleryId: string; photoId: string; onGone: () => void }) {
+  const [sure, setSure] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setSure(false);
+    setFailed(false);
+  }, [photoId]);
+  useEffect(() => {
+    if (!sure) return;
+    const t = window.setTimeout(() => setSure(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [sure]);
+  return (
+    <button
+      type="button"
+      className={`lbb del${sure ? " sure" : ""}`}
+      disabled={busy}
+      aria-label={sure ? "Tap again to delete this photo for good" : "Delete this photo"}
+      onClick={async () => {
+        if (!sure) return setSure(true);
+        setBusy(true);
+        try {
+          await studioApi(`/galleries/${galleryId}/photos/${photoId}`, { method: "DELETE" });
+          onGone();
+        } catch {
+          setFailed(true);
+          setSure(false);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <Icon name="trash" />
+      <span className="lbl">{failed ? "Couldn't delete. Try again" : sure ? "Delete for good?" : "Delete"}</span>
+    </button>
   );
 }

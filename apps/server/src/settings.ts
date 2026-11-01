@@ -12,6 +12,10 @@ export interface SettingTypes {
   "internet.trustCloudflare": boolean;
   "tunnel.token": string; // secret
   "backup.lastAt": number;
+  /** Folder naming for new shoots (see domain/folders.ts). */
+  "folders.pattern": string;
+  "folders.rawSubdir": string;
+  "folders.deliverySubdir": string;
 }
 
 const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token"]);

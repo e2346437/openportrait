@@ -12,3 +12,7 @@
 ---
 
 Brand assets (logo, icons, colors) live in [`docs/brand`](docs/brand/README.md).
+
+## Status
+
+Early planning. See the [product spec and architecture](docs/SPEC.md).

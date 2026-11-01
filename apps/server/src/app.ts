@@ -17,6 +17,7 @@ import { TunnelManager } from "./tunnel.js";
 import { mcpRoutes } from "./ai/mcp.js";
 import { oauthRoutes, oauthStudioRoutes } from "./ai/oauth.js";
 import { aiRoutes } from "./routes/ai.js";
+import { automationRoutes } from "./routes/automation.js";
 import { ensureDefaults } from "./domain/defaults.js";
 import { DomainError } from "./domain/context.js";
 import { authRoutes } from "./routes/auth.js";
@@ -145,6 +146,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(publicRoutes, { prefix: "/api/public" });
 
   await app.register(aiRoutes, { prefix: "/api/studio/ai" });
+  await app.register(automationRoutes, { prefix: "/api/studio/automation" });
   // Public path with its own bearer-token auth, so it sits outside the Cloudflare Access rule for /studio.
   await app.register(mcpRoutes);
   await app.register(oauthRoutes);

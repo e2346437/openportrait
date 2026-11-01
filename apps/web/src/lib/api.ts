@@ -101,3 +101,15 @@ export interface AiApproval {
   decidedAt: number | null;
   expiresAt: number;
 }
+
+export type AutomationOwner = "built-in" | "ai" | "off";
+export interface AutomationStatus {
+  mode: "built-in" | "ai";
+  windowHours: number;
+  lastCheckinAt: number | null;
+  stale: boolean;
+  queueSize: number;
+  pendingApprovals: number;
+  aiAccessEnabled: boolean;
+  automations: Array<{ id: string; title: string; description: string; owner: AutomationOwner; overridden: boolean; waiting: number }>;
+}

@@ -75,8 +75,8 @@ describe("MCP endpoint", () => {
       const res = await rpc(await connect(level, areas), { jsonrpc: "2.0", id: 1, method: "tools/list" });
       return res.json().result.tools.map((t: { name: string }) => t.name).sort();
     };
-    expect(await names("read", ["studio"])).toEqual(["approvals_get", "studio_get_catalog", "studio_get_summary", "studio_whoami"]);
-    expect(await names("read", ["studio", "galleries"])).toEqual(["approvals_get", "galleries_test_read", "studio_get_catalog", "studio_get_summary", "studio_whoami"]);
+    expect(await names("read", ["studio"])).toEqual(["approvals_get", "studio_get_catalog", "studio_get_summary", "studio_get_work_queue", "studio_whoami"]);
+    expect(await names("read", ["studio", "galleries"])).toEqual(["approvals_get", "galleries_test_read", "studio_get_catalog", "studio_get_summary", "studio_get_work_queue", "studio_whoami"]);
     expect(await names("assist", ["galleries"])).toEqual(["galleries_test_draft", "galleries_test_read"]);
   });
 

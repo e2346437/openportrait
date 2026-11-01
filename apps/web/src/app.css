@@ -408,3 +408,14 @@ button.agenda-row:hover { background: var(--surface-2); }
 .approval-details .snippet { margin-top: 8px; }
 .approval-actions { display: flex; gap: var(--s2); flex: none; }
 @media (max-width: 640px) { .approval { flex-direction: column; } .approval-actions { width: 100%; } }
+
+/* Automation */
+.choice-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.auto-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.auto-list li { display: flex; justify-content: space-between; gap: var(--s5); align-items: flex-start; padding: var(--s4) 0; border-top: 1px solid var(--line); }
+.auto-list li:first-child { border-top: 0; padding-top: 0; }
+.auto-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; align-items: flex-start; }
+.auto-text span { color: var(--ink-3); font-size: 13.5px; }
+.auto-select { width: 260px; flex: none; }
+.auto-facts { display: flex; gap: var(--s5); flex-wrap: wrap; font-size: 14px; color: var(--ink-2); }
+@media (max-width: 760px) { .choice-grid.two { grid-template-columns: minmax(0, 1fr); } .auto-list li { flex-direction: column; } .auto-select { width: 100%; } }

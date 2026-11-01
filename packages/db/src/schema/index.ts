@@ -1,4 +1,6 @@
-// One file per domain. Milestone 3 adds people.ts, pipeline.ts, money.ts, documents.ts;
-// milestone 4 adds galleries.ts.
+// One file per domain. This milestone adds people.ts and pipeline.ts, then money.ts and documents.ts;
+// the galleries milestone adds galleries.ts.
 export * from "./system.js";
 export * from "./jobs.js";
+export * from "./people.js";
+export * from "./pipeline.js";

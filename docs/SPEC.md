@@ -45,7 +45,7 @@ All of these are in scope for 1.0. The milestones in section 11 set the build or
 ```
                Internet (clients)                    LAN (editing workstation)
                      │                                        │
-     Cloudflare edge (HTTPS, Access)                   SMB export from Lightroom
+     Cloudflare edge (HTTPS)                   SMB export from Lightroom
                      │                                 or Aftershoot
 ┌────────────────────┼────────────────────────────────────────┼──────────────┐
 │ openportrait container + cloudflared (outbound only)        │              │
@@ -72,7 +72,7 @@ All of these are in scope for 1.0. The milestones in section 11 set the build or
 
 ### Routes
 
-- Staff pages live under `/studio/*` and the staff API under `/api/studio/*`. One Cloudflare Access application on those two paths protects the whole back office.
+- Staff pages live under `/studio/*` and the staff API under `/api/studio/*`. Staff sign in with OpenPortrait's own login. Cloudflare Access is not used.
 - Client pages (`/g`, `/book`, `/portal`, `/sign`) and `/api/health` stay public. The AI endpoints (`/mcp`, `/oauth/*`, `/.well-known/oauth-*`) are public paths with their own authentication (section 10). `/` redirects to `/studio` until client pages exist.
 - `/api/health` returns the version and an instance id (an HMAC of the instance's secret key), which the tunnel test uses to confirm the public hostname reaches this server.
 
@@ -259,10 +259,9 @@ Every install is assumed to be reached from the internet through a Cloudflare Tu
 A guided screen with numbered steps, short screenshots, and live checks:
 
 1. **Domain on Cloudflare:** explains what this means, with a link to add a site in Cloudflare.
-2. **Create the tunnel:** a deep link to Zero Trust > Networks > Tunnels, the exact values to enter (service type HTTP, URL `localhost:8080`), and a field to suggest a subdomain such as `studio`.
+2. **Create the tunnel:** a deep link to Networks > Tunnels, the exact values to enter (service type HTTP, URL `localhost:8080`), and a field to suggest a subdomain such as `studio`.
 3. **Paste the token:** a masked field that validates the token format and starts the tunnel.
 4. **Live status:** connector state (from cloudflared's local metrics endpoint), the public hostname, and an end-to-end test where the app fetches its own public URL. Each failure shows a plain-language fix.
-5. **Protect the admin (recommended):** step-by-step Cloudflare Access setup for the admin paths only. Client pages (`/g`, `/book`, `/portal`, `/sign`) stay public.
 
 The first-run setup wizard links to this screen, and the dashboard shows a banner until the tunnel is healthy.
 
@@ -273,14 +272,13 @@ The first-run setup wizard links to this screen, and the dashboard shows a banne
 | Tunnel token | empty | Starts the built-in cloudflared. |
 | Public URL | from the tunnel hostname | Used in emails, booking links, gallery links, and PayPal and Google callback URLs. |
 | Trust Cloudflare headers | on when traffic arrives through Cloudflare | Uses `CF-Connecting-IP` for real client IPs in contract audit trails, download logs, and rate limits. Requests that didn't come through Cloudflare (LAN) use the socket address. |
-| Cloudflare Access protection | off | When on, admin routes require a valid `Cf-Access-Jwt-Assertion` (team domain and AUD tag set here) in addition to the OpenPortrait login. LAN access can be exempted. |
 | Upload chunk size | 50 MB | Kept under Cloudflare's 100 MB request limit on the free plan. |
 | Image caching | on | Sends long-lived, immutable cache headers on signed preview URLs so Cloudflare's edge caches gallery previews. Full-res downloads bypass the cache. |
 | LAN address | detected | Shown on the guide so the photographer can always reach the admin locally if the tunnel is down. |
 
 ### Documentation
 
-`docs/cloudflare-tunnel.md`, also linked from the in-app guide, covers: prerequisites, the step-by-step setup with screenshots, using an existing cloudflared container instead, Cloudflare Access for the admin, recommended Cloudflare settings (SSL mode Full, caching rules, and turning off Rocket Loader for the app), troubleshooting (error 1033, 502s, redirect loops, uploads failing), and what to do when the tunnel is down.
+`docs/cloudflare-tunnel.md`, also linked from the in-app guide, covers: prerequisites, the step-by-step setup with screenshots, using an existing cloudflared container instead, recommended Cloudflare settings (SSL mode Full, caching rules, and turning off Rocket Loader for the app), troubleshooting (error 1033, 502s, redirect loops, uploads failing), and what to do when the tunnel is down.
 
 ## 10. AI access (MCP) and automation
 
@@ -296,7 +294,7 @@ OpenPortrait ships a built-in MCP (Model Context Protocol) server so the owner c
 ### Server and transport
 
 - **Streamable HTTP** MCP endpoint at `/mcp` (stateless, using the official TypeScript SDK). No stdio and no extra process. It works through the Cloudflare Tunnel like any other route, and on the LAN at `http://[IP]:8080/mcp`.
-- **Routes.** `/mcp`, `/oauth/*`, and `/.well-known/oauth-*` are public paths that carry their own authentication, so they stay outside the Cloudflare Access application that protects `/studio/*`. (AI clients cannot pass an Access login.) The Access guide in section 9 says so.
+- **Routes.** `/mcp`, `/oauth/*`, and `/.well-known/oauth-*` are public paths that carry their own authentication, so AI clients can connect without a second sign-in.
 - **Off until enabled.** `/mcp` returns 404 until the owner turns on **Settings > Connect your AI**. It also requires a healthy public URL for remote clients.
 
 ### Authentication
@@ -380,7 +378,7 @@ Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Dr
 ### Email, inquiry and booking (step 3c)
 
 - Outgoing email uses the studio's own SMTP account (Settings > Email), queued as a retrying job, with a log of recent sends. If email isn't configured, nothing fails; the client just isn't emailed.
-- Public pages live under `/inquire`, `/book/:slug` and `/book/cancel/:token`, backed by `/api/public/*`, which is outside the Cloudflare Access paths and rate limited. `?embed=1` drops the page frame for use in an iframe.
+- Public pages live under `/inquire`, `/book/:slug` and `/book/cancel/:token`, backed by `/api/public/*`, which is rate limited. `?embed=1` drops the page frame for use in an iframe.
 - A booking page ("scheduler") has weekly hours, length, buffers, minimum notice and a horizon. Slots are computed from the weekly hours minus calendar busy time and re-checked when booked. Requests hold a "Pending" calendar entry until confirmed or declined. Details: [`booking.md`](booking.md).
 - Booking pages that include packages, contracts or deposits arrive with quotes and contracts (steps 3d and 3e).
 

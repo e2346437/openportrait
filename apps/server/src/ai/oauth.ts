@@ -29,7 +29,7 @@ const oauthError = (reply: FastifyReply, error: string, description: string, sta
 /**
  * OAuth 2.1 authorization server for the MCP endpoint (authorization code with PKCE, dynamic client
  * registration, rotating refresh tokens). This is what lets Claude and ChatGPT connectors sign in with
- * one pasted URL. Public paths, so they sit outside the Cloudflare Access rule for /studio.
+ * one pasted URL. Public paths with their own authentication.
  */
 export async function oauthRoutes(app: FastifyInstance) {
   const ctx = app.ctx;

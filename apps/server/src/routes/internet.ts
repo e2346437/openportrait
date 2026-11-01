@@ -81,7 +81,7 @@ export async function internetRoutes(app: FastifyInstance) {
         return { ok: false, code: "bad_origin", message: "The tunnel is up but points at the wrong place. In Cloudflare, set the service to http://localhost:8080." };
       }
       if (res.status === 403 || res.redirected) {
-        return { ok: false, code: "blocked", message: "Something in front of OpenPortrait (often a Cloudflare Access rule) blocked the check. Exclude /api/health from Access, or ignore this if you protect the whole site on purpose." };
+        return { ok: false, code: "blocked", message: "Something in front of OpenPortrait blocked the check. Make sure /api/health is reachable from the internet, or check your firewall and proxy rules." };
       }
       const body = (await res.json().catch(() => null)) as { instanceId?: string } | null;
       if (!res.ok || !body) return { ok: false, code: "unexpected", message: `The address answered with HTTP ${res.status}, not OpenPortrait.` };

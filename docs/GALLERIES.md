@@ -167,6 +167,18 @@ Counts of unmatched folders and unsorted incoming photos appear as badges in the
 - **Expiry notice:** a quiet banner when a gallery expires within 14 days.
 - **Branding:** studio logo, studio accent color, and a light or dark gallery theme, all from Settings. OpenPortrait appears only as a small "Powered by OpenPortrait" footer link, which can be turned off.
 
+### 6.2a Presentation (Design tab)
+
+Eric wants presentation control close to what Sprout galleries offer (cover photo, focal point, and how the cover carries through the main page and set pages). OpenPortrait matches the capability with its own design. Each gallery has a **Design** tab in the admin:
+
+- **Cover photo and focal point.** Pick any photo as the gallery cover, then click or drag a point on it (arrow keys nudge it) to mark what must stay in frame. Every crop of that photo uses the point: the desktop cover, the phone cover, the gallery-list thumbnail, the email header, and the social share image. Live crop previews show all of these while dragging.
+- **Set covers.** Each set has its own cover photo and focal point, used for its card on the gallery's main page and the banner at the top of its set page. A new set defaults to its first photo with a centered point.
+- **Cover layout:** full bleed, split (text panel beside the photo), framed (inset photo with a centered title below), or text only.
+- **Pages:** open on set cards (a main page with one card per set, then a page per set) or straight on the first set's photos; photo grid as rows (justified), columns (masonry) or squares; photo size small, medium or large; spacing none, tight, normal or airy; light or dark background; serif or sans titles.
+- **Save as studio default** stores the current choices as the default for new galleries (Settings › Galleries).
+
+Focal points are stored as percentages (`focal_x`, `focal_y`, 0 to 100) and applied with CSS `object-position`/`background-position`, so no extra derivatives are needed. The `og:image` share crop and the email header are rendered server-side with sharp using the same point (attention-based crop as a fallback when none is set).
+
 ### 6.3 Favorites and proofing
 
 - Every gallery has a default list called **Favorites**. The photographer can add more named lists, each with an optional limit, such as "Album picks (40)" or "Wall print (1)". The limit is shown as a counter, and the heart refuses with an explanation when the list is full.
@@ -197,8 +209,8 @@ Adds to the Gallery entities in SPEC.md section 5. Names follow the Drizzle sche
 
 | Table | Key columns |
 |---|---|
-| `gallery` | `id`, `shoot_id` (nullable), `slug`, `title`, `folder_path` (relative to `/galleries`), `status` (draft, live, archived), `cover_photo_id`, `access_mode` (link, password, invited), `password_hash`, `download_size` (none, web, full), `download_lock` (until_paid, highlights_early, none), `unlocked_at`, `download_pin_hash`, `theme` (light, dark), `expires_at`, `published_at` |
-| `gallery_set` | `id`, `gallery_id`, `name`, `folder_name`, `sort`, `hidden`, `early_download` (bool, the set Highlights-early unlocks) |
+| `gallery` | `id`, `shoot_id` (nullable), `slug`, `title`, `folder_path` (relative to `/galleries`), `status` (draft, live, archived), `cover_photo_id`, `access_mode` (link, password, invited), `password_hash`, `download_size` (none, web, full), `download_lock` (until_paid, highlights_early, none), `unlocked_at`, `download_pin_hash`, `theme` (light, dark), `expires_at`, `published_at`, `cover_focal_x`, `cover_focal_y`, `design` (JSON: layout, landing, grid, size, spacing, theme, title font) |
+| `gallery_set` | `id`, `gallery_id`, `name`, `folder_name`, `sort`, `hidden`, `early_download` (bool, the set Highlights-early unlocks), `cover_photo_id`, `cover_focal_x`, `cover_focal_y` |
 | `photo` | `id`, `gallery_id`, `set_id`, `rel_path`, `filename`, `content_hash` (SHA-256), `size_bytes`, `mtime`, `width`, `height`, `taken_at`, `exif` (JSON, GPS removed), `placeholder` (tiny base64), `state` (pending, ready, missing, unsupported, error), `missing_since`, `derivatives_version`, `sort`, `hidden` |
 | `ingest_folder` | `id`, `rel_path`, `state` (stabilizing, unmatched, matched, ignored), `file_count`, `taken_from`, `taken_to`, `first_seen_at`, `last_change_at`, `suggestions` (JSON), `gallery_id` |
 | `favorite_list` | `id`, `gallery_id`, `name`, `max_count`, `sort` (photographer-defined lists) |

@@ -4,6 +4,7 @@ import { Button, Callout, CopyValue, Dialog, EmptyState, Icon, PageHeader, Spinn
 import { api } from "../../lib/api.js";
 import { LOCK_LABELS, plural, type DownloadLock, type GalleryDetail } from "../../lib/galleries.js";
 import { EmailDialog } from "../../galleries/EmailDialog.js";
+import { ActivityTab } from "./ActivityTab.js";
 import { DesignTab } from "./DesignTab.js";
 import { FavoritesTab } from "./FavoritesTab.js";
 import { PhotosTab } from "./PhotosTab.js";
@@ -12,7 +13,7 @@ import { SettingsTab } from "./SettingsTab.js";
 export type Reload = (next?: GalleryDetail) => void;
 export type Patch = (path: string, body: unknown, method?: string) => Promise<GalleryDetail | undefined>;
 
-type TabId = "photos" | "design" | "favorites" | "settings";
+type TabId = "photos" | "design" | "favorites" | "activity" | "settings";
 
 export function GalleryDetailPage() {
   const { id = "" } = useParams();
@@ -169,6 +170,7 @@ export function GalleryDetailPage() {
           { id: "photos", label: "Photos", icon: "image", count: counts.photos },
           { id: "design", label: "Design", icon: "palette" },
           { id: "favorites", label: "Favorites", icon: "heart" },
+          { id: "activity", label: "Activity", icon: "clock" },
           { id: "settings", label: "Settings", icon: "gear" },
         ]}
       />
@@ -176,6 +178,7 @@ export function GalleryDetailPage() {
         {tab === "photos" ? <PhotosTab data={data} patch={patch} reload={load} /> : null}
         {tab === "design" ? <DesignTab data={data} patch={patch} /> : null}
         {tab === "favorites" ? <FavoritesTab data={data} patch={patch} /> : null}
+        {tab === "activity" ? <ActivityTab data={{ ...data, gallery: g }} /> : null}
         {tab === "settings" ? <SettingsTab data={{ ...data, gallery: g }} patch={patch} onDeleted={() => navigate("/studio/galleries")} /> : null}
       </div>
 

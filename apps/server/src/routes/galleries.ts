@@ -12,7 +12,7 @@ import { parse } from "../validate.js";
 import { emailPanel, sendGalleryEmail } from "../galleries/mail.js";
 import { DomainError } from "../domain/context.js";
 
-const { gallery, gallerySet, photo, ingestFolder, favoriteList, favoriteSelection, favoriteItem, galleryView, downloadEvent } = tables;
+const { gallery, gallerySet, photo, ingestFolder, favoriteList, favoriteSelection, favoriteItem, galleryView, downloadEvent, galleryVisitor, emailLog } = tables;
 
 const lock = z.enum(["until_paid", "highlights_early", "none"]);
 const focal = z.number().min(0).max(100);
@@ -333,6 +333,54 @@ export async function galleryRoutes(app: FastifyInstance) {
     });
     fillCovers(db, p.galleryId);
     return { ok: true };
+  });
+
+  /** What has happened on a gallery, newest first: visits, downloads, sent favorites, sign-ups and emails. */
+  app.get<{ Params: { id: string } }>("/:id/activity", async (req, reply) => {
+    const g = db.select().from(gallery).where(eq(gallery.id, req.params.id)).get();
+    if (!g) return notFound(reply);
+    type Event = { at: number; kind: "view" | "download" | "favorites" | "registered" | "email" | "shared"; who: string | null; text: string };
+    const events: Event[] = [];
+    const who = (e: string | null) => e?.toLowerCase() ?? null;
+
+    const views = db.select().from(galleryView).where(eq(galleryView.galleryId, g.id)).orderBy(desc(galleryView.createdAt)).limit(300).all();
+    for (const v of views) events.push({ at: v.createdAt.getTime(), kind: "view", who: who(v.clientEmail), text: "Opened the gallery" });
+
+    const names = new Map(db.select({ id: photo.id, filename: photo.filename }).from(photo).where(eq(photo.galleryId, g.id)).all().map((p) => [p.id, p.filename]));
+    const dls = db.select().from(downloadEvent).where(eq(downloadEvent.galleryId, g.id)).orderBy(desc(downloadEvent.createdAt)).limit(300).all();
+    for (const d of dls) {
+      const what = d.scope === "photo" ? (d.photoId && names.get(d.photoId)) || "a photo" : d.scope === "gallery" ? "the whole gallery" : d.scope === "set" ? "a set" : "their favorites";
+      events.push({ at: d.createdAt.getTime(), kind: "download", who: who(d.clientEmail), text: `Downloaded ${what}${d.variant === "web" ? " (web size)" : ""}` });
+    }
+
+    const lists = db.select().from(favoriteList).where(eq(favoriteList.galleryId, g.id)).all();
+    const sels = lists.length ? db.select().from(favoriteSelection).where(inArray(favoriteSelection.listId, lists.map((l) => l.id))).all() : [];
+    const counts = new Map<string, number>();
+    if (sels.length) for (const i of db.select().from(favoriteItem).where(inArray(favoriteItem.selectionId, sels.map((x) => x.id))).all()) counts.set(i.selectionId, (counts.get(i.selectionId) ?? 0) + 1);
+    let favoritesSent = 0;
+    for (const sel of sels) {
+      if (!sel.submittedAt) continue;
+      favoritesSent++;
+      const n = counts.get(sel.id) ?? 0;
+      events.push({ at: sel.submittedAt.getTime(), kind: "favorites", who: who(sel.clientEmail), text: `Sent ${n} ${n === 1 ? "photo" : "photos"} from "${lists.find((l) => l.id === sel.listId)?.name ?? "favorites"}"` });
+    }
+
+    const visitors = db.select().from(galleryVisitor).where(eq(galleryVisitor.galleryId, g.id)).all();
+    for (const v of visitors) events.push({ at: v.createdAt.getTime(), kind: "registered", who: who(v.email), text: v.name ? `Registered as ${v.name}` : "Registered to view" });
+
+    const mails = db.select().from(emailLog).where(eq(emailLog.galleryId, g.id)).orderBy(desc(emailLog.createdAt)).limit(100).all();
+    for (const m of mails) events.push({ at: m.createdAt.getTime(), kind: "email", who: who(m.toAddress), text: m.kind === "gallery.favorites" ? "Favorites notice sent to you" : m.status === "failed" ? `Email didn't send: ${m.subject}` : `Emailed: ${m.subject}` });
+
+    if (g.publishedAt) events.push({ at: g.publishedAt.getTime(), kind: "shared", who: null, text: "Shared the gallery" });
+    events.sort((a, b) => b.at - a.at);
+
+    const totalViews = db.select({ n: count() }).from(galleryView).where(eq(galleryView.galleryId, g.id)).get()?.n ?? 0;
+    const totalDownloads = db.select({ n: count() }).from(downloadEvent).where(eq(downloadEvent.galleryId, g.id)).get()?.n ?? 0;
+    const people = new Set([...views.map((v) => who(v.clientEmail)), ...dls.map((d) => who(d.clientEmail))].filter(Boolean));
+    return {
+      summary: { views: totalViews, downloads: totalDownloads, favoritesSent, registered: visitors.length, people: people.size, lastVisit: views[0]?.createdAt.getTime() ?? null },
+      events: events.slice(0, 300),
+    };
   });
 
   // Favorites lists and what clients picked.

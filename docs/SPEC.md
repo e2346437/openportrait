@@ -48,7 +48,7 @@ All of these are in scope for 1.0. The milestones in section 10 set the build or
      Cloudflare edge (HTTPS, Access)                   SMB export from Lightroom
                      │                                 or Aftershoot
 ┌────────────────────┼────────────────────────────────────────┼──────────────┐
-│ openportrait container     cloudflared (built in, outbound only)            │
+│ openportrait container + cloudflared (outbound only)        │              │
 │                                                             ▼              │
 │  Web app (admin UI + client portal) ◄──► API ◄──► Job runner ◄── Folder     │
 │                                         │        (thumbnails,    watcher    │

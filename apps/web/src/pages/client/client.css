@@ -173,7 +173,7 @@
 .all-photos:hover { opacity: 0.88; }
 
 /* What to do next */
-.next { border-top: 1px solid var(--g-line); padding: var(--s7) max(16px, env(safe-area-inset-right)) var(--s6) max(16px, env(safe-area-inset-left)); text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--s6); }
+section.next { border-top: 1px solid var(--g-line); padding: var(--s7) max(16px, env(safe-area-inset-right)) var(--s6) max(16px, env(safe-area-inset-left)); text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--s6); }
 .next h2 { font: 300 clamp(26px, 3vw, 36px) / 1.1 var(--sans); letter-spacing: 0.01em; }
 .next-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: var(--s5); width: 100%; max-width: 980px; }
 .next-grid > * { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: var(--s3); border: 0; background: none; color: var(--g-ink); text-decoration: none; text-align: center; border-radius: var(--r); }

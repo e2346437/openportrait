@@ -4,9 +4,10 @@ import { and, eq, gt, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
-import { derivativePath, renderVariant, VARIANTS, type Variant } from "../galleries/derivatives.js";
+import { derivativePath, renderVariant, renderWatermarked, VARIANTS, watermarkedPath } from "../galleries/derivatives.js";
 import { newId, resolveInside } from "../galleries/files.js";
-import { designOf, downloadState, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
+import { designOf, downloadState, isWatermarked, loadSetsAndPhotos, photoJson, previewUrl, watermarkText } from "../galleries/present.js";
+import { watermarkHash } from "../galleries/derivatives.js";
 import { verifyPassword } from "../auth.js";
 import { planZip, splitParts, streamZip, zipFilename, type Scope } from "../galleries/zip.js";
 import { email, parse } from "../validate.js";
@@ -94,9 +95,12 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     const setIds = new Set(visibleSets.map((s) => s.id));
     const visible = photos.filter((p) => p.state === "ready" && !p.hidden && setIds.has(p.setId));
     const byId = new Map(visible.map((p) => [p.id, p]));
+    // Previews of photos still waiting on payment carry the studio's watermark; paying removes it with no extra step.
+    const mark = watermarkHash(watermarkText(settings));
+    const markFor = (p: (typeof visible)[number]) => (isWatermarked(g, sets.find((s) => s.id === p.setId) ?? null) ? mark : null);
     const coverOf = (id: string | null, fallback?: (typeof visible)[number]) => {
       const p = (id && byId.get(id)) || fallback;
-      return p ? { id: p.id, thumb: mediaUrl(secrets, p, "thumb"), preview: mediaUrl(secrets, p, "preview"), placeholder: p.placeholder, width: p.width, height: p.height } : null;
+      return p ? { id: p.id, thumb: previewUrl(secrets, p, "thumb", markFor(p)), preview: previewUrl(secrets, p, "preview", markFor(p)), placeholder: p.placeholder, width: p.width, height: p.height } : null;
     };
 
     if (!req.user) {
@@ -151,7 +155,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
           download: downloadState(g, s),
         }))
         .filter((s) => s.count > 0),
-      photos: visible.map((p) => photoJson(secrets, p)),
+      photos: visible.map((p) => photoJson(secrets, p, markFor(p))),
       lists: lists.sort((a, b) => a.sort - b.sort).map((l) => ({ id: l.id, name: l.name, maxCount: l.maxCount })),
       me: me(g, who),
     };
@@ -344,24 +348,34 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
 
 /** Signed thumbnails and previews: /media/:photoId/:version/:variant?s=... */
 export async function mediaRoutes(app: FastifyInstance) {
-  const { db, secrets, config } = app.ctx;
+  const { db, secrets, config, settings } = app.ctx;
   app.get<{ Params: { photoId: string; version: string; variant: string }; Querystring: { s?: string } }>("/media/:photoId/:version/:variant", async (req, reply) => {
     const { photoId, version, variant } = req.params;
-    if (!(variant === "thumb" || variant === "preview") || !req.query.s || !secrets.verify("media", `${photoId}:${version}:${variant}`, req.query.s)) {
+    // "thumb", "preview", or either with "-wm-<fingerprint>" for the watermarked flavor shown while a gallery is locked.
+    const m = /^(thumb|preview)(?:-wm-([a-f0-9]{8}))?$/.exec(variant);
+    if (!m || !req.query.s || !secrets.verify("media", `${photoId}:${version}:${variant}`, req.query.s)) {
       return reply.code(404).send({ error: "not_found" });
     }
+    const base = m[1] as "thumb" | "preview";
+    const marked = !!m[2];
     const p = db.select().from(photo).where(eq(photo.id, photoId)).get();
     if (!p || String(p.version) !== version) return reply.code(404).send({ error: "not_found" });
-    const file = derivativePath(config.cacheDir, p.galleryId, p.id, p.version, variant as Variant);
-    if (!fs.existsSync(file)) {
-      // The cache was cleared (it is safe to delete): rebuild this one on demand.
-      try {
-        await renderVariant(path.join(config.galleriesDir, p.relPath), file, variant as Variant);
-      } catch {
-        return reply.code(404).send({ error: "not_found" });
+    let file = derivativePath(config.cacheDir, p.galleryId, p.id, p.version, base);
+    try {
+      if (!fs.existsSync(file)) {
+        // The cache was cleared (it is safe to delete): rebuild this one on demand.
+        await renderVariant(path.join(config.galleriesDir, p.relPath), file, base);
       }
+      if (marked) {
+        const text = watermarkText(settings);
+        const wm = watermarkedPath(config.cacheDir, p.galleryId, p.id, p.version, base, text);
+        if (!fs.existsSync(wm)) await renderWatermarked(file, wm, text);
+        file = wm;
+      }
+    } catch {
+      return reply.code(404).send({ error: "not_found" });
     }
-    reply.header("Content-Type", VARIANTS[variant as Variant].format === "jpeg" ? "image/jpeg" : "image/webp");
+    reply.header("Content-Type", "image/webp");
     reply.header("Cache-Control", "public, max-age=31536000, immutable");
     return reply.send(fs.createReadStream(file));
   });

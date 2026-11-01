@@ -19,6 +19,8 @@ export interface SettingTypes {
   /** Other shoot subfolders the gallery watcher never reads (camera originals). */
   "galleries.privateFolders": string[];
   /** Download lock the publish dialog starts on (docs/GALLERIES.md section 6.4). */
+  /** Wording laid over previews of payment-locked photos. Empty means the studio name. */
+  "galleries.watermarkText": string;
   "galleries.defaultDownloadLock": "until_paid" | "highlights_early" | "none";
   "ai.enabled": boolean;
   "ai.paused": boolean;

@@ -9,7 +9,7 @@ type GallerySet = typeof tables.gallerySet.$inferSelect;
 type Photo = typeof tables.photo.$inferSelect;
 
 /** Signed, versioned media URL. The version changes on every re-export, so responses can be cached forever. */
-export function mediaUrl(secrets: Secrets, p: Pick<Photo, "id" | "version">, variant: Variant): string {
+export function mediaUrl(secrets: Secrets, p: Pick<Photo, "id" | "version">, variant: Variant | string): string {
   return `/media/${p.id}/${p.version}/${variant}?s=${secrets.sign("media", `${p.id}:${p.version}:${variant}`)}`;
 }
 
@@ -17,7 +17,23 @@ export function designOf(g: Pick<Gallery, "design">): GalleryDesign {
   return { ...DEFAULT_DESIGN, ...(g.design ?? {}) };
 }
 
-export function photoJson(secrets: Secrets, p: Photo) {
+/** The wording laid over previews of locked photos: the studio's choice, else its name. */
+export function watermarkText(settings: { get(key: "galleries.watermarkText" | "studio.name"): string | undefined }): string {
+  return (settings.get("galleries.watermarkText") || settings.get("studio.name") || "Preview").trim().slice(0, 60);
+}
+
+/** True while this photo's downloads wait for payment, so its previews carry the watermark. Never true for galleries with no lock. */
+export function isWatermarked(g: Gallery, set: Pick<GallerySet, "earlyDownload"> | null): boolean {
+  const d = downloadState(g, set);
+  return !d.allowed && d.reason === "locked";
+}
+
+/** Media URL for a thumb or preview; the watermarked flavor when asked, which carries the wording's fingerprint. */
+export function previewUrl(secrets: Secrets, p: Pick<Photo, "id" | "version">, variant: "thumb" | "preview", mark: string | null): string {
+  return mediaUrl(secrets, p, mark ? `${variant}-wm-${mark}` : variant);
+}
+
+export function photoJson(secrets: Secrets, p: Photo, mark: string | null = null) {
   const ready = p.state === "ready";
   return {
     id: p.id,
@@ -28,8 +44,8 @@ export function photoJson(secrets: Secrets, p: Photo) {
     takenAt: p.takenAt?.getTime() ?? null,
     exif: p.exif ?? null,
     placeholder: p.placeholder,
-    thumb: ready ? mediaUrl(secrets, p, "thumb") : null,
-    preview: ready ? mediaUrl(secrets, p, "preview") : null,
+    thumb: ready ? previewUrl(secrets, p, "thumb", mark) : null,
+    preview: ready ? previewUrl(secrets, p, "preview", mark) : null,
   };
 }
 

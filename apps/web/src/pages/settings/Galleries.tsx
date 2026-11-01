@@ -9,6 +9,7 @@ interface GallerySettings {
   deliveryFolder: string;
   privateFolders: string[];
   defaultDownloadLock: DownloadLock;
+  watermarkText: string;
 }
 
 /** The studio logo shown on client galleries. */
@@ -129,6 +130,11 @@ export function GallerySettingsPage() {
             </label>
           ))}
         </fieldset>
+      </Panel>
+      <Panel title="Watermark" description="Previews of photos that are still locked until payment carry this wording across them. It disappears on its own once the gallery is paid for, and downloaded files never have it.">
+        <Field label="Watermark wording" error={fieldErrors.watermarkText} hint="Leave empty to use your studio name.">
+          {(p) => <TextInput {...p} disabled={!owner} maxLength={60} value={form.watermarkText} placeholder="Your studio name" onChange={(e) => setForm({ ...form, watermarkText: e.target.value })} />}
+        </Field>
       </Panel>
       <Panel
         title="Folders"

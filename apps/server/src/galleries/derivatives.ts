@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import exifr from "exifr";
+import crypto from "node:crypto";
 import sharp from "sharp";
 import { tables, type Db } from "@openportrait/db";
 import { defineJob } from "@openportrait/jobs";
@@ -26,6 +27,33 @@ sharp.concurrency(2);
 export function derivativePath(cacheDir: string, galleryId: string, photoId: string, version: number, variant: Variant): string {
   const ext = VARIANTS[variant].format === "jpeg" ? "jpg" : "webp";
   return path.join(cacheDir, "galleries", galleryId, `${photoId}-v${version}-${variant}.${ext}`);
+}
+
+/** Short fingerprint of the watermark wording, so changing the text gives photos new URLs and new files. */
+export const watermarkHash = (text: string) => crypto.createHash("sha1").update(text).digest("hex").slice(0, 8);
+
+export function watermarkedPath(cacheDir: string, galleryId: string, photoId: string, version: number, variant: "thumb" | "preview", text: string): string {
+  return path.join(cacheDir, "galleries", galleryId, `${photoId}-v${version}-${variant}-wm-${watermarkHash(text)}.webp`);
+}
+
+const escXml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+
+/**
+ * Lays the studio's wording across a preview in a diagonal repeat, light with a dark edge so it reads on
+ * any photo. Only ever applied to previews and thumbnails; downloads are the untouched files.
+ */
+export async function renderWatermarked(baseFile: string, dest: string, text: string): Promise<void> {
+  const img = sharp(baseFile);
+  const { width = 0, height = 0 } = await img.metadata();
+  const size = Math.max(12, Math.round(Math.min(width, height) / 15));
+  const stepX = Math.round(size * (text.length * 0.62 + 3));
+  const stepY = Math.round(size * 3.2);
+  const label = escXml(text);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><defs><pattern id="w" width="${stepX}" height="${stepY}" patternUnits="userSpaceOnUse" patternTransform="rotate(-28)"><text x="${size * 0.5}" y="${size * 1.4}" font-family="Helvetica, Arial, sans-serif" font-size="${size}" font-weight="700" letter-spacing="${Math.round(size * 0.08)}" fill="#ffffff" fill-opacity="0.42" stroke="#000000" stroke-opacity="0.28" stroke-width="${Math.max(1, size / 14)}" paint-order="stroke">${label}</text></pattern></defs><rect width="100%" height="100%" fill="url(#w)"/></svg>`;
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  const tmp = `${dest}.${process.pid}.tmp`;
+  await img.composite([{ input: Buffer.from(svg) }]).webp({ quality: 80, effort: 4 }).toFile(tmp);
+  fs.renameSync(tmp, dest);
 }
 
 /** Renders one variant from the original. Writes to a temp file first so a half-written file is never served. */

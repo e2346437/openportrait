@@ -209,6 +209,58 @@ describe("zip downloads", () => {
   });
 });
 
+describe("watermark", () => {
+  it("marks previews only while downloads wait for payment, and never the downloads", async () => {
+    const shoot = path.join(share, "Oda Family");
+    await jpeg(path.join(shoot, "Highlights/h1.jpg"), red, 900, 600);
+    await jpeg(path.join(shoot, "Full/f1.jpg"), red, 900, 600);
+    const { id, slug } = await galleryFromShare();
+    const sets = (await studio("GET", `/galleries/${id}`)).json().sets;
+    await studio("PATCH", `/galleries/${id}/sets/${sets.find((s: { name: string }) => s.name === "Highlights").id}`, { earlyDownload: true });
+    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
+    const who = await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "oda@example.com" } });
+    const cookie = who.cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+    const photos = async () => (await app.inject({ method: "GET", url: `/api/g/${slug}`, headers: { cookie } })).json().photos as Array<{ filename: string; thumb: string; preview: string }>;
+    const find = (list: Array<{ filename: string }>, name: string) => list.find((p) => p.filename === name) as { thumb: string; preview: string };
+
+    // No lock: nothing is marked.
+    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
+    expect(find(await photos(), "f1.jpg").preview).not.toContain("-wm-");
+
+    // Locked until paid: marked. Highlights early: only the early set is clean.
+    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "highlights_early" });
+    let list = await photos();
+    expect(find(list, "f1.jpg").preview).toContain("preview-wm-");
+    expect(find(list, "h1.jpg").preview).not.toContain("-wm-");
+    const clean = await app.inject(find(list, "h1.jpg").preview);
+    const marked = await app.inject(find(list, "f1.jpg").preview);
+    expect(marked.statusCode).toBe(200);
+    expect(marked.headers["content-type"]).toBe("image/webp");
+    expect(marked.rawPayload.equals(clean.rawPayload)).toBe(false);
+    // The watermark really is in the pixels: the marked version differs from the same photo unmarked.
+    const unmarkedSame = await app.inject(find(await photos(), "f1.jpg").preview.replace("-wm-", "-x-"));
+    expect(unmarkedSame.statusCode).toBe(404); // a variant you can't sign is refused
+    const a = await sharp(clean.rawPayload).raw().toBuffer();
+    const b = await sharp(marked.rawPayload).raw().toBuffer();
+    expect(a.length).toBe(b.length);
+    expect(a.equals(b)).toBe(false);
+
+    // The wording is the studio's choice, and changing it gives new URLs.
+    const before = find(list, "f1.jpg").preview;
+    await studio("PUT", "/ingest/settings", { deliveryFolder: "Gallery", privateFolders: ["Originals"], defaultDownloadLock: "none", watermarkText: "ODA STUDIO" });
+    expect(find(await photos(), "f1.jpg").preview).not.toBe(before);
+
+    // Paid: previews are clean again, and the downloaded file was never marked.
+    await studio("POST", `/galleries/${id}/unlock`, { locked: false });
+    list = await photos();
+    expect(find(list, "f1.jpg").preview).not.toContain("-wm-");
+    const photo = (await studio("GET", `/galleries/${id}`)).json().photos.find((p: { filename: string }) => p.filename === "f1.jpg");
+    const dl = await app.inject({ method: "GET", url: `/api/g/${slug}/photos/${photo.id}/download`, headers: { cookie } });
+    expect(dl.statusCode).toBe(200);
+    expect(dl.rawPayload.equals(fs.readFileSync(path.join(shoot, "Full/f1.jpg")))).toBe(true);
+  });
+});
+
 describe("folder discovery", () => {
   it("treats a folder with a Gallery subfolder as a shoot and never reads Originals", async () => {
     const shoot = path.join(share, "2026/2026-11-14 Family - Smith Family");

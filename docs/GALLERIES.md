@@ -197,7 +197,7 @@ Focal points are stored as percentages (`focal_x`, `focal_y`, 0 to 100) and appl
   - **Highlights early:** the Highlights set (any set marked "early") downloads now; the rest unlocks when paid.
   - **No lock:** downloads open as soon as the gallery is published.
 - While anything is locked, the download dialog says why ("Full gallery downloads open once your final balance is paid") and links to the invoice. When the payment clears (PayPal webhook or a manual payment entry), the lock lifts automatically and the client can be emailed.
-- **Watermark:** previews of locked photos are watermarked, and the watermark disappears automatically once the balance is paid. Downloaded files are never watermarked. Galleries with no lock never show a watermark.
+- **Watermark:** previews and thumbnails of photos whose downloads are still waiting on payment carry the studio's wording (Settings › Galleries, default the studio name) in a diagonal repeat. Paying removes it with no extra step, a gallery with no lock never shows one, and downloaded files are never watermarked. Sets marked for early download stay clean.
 - Optional download PIN, separate from the gallery password.
 - **Download** offers everything, one set, or the client's favorites as zip files. They are streamed as they are built, so nothing waits and nothing is stored. A zip over 2 GB is split into numbered parts that each open on any device. Only sets the lock allows are included.
 - Single photos download straight from the lightbox.

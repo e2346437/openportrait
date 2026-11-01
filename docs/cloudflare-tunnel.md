@@ -46,16 +46,9 @@ Use `localhost:8080` even though OpenPortrait runs in a container: the built-in 
 
 Back in **Settings > Internet access**, click **Run the test**. OpenPortrait asks Cloudflare for your public address and checks that the answer comes from this server, not some other one. Your public address is filled in automatically and used in every link the app sends.
 
-## Protect your back office (optional)
+## Studio sign-in
 
-OpenPortrait already requires its own login, so this step is optional. You can skip it and still finish setup. If you want it, Cloudflare Access can put a sign-in in front of the studio pages, on top of your OpenPortrait password. Client pages need to stay public either way. Access is separate from the tunnel. **Cloudflare asks for a credit or debit card before Access opens.** It's charged $0 for up to 50 users. Once the card is on file, you can use Access.
-
-1. In Zero Trust, open **Access controls**, then **Applications**. Click **Create new application** and choose **Self-hosted and private**.
-2. Click **Add public hostname** and choose your domain. Add your hostname with **one** path: `studio` (for example `studio.yourdomain.com/studio`). **Don't** add `api/studio` or `mcp`. Covering them breaks OpenPortrait's own requests (see the troubleshooting table) and blocks Claude's connector.
-3. Under **Access policies**, add a policy that allows only your email address (and your staff's).
-4. Set a session duration, then click **Create**.
-
-Galleries (`/g`), booking pages (`/book`), the client portal (`/portal`), contract signing (`/sign`) and `/api/health` are not under those paths, so clients never see the Cloudflare sign-in.
+The studio is protected by OpenPortrait's own login, so you don't need any other sign-in in front of it.
 
 On your home network you can always reach the studio directly at `http://<server-ip>:8080/studio`, which doesn't go through Cloudflare.
 
@@ -81,7 +74,6 @@ Leave the token empty in OpenPortrait. Point a public hostname in your existing 
 | Cloudflare error **502** or **Bad gateway** | The tunnel is up but the public hostname points at the wrong place. The URL must be `localhost:8080` (with the built-in tunnel). |
 | The test says another server answered | The hostname belongs to a different tunnel or server. Check which tunnel the hostname is attached to. |
 | Redirect loop | Set SSL/TLS mode to Full. |
-| OpenPortrait shows **"Can't reach OpenPortrait"** after you turn on Cloudflare Access | Access is covering `api/studio` or `mcp`, so OpenPortrait's own requests get redirected to a Cloudflare sign-in. In the Access application, remove the `api/studio` and `mcp` paths and keep only `studio`. If it still fails, delete the Access application. OpenPortrait's own login keeps the studio protected. |
 | Uploads fail partway | A Cloudflare WAF or upload rule may be blocking large requests. Check **Security > Events** for blocked requests to your hostname. |
 
 ## When the tunnel is down

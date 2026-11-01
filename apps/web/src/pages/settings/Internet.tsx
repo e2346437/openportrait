@@ -280,22 +280,6 @@ export function InternetSettingsPage() {
         </ol>
       </Panel>
 
-      <Panel title="Protect your back office (optional)" description="Adds a Cloudflare sign-in in front of the studio pages, on top of your OpenPortrait password. OpenPortrait already has its own login, so you can skip this and still finish setup. Cloudflare Access asks for a credit or debit card before it opens. It's $0 for up to 50 users.">
-        <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6, color: "var(--ink-2)" }}>
-          <li>
-            In Zero Trust, open <b>Access controls</b>, then <b>Applications</b>. Click <b>Create new application</b> and choose <b>Self-hosted and private</b>.
-          </li>
-          <li>Add your public hostname with this one path. Client pages like galleries and booking stay public.</li>
-        </ol>
-        <div className="values">
-          <span>Path</span>
-          <CopyValue value="studio" label="studio path" />
-        </div>
-        <p className="hint">
-          Don't add <span className="mono">api/studio</span> or <span className="mono">mcp</span>. Covering them makes OpenPortrait show "Can't reach OpenPortrait", and it blocks Claude's connector. Then add a policy that allows only your email address (and your staff's).
-        </p>
-      </Panel>
-
       <details className="more panel" style={{ padding: "var(--s4) var(--s5)" }}>
         <summary>Advanced</summary>
         <div>

@@ -11,7 +11,7 @@ Tethering shows each photo on a big screen the moment your camera finishes uploa
 
 While a file is arriving, the bar at the bottom shows its name, size, speed and an estimated percentage. As soon as it finishes, the photo replaces the one on screen.
 
-The link is a normal back-office page, so each device signs in once. Cloudflare Access (if you use it on `/studio`) applies to it like the rest of the back office.
+The link is a normal back-office page, so each device signs in once with the studio login.
 
 ## What gets shown
 

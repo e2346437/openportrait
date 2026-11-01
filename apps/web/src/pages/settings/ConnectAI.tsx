@@ -174,7 +174,7 @@ export function ConnectAISettingsPage() {
 
       {s.enabled ? (
         <>
-          <Panel title="1 · Your address" description="Assistants connect to this address. It's separate from the studio pages, so Cloudflare Access doesn't block it.">
+          <Panel title="1 · Your address" description="Assistants connect to this address. It's separate from the studio pages.">
             {url ? <CopyValue value={url} label="MCP address" /> : null}
             {!s.urls.public ? (
               <Callout tone="warn" title="No public address yet" action={<Link className="btn sm" to="../internet">Set up internet access</Link>}>

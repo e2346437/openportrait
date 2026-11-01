@@ -181,7 +181,7 @@ export function InternetSettingsPage() {
           <Step n={2} state={stateOf(1)} title="Create a tunnel">
             <ol>
               <li>
-                In Cloudflare, open <b>Zero Trust</b>, then <b>Networks → Tunnels</b>.
+                In Cloudflare, open <b>Networks</b>, then <b>Tunnels</b>.
               </li>
               <li>
                 Choose <b>Create a tunnel</b>, pick <b>Cloudflared</b>, and name it <span className="mono">openportrait</span>.
@@ -190,7 +190,7 @@ export function InternetSettingsPage() {
                 On the install screen, don't install anything. Copy the command shown and paste it in the next step. OpenPortrait finds the token in it.
               </li>
             </ol>
-            <ExternalLink href={CF_TUNNELS}>Open Zero Trust</ExternalLink>
+            <ExternalLink href={CF_TUNNELS}>Open Tunnels</ExternalLink>
           </Step>
 
           <Step

@@ -13,7 +13,7 @@ The same steps are in the app under **Settings > Internet access**, with live ch
 
 ### 1. Create a tunnel
 
-1. In the Cloudflare dashboard, open **Zero Trust**, then **Networks > Tunnels**.
+1. In the Cloudflare dashboard, open **Networks**, then **Tunnels**.
 2. Click **Create a tunnel**, choose **Cloudflared**, and name it `openportrait`.
 3. On the install screen, **don't install anything**. OpenPortrait already includes cloudflared. Copy the command shown for any operating system; it contains your token (a long value starting with `eyJ`).
 

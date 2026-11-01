@@ -184,7 +184,7 @@ export function InternetSettingsPage() {
                 In Cloudflare, open <b>Networks</b>, then <b>Tunnels</b>.
               </li>
               <li>
-                Choose <b>Create a tunnel</b>, pick <b>Cloudflared</b>, and name it <span className="mono">openportrait</span>.
+                Choose <b>Create a tunnel</b>, and name it <span className="mono">openportrait</span>.
               </li>
               <li>
                 On the install screen, don't install anything. Copy the command shown and paste it in the next step. OpenPortrait finds the token in it.

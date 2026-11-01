@@ -17,6 +17,11 @@ export function SettingsLayout() {
             <Icon name="globe" /> Internet access
           </NavLink>
         ) : null}
+        {owner ? (
+          <NavLink to="ai">
+            <Icon name="sparkle" /> Connect your AI
+          </NavLink>
+        ) : null}
         <NavLink to="account">
           <Icon name="user" /> Your account
         </NavLink>

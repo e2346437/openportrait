@@ -9,6 +9,7 @@ import { ComingSoonPage } from "./pages/ComingSoon.js";
 import { SettingsLayout } from "./pages/settings/SettingsLayout.js";
 import { StudioSettingsPage } from "./pages/settings/Studio.js";
 import { InternetSettingsPage } from "./pages/settings/Internet.js";
+import { ConnectAISettingsPage } from "./pages/settings/ConnectAI.js";
 import { AccountSettingsPage } from "./pages/settings/Account.js";
 import { NotFoundPage } from "./pages/NotFound.js";
 
@@ -60,6 +61,7 @@ export function App() {
                     <Route index element={<Navigate to="studio" replace />} />
                     <Route path="studio" element={<StudioSettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />
+                    <Route path="ai" element={<ConnectAISettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />
                   </Route>
                   <Route path="*" element={<NotFoundPage />} />

@@ -12,6 +12,8 @@ export interface SettingTypes {
   "internet.trustCloudflare": boolean;
   "tunnel.token": string; // secret
   "backup.lastAt": number;
+  "ai.enabled": boolean;
+  "ai.paused": boolean;
 }
 
 const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token"]);

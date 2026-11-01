@@ -124,6 +124,16 @@ class CameraFs extends BaseFileSystem {
   }
 }
 
+/**
+ * A camera that powers down its Wi-Fi to save battery, or walks out of range, drops its connection without saying
+ * goodbye, and reconnects when it has more to send. That's normal, so it isn't worth a warning.
+ */
+export function isRoutineDisconnect(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  const text = `${e?.code ?? ""} ${e?.message ?? ""}`;
+  return /ECONNRESET|EPIPE|ETIMEDOUT|ECONNABORTED|EHOSTUNREACH|ENETUNREACH|ERR_STREAM_PREMATURE_CLOSE|ERR_STREAM_DESTROYED|socket hang up|read ECONN|This socket has been ended/i.test(text);
+}
+
 /** A bunyan-shaped logger that forwards warnings and errors to the app log and drops the chatter. */
 function quietLogger(log: ServerHooks["log"]) {
   const self: Record<string, unknown> = {
@@ -131,7 +141,10 @@ function quietLogger(log: ServerHooks["log"]) {
     debug: () => undefined,
     info: () => undefined,
     warn: (...a: unknown[]) => log.warn({ ftp: a.map(String).join(" ") }, "FTP"),
-    error: (...a: unknown[]) => log.warn({ ftp: a.map(String).join(" ") }, "FTP"),
+    error: (...a: unknown[]) => {
+      if (isRoutineDisconnect(a[0])) return;
+      log.warn({ ftp: a.map(String).join(" ") }, "FTP");
+    },
     fatal: (...a: unknown[]) => log.error({ ftp: a.map(String).join(" ") }, "FTP"),
     child: () => self,
   };
@@ -206,7 +219,9 @@ export class FtpUploadServer implements ProtocolServer {
       this.sessions.delete(id);
       hooks.onActivity();
     });
-    server.on("client-error", ({ error }: { error: Error }) => hooks.log.warn({ err: error.message }, "FTP client error"));
+    server.on("client-error", ({ error }: { error: Error }) => {
+      if (!isRoutineDisconnect(error)) hooks.log.warn({ err: error.message }, "FTP client error");
+    });
 
     await server.listen();
   }

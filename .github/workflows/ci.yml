@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  image:
+    name: Image smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: openportrait:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Run with Unraid settings (99:100) and check it answers
+        run: |
+          mkdir -p data/{config,galleries,incoming,cache}
+          docker run -d --name op -p 8080:8080 -e PUID=99 -e PGID=100 -e OPENPORTRAIT_PLATFORM=unraid \
+            -v "$PWD/data/config:/config" -v "$PWD/data/galleries:/galleries" \
+            -v "$PWD/data/incoming:/incoming" -v "$PWD/data/cache:/cache" openportrait:ci
+          for i in $(seq 1 30); do curl -fsS localhost:8080/api/health && break; sleep 1; done
+          curl -fsS localhost:8080/api/health
+          curl -fsS -o /dev/null localhost:8080/studio
+          docker exec op cloudflared --version
+          docker exec op openportrait | grep -q reset-password
+          test "$(stat -c %u:%g data/config/openportrait.db)" = "99:100"
+      - name: Logs
+        if: always()
+        run: docker logs op || true

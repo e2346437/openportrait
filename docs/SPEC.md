@@ -23,7 +23,7 @@ It is built first for ERW Photography and released as open source, so everything
 
 ## 2. Feature scope
 
-All of these are in scope for 1.0. The milestones in section 9 set the build order.
+All of these are in scope for 1.0. The milestones in section 10 set the build order.
 
 | Area | What it covers |
 |---|---|
@@ -45,10 +45,10 @@ All of these are in scope for 1.0. The milestones in section 9 set the build ord
 ```
                Internet (clients)                    LAN (editing workstation)
                      │                                        │
-     Cloudflare Tunnel / reverse proxy                 SMB export from Lightroom
+     Cloudflare edge (HTTPS, Access)                   SMB export from Lightroom
                      │                                 or Aftershoot
 ┌────────────────────┼────────────────────────────────────────┼──────────────┐
-│ openportrait container                                      │              │
+│ openportrait container     cloudflared (built in, outbound only)            │
 │                                                             ▼              │
 │  Web app (admin UI + client portal) ◄──► API ◄──► Job runner ◄── Folder     │
 │                                         │        (thumbnails,    watcher    │
@@ -136,7 +136,7 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 
 - **Staff:** email and password with Argon2id hashing, optional TOTP 2FA, and the roles Owner, Staff, and Assistant.
 - **Clients:** no passwords. Magic-link email sign-in to a client portal (quotes, invoices, questionnaires, galleries). Galleries can also have an optional gallery password or a public link.
-- **Exposure:** the admin UI and client pages run on one port. The docs cover Cloudflare Tunnel (recommended), Nginx Proxy Manager, and SWAG. `APP_URL` sets the public base URL used in emails and links.
+- **Exposure:** OpenPortrait assumes it is published through a Cloudflare Tunnel (section 9). No router ports are opened. Port 8080 stays available on the LAN for local access. Other reverse proxies may work but aren't supported.
 - **Secrets:** a session key is generated on first run and stored in `/config`. PayPal and Google secrets are encrypted at rest with that key.
 - **Backups:** a nightly SQLite snapshot in `/config/backups` with retention, plus a one-click export.
 
@@ -155,20 +155,60 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 | Cache | Path | `/mnt/user/appdata/openportrait/cache` → `/cache` | Previews; can live on a cache pool |
 | `PUID` / `PGID` / `UMASK` | Variable | `99` / `100` / `022` | Unraid's nobody:users |
 | `TZ` | Variable | from Unraid | |
-| `APP_URL` | Variable | empty | Public URL, for example `https://studio.example.com` |
+| `CLOUDFLARE_TUNNEL_TOKEN` | Variable (masked) | empty | Token for the built-in cloudflared. It can also be pasted in Settings > Internet access. |
+| `APP_URL` | Variable | empty | Public URL, for example `https://studio.example.com`. Filled in automatically from the tunnel when left empty. |
 | `WATCH_RESCAN_MINUTES` | Variable (advanced) | `5` | Backstop rescan interval |
 | `LOG_LEVEL` | Variable (advanced) | `info` | |
 
-## 9. Milestones
+## 9. Cloudflare Tunnel (the standard deployment)
+
+Every install is assumed to be reached from the internet through a Cloudflare Tunnel. Setup should take a photographer with a domain on Cloudflare about five minutes and no networking knowledge.
+
+### Built-in cloudflared
+
+- The image bundles `cloudflared` and runs it under the same supervisor as the app, but only when a tunnel token is set. Without a token, nothing extra runs.
+- It uses a remotely managed tunnel. The photographer creates the tunnel in the Cloudflare dashboard, adds a public hostname pointing to `http://localhost:8080`, and pastes the token. No config files and no second container.
+- The token can come from the Unraid template (`CLOUDFLARE_TUNNEL_TOKEN`) or from **Settings > Internet access**. It is stored encrypted, and changing it restarts the tunnel without restarting the app.
+- Anyone who already runs cloudflared in its own container can leave the token empty and point their existing tunnel at port 8080. The app detects Cloudflare traffic either way.
+
+### In-app setup guide (Settings > Internet access)
+
+A guided screen with numbered steps, short screenshots, and live checks:
+
+1. **Domain on Cloudflare:** explains what this means, with a link to add a site in Cloudflare.
+2. **Create the tunnel:** a deep link to Zero Trust > Networks > Tunnels, the exact values to enter (service type HTTP, URL `localhost:8080`), and a field to suggest a subdomain such as `studio`.
+3. **Paste the token:** a masked field that validates the token format and starts the tunnel.
+4. **Live status:** connector state (from cloudflared's local metrics endpoint), the public hostname, and an end-to-end test where the app fetches its own public URL. Each failure shows a plain-language fix.
+5. **Protect the admin (recommended):** step-by-step Cloudflare Access setup for the admin paths only. Client pages (`/g`, `/book`, `/portal`, `/sign`) stay public.
+
+The first-run setup wizard links to this screen, and the dashboard shows a banner until the tunnel is healthy.
+
+### Settings that help behind Cloudflare
+
+| Setting | Default | Purpose |
+|---|---|---|
+| Tunnel token | empty | Starts the built-in cloudflared. |
+| Public URL | from the tunnel hostname | Used in emails, booking links, gallery links, and PayPal and Google callback URLs. |
+| Trust Cloudflare headers | on when traffic arrives through Cloudflare | Uses `CF-Connecting-IP` for real client IPs in contract audit trails, download logs, and rate limits. Requests that didn't come through Cloudflare (LAN) use the socket address. |
+| Cloudflare Access protection | off | When on, admin routes require a valid `Cf-Access-Jwt-Assertion` (team domain and AUD tag set here) in addition to the OpenPortrait login. LAN access can be exempted. |
+| Upload chunk size | 50 MB | Kept under Cloudflare's 100 MB request limit on the free plan. |
+| Image caching | on | Sends long-lived, immutable cache headers on signed preview URLs so Cloudflare's edge caches gallery previews. Full-res downloads bypass the cache. |
+| LAN address | detected | Shown on the guide so the photographer can always reach the admin locally if the tunnel is down. |
+
+### Documentation
+
+`docs/cloudflare-tunnel.md`, also linked from the in-app guide, covers: prerequisites, the step-by-step setup with screenshots, using an existing cloudflared container instead, Cloudflare Access for the admin, recommended Cloudflare settings (SSL mode Full, caching rules, and turning off Rocket Loader for the app), troubleshooting (error 1033, 502s, redirect loops, uploads failing), and what to do when the tunnel is down.
+
+## 10. Milestones
 
 1. **Spec** (this document).
-2. **Skeleton and packaging:** repo tooling, Dockerfile, CI image build to GHCR, Unraid template, first-run setup wizard (studio name, owner account), login, Settings, the design system and app shell.
+2. **Skeleton and packaging:** repo tooling, Dockerfile with built-in cloudflared, CI image build to GHCR, Unraid template, first-run setup wizard (studio name, owner account), login, Settings including the Internet access guide, the design system and app shell.
 3. **Business core:** CRM, leads, shoots, calendar and Google sync, schedulers and booking pages, questionnaires, contracts and e-signatures, quotes, orders and PayPal payments, credits and coupons, and the Sprout import.
 4. **Galleries:** folder watcher and matching, the upload page, client gallery experience, favorites, downloads, and links to orders.
 
 Each milestone ships as a tagged release that installs and runs on Unraid.
 
-## 10. Decisions
+## 11. Decisions
 
 Decided by Eric on 2026-11-01:
 
@@ -177,6 +217,7 @@ Decided by Eric on 2026-11-01:
 3. **License:** AGPL-3.0 (see `LICENSE`). Outside contributions are accepted under a contributor agreement (see `CONTRIBUTING.md`), so a future paid edition can be offered under a separate license.
 4. **Print store:** after 1.0.
 5. **Database:** SQLite only in 1.0, with the code kept Postgres-ready (Drizzle) so Postgres can be added later. Keep `/config` on a cache pool or disk path, not a `/mnt/user` FUSE path.
-6. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
+6. **Internet access:** always through a Cloudflare Tunnel, with cloudflared built into the container, an in-app setup guide, and docs (section 9).
+7. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
 
 Still needed: sample Sprout Studio CSV exports (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.

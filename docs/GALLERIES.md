@@ -104,6 +104,17 @@ Built by the job queue with sharp, stored in `/cache/<gallery id>/`, never next 
 - **Concurrency:** 3 files at once by default. The page shows overall progress, per-file progress, speed, and time remaining, plus a clear "connection lost, retrying" state.
 - **Mobile:** the page works from a phone (pick photos from the camera roll) for quick sneak peeks.
 
+## 4a. Behind Cloudflare Tunnel
+
+OpenPortrait is always exposed through Cloudflare Tunnel (SPEC.md section 9), so the gallery pipeline is built for it:
+
+- **Uploads:** tus chunks are 50 MB, under Cloudflare's 100 MB request-body limit. Each chunk is its own request, so a slow connection never hits an edge timeout.
+- **Edge-cacheable previews:** `thumb` and `preview` URLs include the photo's content hash and derivatives version (`/media/<photo>/<hash>/preview.webp`) and carry a short-lived signature, so the edge can cache them with `Cache-Control: public, max-age=31536000, immutable`. A re-export changes the hash and therefore the URL, so a stale cache never needs purging. Watermarked and clean variants have different URLs, so lifting a lock never serves a cached watermark.
+- **Never cached at the edge:** full-resolution originals, web-size downloads and zips are sent `Cache-Control: private, no-store` after an access check.
+- **Long responses:** zip downloads stream, and their headers go out immediately, so Cloudflare's 100-second wait for the first byte never applies. Builds that take longer use the background zip job and an email link (section 6.4).
+- **Real client IPs:** download and view logs use `CF-Connecting-IP`, trusted only on requests that arrive from the built-in cloudflared on loopback. Anything else uses the socket address.
+- **Links in emails** use the public hostname from the tunnel settings (`APP_URL`), never the LAN address.
+
 ## 5. Admin experience
 
 ### 5.1 Gallery lifecycle

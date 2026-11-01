@@ -53,9 +53,13 @@ SFTP logins can also use an SSH key. This is for computers and apps, because cam
 
 FTP sends each photo over a second connection, so the server has to tell the camera where to connect. Set **Address cameras connect back to** to your server's address on your network (for example `192.168.1.20`). The container must publish the passive port range (`30000-30009` by default, which you can change with `FTP_PASSIVE_MIN` and `FTP_PASSIVE_MAX`). Keep the host and container ranges identical.
 
+### Power saving and reconnects
+
+Some cameras log off from the server after a quiet spell to save battery, then reconnect when they have photos to send (Canon calls this Power saving). OpenPortrait treats that as normal. It doesn't log a warning or show an error, and the next photo is received as usual. The server also drops a connection that has been silent for 10 minutes.
+
 ### FTPS certificate
 
-The FTPS server uses a certificate it creates for itself the first time it opens. A camera that checks certificates needs that certificate as a trusted (root) certificate. Open the server once, download the certificate from the settings page, copy it to the memory card, and import it on the camera.
+The FTPS server uses a certificate it creates for itself the first time it opens. A camera that checks certificates needs that certificate as a trusted (root) certificate. Open the server once, download the certificate from the settings page, copy it to the memory card, and import it on the camera. Canon cameras read a single file named `ROOT.PEM`, `ROOT.CRT` or `ROOT.CER`, so rename the download to one of those. Canon warns that a self-signed certificate may not be trusted. If your camera refuses it, use SFTP, or plain FTP on your home network.
 
 ## Which cameras
 
@@ -64,7 +68,8 @@ SFTP and FTPS support is a feature of the camera, and it differs between models.
 - **Nikon Z9 and Z8:** SFTP, per Nikon's manuals. The Z8 also offers FTPS and lets you enter a custom port. Menu: **Connect to FTP server** in the Network menu, then choose the server type, enter the address, port, user ID and password, and choose **Home folder** as the destination.
 - **Other Nikon Z bodies:** plain FTP.
 - **Sony:** FTP over Wi-Fi is documented for recent bodies (**MENU > Network > FTP Transfer Func.**). SFTP and FTPS aren't confirmed, so use FTP.
-- **Canon EOS R:** FTP is documented on bodies such as the R3 and R5 family. SFTP isn't confirmed, so use FTP.
+- **Canon EOS R6 Mark II:** FTP, FTPS and SFTP, per Canon's manual. Menu: **Transfer images to FTP server > Add a device to connect to**, then choose the FTP mode, address and port (the camera suggests 21 for FTP and FTPS, 22 for SFTP, and you can type another). SFTP signs in with a user name and password. The camera asks **Trust server?** the first time it connects; compare the fingerprint it shows with the one on the settings page. The camera creates a missing destination folder itself.
+- **Other Canon EOS R bodies:** FTP is documented on bodies such as the R3 and R5 family. SFTP and FTPS aren't confirmed for them, so use FTP unless your model's manual says otherwise.
 
 Nikon's manual notes that it lists specific servers as supported. If a camera can't connect to OpenPortrait, check the address, port, username and password first, then try plain FTP on your home network to rule out a protocol problem.
 

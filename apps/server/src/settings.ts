@@ -8,10 +8,20 @@ export interface SettingTypes {
   "studio.name": string;
   "studio.email": string;
   "studio.timezone": string;
+  /** Set when a logo has been uploaded; changes with each upload. */
+  "studio.logoVersion": number;
   "internet.publicUrl": string;
   "internet.trustCloudflare": boolean;
   "tunnel.token": string; // secret
   "backup.lastAt": number;
+  /** Delivery folder inside each shoot folder; its subfolders are gallery sets. */
+  "galleries.deliveryFolder": string;
+  /** Other shoot subfolders the gallery watcher never reads (camera originals). */
+  "galleries.privateFolders": string[];
+  /** Download lock the publish dialog starts on (docs/GALLERIES.md section 6.4). */
+  /** Wording laid over previews of payment-locked photos. Empty means the studio name. */
+  "galleries.watermarkText": string;
+  "galleries.defaultDownloadLock": "until_paid" | "highlights_early" | "none";
   "ai.enabled": boolean;
   "ai.paused": boolean;
   "automation.mode": "built-in" | "ai";

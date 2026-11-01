@@ -118,6 +118,10 @@ export function useTether(source: string, onPhotoShown?: () => void): TetherStat
       const p = read<TetherPhoto & { total: number }>(e);
       setState((s) => ({ ...s, total: p.total, current: { photo: p, fresh: true } }));
     });
+    es.addEventListener("removed", (e) => {
+      const d = read<{ latest: TetherPhoto | null; total: number }>(e);
+      setState((s) => ({ ...s, total: d.total, current: d.latest ? { photo: d.latest, fresh: false } : null }));
+    });
     es.addEventListener("folder", (e) => setState((s) => ({ ...s, folderReady: read<{ folderReady: boolean }>(e).folderReady })));
     es.onopen = () => setState((s) => ({ ...s, conn: "live" }));
     es.onerror = () => setState((s) => ({ ...s, conn: "reconnecting" }));

@@ -30,6 +30,13 @@ import { BookCancelPage } from "./pages/public/BookCancel.js";
 import { ApprovalsPage } from "./pages/Approvals.js";
 import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { NotFoundPage } from "./pages/NotFound.js";
+import { GalleriesListPage } from "./pages/galleries/GalleriesList.js";
+import { GalleryDetailPage } from "./pages/galleries/GalleryDetail.js";
+import { GallerySettingsPage } from "./pages/settings/Galleries.js";
+import { ClientGalleryPage } from "./pages/client/ClientGallery.js";
+import "./pages/client/client.css";
+import "./pages/galleries/galleries.css";
+import { IncomingPage } from "./pages/incoming/Incoming.js";
 import { TetherSetupPage } from "./pages/tether/TetherSetup.js";
 import { TetherLivePage } from "./pages/tether/TetherLive.js";
 
@@ -81,13 +88,15 @@ export function App() {
                   <Route path="clients" element={<ClientsPage />} />
                   <Route path="clients/:id" element={<ContactDetailPage />} />
                   <Route path="orders" element={<ComingSoonPage area="orders" />} />
-                  <Route path="galleries" element={<ComingSoonPage area="galleries" />} />
-                  <Route path="incoming" element={<ComingSoonPage area="incoming" />} />
+                  <Route path="galleries" element={<GalleriesListPage />} />
+                  <Route path="galleries/:id" element={<GalleryDetailPage />} />
+                  <Route path="incoming" element={<IncomingPage />} />
                   <Route path="tether" element={<TetherSetupPage />} />
                   <Route path="approvals" element={<ApprovalsPage />} />
                   <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<Navigate to="studio" replace />} />
                     <Route path="studio" element={<StudioSettingsPage />} />
+                    <Route path="galleries" element={<GallerySettingsPage />} />
                     <Route path="shoots" element={<ShootSettingsPage />} />
                     <Route path="calendar" element={<CalendarSettingsPage />} />
                     <Route path="email" element={<EmailSettingsPage />} />
@@ -101,6 +110,7 @@ export function App() {
                 </Route>
               </Route>
             </Route>
+            <Route path="/g/:slug" element={<ClientGalleryPage />} />
             <Route path="/inquire" element={<InquirePage />} />
             <Route path="/book/cancel/:token" element={<BookCancelPage />} />
             <Route path="/book/:slug" element={<BookPage />} />

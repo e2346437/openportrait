@@ -57,6 +57,13 @@
       "when": 1793573852167,
       "tag": "0007_fat_sleepwalker",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1793575647424,
+      "tag": "0008_silent_grandmaster",
+      "breakpoints": true
     }
   ]
 }

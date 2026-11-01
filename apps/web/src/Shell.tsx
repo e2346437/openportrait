@@ -30,6 +30,7 @@ const groups: Array<{ label?: string; items: NavItem[] }> = [
     items: [
       { to: "/studio/galleries", label: "Galleries", icon: "image", soon: true },
       { to: "/studio/incoming", label: "Incoming", icon: "inbox", soon: true },
+      { to: "/studio/tether", label: "Tethering", icon: "lan" },
     ],
   },
   { label: "Studio", items: [{ to: "/studio/settings", label: "Settings", icon: "gear" }] },

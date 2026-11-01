@@ -1,0 +1,88 @@
+/* SFTP Tethering: setup page and the full-screen live view. */
+.tether-setup .set-list { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--s2); min-width: 0; max-height: 420px; overflow-y: auto; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.set-item { position: relative; display: flex; gap: 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--surface); cursor: pointer; min-width: 0; }
+.set-item input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
+.set-item > svg { flex: none; color: var(--ink-3); }
+.set-item span { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.set-item b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-item small { color: var(--ink-3); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-item.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.set-item.on > svg { color: var(--accent); }
+.set-item:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.center-pad { display: grid; place-items: center; padding: 64px 0; }
+.muted { color: var(--ink-3); } .small { font-size: 13px; }
+.tether-preview { aspect-ratio: 16 / 9; border-radius: var(--r); border: 1px solid var(--line-2); display: grid; place-items: center; }
+.tether-preview .mini { display: inline-flex; gap: 8px; align-items: center; font-weight: 600; font-size: 14px; max-width: 80%; }
+.tether-preview .mini.light { color: #fff; } .tether-preview .mini.dark { color: #111; }
+.tether-preview .mini svg { width: 18px; height: 18px; flex: none; opacity: 0.8; }
+
+/* Background picker (used on the setup page and in the live view) */
+.bgpick { display: flex; flex-direction: column; gap: var(--s3); }
+.bgpick-presets { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.bgpick-presets > * { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 10px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); font-weight: 600; font-size: 14px; cursor: pointer; }
+.bgpick-presets > .on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.bgpick-presets > *:has(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bgpick-presets input[type="color"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+.chip-swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line-2); flex: none; }
+.chip-swatch.custom { background: conic-gradient(#e5484d, #f5a524, #46a758, #3b82f6, #8e4ec6, #e5484d); }
+.bgpick-hex { display: flex; align-items: center; gap: 8px; }
+.bgpick-hex label { font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.bgpick-hex .hash { color: var(--ink-3); margin-right: -4px; font-family: var(--mono); }
+.bgpick-hex input { width: 110px; height: 40px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--surface); font: 14px var(--mono); text-transform: lowercase; }
+.bgpick-hex input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+.bgpick-hex input[aria-invalid="true"] { border-color: var(--bad); }
+.bgpick-err { color: var(--bad); font-size: 13px; margin: 0; }
+
+/* Live view */
+.tether { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; font-family: var(--sans); --fg: #fff; --fg-2: rgba(255, 255, 255, 0.72); --glass: rgba(20, 20, 20, 0.62); --glass-line: rgba(255, 255, 255, 0.16); color: var(--fg); transition: background 0.2s; }
+.tether.on-light { --fg: #111; --fg-2: rgba(17, 17, 17, 0.7); --glass: rgba(255, 255, 255, 0.78); --glass-line: rgba(0, 0, 0, 0.14); }
+.tether-stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 0; }
+.tether-photo { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; animation: tether-in 0.28s ease-out; user-select: none; }
+@keyframes tether-in { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }
+.tether-note { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; max-width: min(460px, 86vw); color: var(--fg-2); }
+.tether-note b { font-size: clamp(20px, 3vw, 28px); color: var(--fg); font-weight: 600; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.tether-note span { font-size: 15px; line-height: 1.5; }
+.tether-note svg { width: 40px; height: 40px; opacity: 0.7; }
+.tether-pulse { width: 56px; height: 56px; border-radius: 50%; border: 2px solid currentColor; position: relative; opacity: 0.8; animation: tether-ring 1.8s ease-out infinite; }
+.tether-pulse::after { content: ""; position: absolute; inset: 18px; border-radius: 50%; background: currentColor; }
+@keyframes tether-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 40%, transparent); } 100% { box-shadow: 0 0 0 28px transparent; } }
+.tether-loading { position: absolute; right: 18px; bottom: 96px; }
+
+.tether-top, .tether-bottom { position: absolute; left: 0; right: 0; padding: 14px clamp(12px, 2.5vw, 28px); transition: opacity 0.3s, transform 0.3s; }
+.tether-top { top: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: linear-gradient(to bottom, var(--glass), transparent); }
+.tether-bottom { bottom: 0; padding-bottom: max(14px, env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--glass), transparent); }
+.tether.calm .tether-top { opacity: 0; transform: translateY(-8px); pointer-events: none; }
+.tether.calm .tether-bottom { opacity: 0; pointer-events: none; }
+.tether.calm { cursor: none; }
+.tether-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.tether-title div { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.tether-title b { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
+.tether-title span { font-size: 13px; color: var(--fg-2); }
+.tether-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tether-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--glass-line); background: var(--glass); color: var(--fg); cursor: pointer; text-decoration: none; backdrop-filter: blur(10px); }
+.tether-btn:hover { border-color: var(--fg-2); }
+.tether-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tether-btn svg { width: 20px; height: 20px; }
+.tether-btn .swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--fg); }
+.tether-conn { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--glass-line); background: var(--glass); font-size: 13px; font-weight: 600; backdrop-filter: blur(10px); white-space: nowrap; }
+.tether-conn i { width: 8px; height: 8px; border-radius: 50%; background: #3fb26b; flex: none; }
+.tether-conn.warn i { background: #e0a526; animation: op-pulse 1s infinite; }
+.tether-conn .tether-route { color: var(--fg-2); font-weight: 500; }
+.tether-conn .ping.slow { color: #f0674f; } .tether.on-light .tether-conn .ping.slow { color: #b32a12; }
+.tether-conn .ping.fair { color: #e0a526; } .tether.on-light .tether-conn .ping.fair { color: #8a5d00; }
+.tether-pop { position: absolute; top: 64px; right: clamp(12px, 2.5vw, 28px); width: min(340px, calc(100vw - 24px)); background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); border-radius: var(--r-lg); box-shadow: var(--shadow-lg); padding: var(--s4); display: flex; flex-direction: column; gap: var(--s3); z-index: 3; }
+.tether-pop p { margin: 0; font-size: 13px; color: var(--ink-3); }
+.tether-pop kbd { font: 600 12px var(--mono); border: 1px solid var(--line-2); border-radius: 4px; padding: 1px 5px; background: var(--surface-2); }
+.tether-activity { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.tether-activity .tether-row { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; flex-wrap: wrap; }
+.tether-activity .tether-row b { font-weight: 600; overflow-wrap: anywhere; }
+.tether-activity .tether-row b span { font-weight: 500; color: var(--fg-2); }
+.tether-activity .tether-num { color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.tether .tether-bar { height: 6px; border-radius: 99px; background: var(--glass-line); overflow: hidden; }
+.tether .tether-bar i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width 0.4s linear; }
+.tether .tether-bar.indeterminate i { width: 35%; animation: tether-slide 1.1s ease-in-out infinite; }
+@keyframes tether-slide { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+.tether-idle { display: flex; justify-content: center; gap: 6px 18px; flex-wrap: wrap; font-size: 13.5px; color: var(--fg-2); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .tether-photo, .tether-pulse, .tether .tether-bar.indeterminate i { animation: none; } .tether, .tether-top, .tether-bottom { transition: none; } }
+@media (max-width: 560px) { .tether-conn .tether-route { display: none; } .tether-title b { max-width: 38vw; } }

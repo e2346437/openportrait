@@ -199,7 +199,7 @@ Focal points are stored as percentages (`focal_x`, `focal_y`, 0 to 100) and appl
 - While anything is locked, the download dialog says why ("Full gallery downloads open once your final balance is paid") and links to the invoice. When the payment clears (PayPal webhook or a manual payment entry), the lock lifts automatically and the client can be emailed.
 - **Watermark:** previews of locked photos are watermarked, and the watermark disappears automatically once the balance is paid. Downloaded files are never watermarked. Galleries with no lock never show a watermark.
 - Optional download PIN, separate from the gallery password.
-- **Download all** or a whole set or the favorites builds a zip in the background. Zips of up to 2 GB stream immediately. Larger ones are split into parts, and the client gets an email when they are ready. Zips are cached in `/cache` for 7 days.
+- **Download** offers everything, one set, or the client's favorites as zip files. They are streamed as they are built, so nothing waits and nothing is stored. A zip over 2 GB is split into numbered parts that each open on any device. Only sets the lock allows are included.
 - Single photos download straight from the lightbox.
 - Every download is logged with who, what, and which size.
 

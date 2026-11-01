@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "@openportrait/config";
 import { buildApp } from "../src/app.js";
 import { discover, listGalleryFiles } from "../src/galleries/discover.js";
+import { splitParts } from "../src/galleries/zip.js";
 import { isImageFile, resolveInside, titleFromFolder } from "../src/galleries/files.js";
 
 let app: FastifyInstance;
@@ -159,6 +160,52 @@ describe("resumable uploads", () => {
     const photos = (await studio("GET", `/galleries/${id}`)).json().photos;
     expect(photos.map((p: { filename: string }) => p.filename).sort()).toEqual(["one (2).jpg", "one.jpg", "one.jpg"]);
     expect(detail.photos).toHaveLength(1);
+  });
+});
+
+describe("zip downloads", () => {
+  const names = (buf: Buffer) => [...buf.toString("latin1").matchAll(/PK\x03\x04[\s\S]{26}([^\x00-\x1f]{3,80}?\.jpg)/g)].map((m) => m[1]);
+
+  it("zips what the lock allows, keeps sets as folders, and refuses what is locked", async () => {
+    const shoot = path.join(share, "Ito Family");
+    await jpeg(path.join(shoot, "Highlights/h1.jpg"), red);
+    await jpeg(path.join(shoot, "Highlights/h2.jpg"), blue);
+    await jpeg(path.join(shoot, "Full/f1.jpg"), green);
+    const { id, slug } = await galleryFromShare();
+    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "highlights_early" });
+    const sets = (await studio("GET", `/galleries/${id}`)).json().sets;
+    await studio("PATCH", `/galleries/${id}/sets/${sets.find((s: { name: string }) => s.name === "Highlights").id}`, { earlyDownload: true });
+
+    const who = await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "ito@example.com" } });
+    const cookie = who.cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+    const get = (url: string) => app.inject({ method: "GET", url, headers: { cookie } });
+
+    // Locked: only Highlights is on offer, and "Everything" holds just those two photos.
+    const opts = (await get(`/api/g/${slug}/downloads`)).json().downloads;
+    expect(opts.find((d: { key: string }) => d.key === "gallery")).toMatchObject({ count: 2, parts: 1 });
+    expect(opts.some((d: { name: string }) => d.name === "Full")).toBe(false);
+    const all = await get(`/api/g/${slug}/zip?scope=gallery`);
+    expect(all.statusCode).toBe(200);
+    expect(all.headers["content-type"]).toBe("application/zip");
+    expect(all.headers["content-disposition"]).toContain(".zip");
+    expect(all.rawPayload.subarray(0, 2).toString()).toBe("PK");
+    expect(names(all.rawPayload).sort()).toEqual(["Highlights/h1.jpg", "Highlights/h2.jpg"]);
+    const full = (await studio("GET", `/galleries/${id}`)).json().sets.find((s: { name: string }) => s.name === "Full");
+    expect((await get(`/api/g/${slug}/zip?scope=set&set=${full.id}`)).statusCode).toBe(404);
+
+    // Paid: everything opens, and a visitor must be identified.
+    await studio("POST", `/galleries/${id}/unlock`, { locked: false });
+    expect(names((await get(`/api/g/${slug}/zip?scope=gallery`)).rawPayload).sort()).toEqual(["Full/f1.jpg", "Highlights/h1.jpg", "Highlights/h2.jpg"]);
+    expect((await app.inject({ method: "GET", url: `/api/g/${slug}/zip?scope=gallery` })).statusCode).toBe(401);
+    const events = (await studio("GET", `/galleries/${id}`)).json().gallery.downloads;
+    expect(events).toBeGreaterThanOrEqual(2);
+  });
+
+  it("splits big galleries into parts under the limit", () => {
+    const e = (bytes: number) => ({ photo: {} as never, name: "x", bytes });
+    const parts = splitParts([e(900), e(900), e(900), e(5000), e(100)], 2000);
+    expect(parts.map((p) => p.map((x) => x.bytes))).toEqual([[900, 900], [900], [5000], [100]]);
+    expect(splitParts([], 2000)).toEqual([]);
   });
 });
 

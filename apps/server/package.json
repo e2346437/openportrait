@@ -20,6 +20,7 @@
     "@openportrait/config": "workspace:*",
     "@openportrait/db": "workspace:*",
     "@openportrait/jobs": "workspace:*",
+    "archiver": "^8.0.0",
     "chokidar": "^6.0.0",
     "drizzle-orm": "^0.45.4",
     "exifr": "^7.1.3",
@@ -28,6 +29,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@types/archiver": "^8.0.0",
     "tsx": "^4.23.15",
     "vitest": "^5.0.5"
   }

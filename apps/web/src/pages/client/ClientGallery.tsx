@@ -27,7 +27,7 @@ async function call<T>(path: string, method = "GET", body?: unknown): Promise<T>
   return data as T;
 }
 
-type Pending = { kind: "favorite"; photoId: string } | { kind: "download"; photoId: string } | { kind: "drawer" } | null;
+type Pending = { kind: "favorite"; photoId: string } | { kind: "download"; photoId: string } | { kind: "drawer" } | { kind: "zips" } | null;
 
 /** The public client gallery at /g/:slug (docs/GALLERIES.md section 6). */
 export function ClientGalleryPage() {
@@ -41,6 +41,7 @@ export function ClientGalleryPage() {
   const [gate, setGate] = useState<Pending>(null);
   const [activeList, setActiveList] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [zips, setZips] = useState(false);
 
   const [reloads, setReloads] = useState(0);
   useEffect(() => {
@@ -140,6 +141,7 @@ export function ClientGalleryPage() {
     setGate(null);
     if (pending?.kind === "download") doDownload(pending.photoId);
     if (pending?.kind === "drawer") setDrawer(true);
+    if (pending?.kind === "zips") setZips(true);
     if (pending?.kind === "favorite" && list) {
       const already = next.selections.find((s) => s.listId === list.id)?.photoIds.includes(pending.photoId);
       if (!already) {
@@ -268,6 +270,12 @@ export function ClientGalleryPage() {
                 {totalPicked ? <span className="cnt">{totalPicked}</span> : null}
               </button>
             ) : null}
+            {sets.some((s) => s.download.allowed) || anyLocked ? (
+              <button type="button" className="gbtn" aria-label="Download photos" onClick={() => (me.email ? setZips(true) : setGate({ kind: "zips" }))}>
+                <Icon name="download" />
+                <span className="lbl">Download</span>
+              </button>
+            ) : null}
             <button type="button" className="gbtn" aria-label="Share gallery" onClick={shareGallery}>
               <Icon name="send" />
               <span className="lbl">Share</span>
@@ -393,6 +401,7 @@ export function ClientGalleryPage() {
         />
       ) : null}
 
+      {zips ? <ZipDialog slug={slug} locked={anyLocked} lockMode={g.downloadLock} onClose={() => setZips(false)} /> : null}
       <EmailGate slug={slug} pending={gate} onClose={() => setGate(null)} onDone={onIdentified} studioName={studioName} />
       {drawer && data.lists.length ? (
         <FavoritesDrawer slug={slug} data={data} me={me} setMe={setMe} activeList={list!.id} setActiveList={setActiveList} onClose={() => setDrawer(false)} onOpenPhoto={(id) => {
@@ -477,6 +486,75 @@ function GateScreen({ slug, data, onThrough }: { slug: string; data: ClientGalle
   );
 }
 
+interface ZipOption {
+  key: string;
+  name: string;
+  scope: "gallery" | "set" | "favorites";
+  setId?: string;
+  listId?: string;
+  count: number;
+  bytes: number;
+  parts: number;
+}
+
+const sizeText = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(n / 1e6))} MB`);
+
+/** Whole-gallery, per-set and favorites downloads as zip files, split into parts when they are very large. */
+function ZipDialog({ slug, locked, lockMode, onClose }: { slug: string; locked: boolean; lockMode?: string; onClose: () => void }) {
+  const [options, setOptions] = useState<ZipOption[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    call<{ downloads: ZipOption[] }>(`${encodeURIComponent(slug)}/downloads`)
+      .then((r) => setOptions(r.downloads))
+      .catch((e: Error) => setError(e.message));
+  }, [slug]);
+  const href = (o: ZipOption, part: number) => `/api/g/${encodeURIComponent(slug)}/zip?scope=${o.scope}${o.setId ? `&set=${o.setId}` : ""}${o.listId ? `&list=${o.listId}` : ""}&part=${part}`;
+  return (
+    <Dialog open onClose={onClose} title="Download photos" description="Each download is a zip file. Large galleries come in several parts so every part opens on any device.">
+      {error ? <p className="dr-err">{error}</p> : null}
+      {!options && !error ? <Spinner /> : null}
+      {options && options.length === 0 ? (
+        <p className="lockbar">
+          <Icon name="lock" />
+          {locked ? (lockMode === "highlights_early" ? "Downloads open once your gallery is paid for." : "Downloads open once your gallery is paid for. You can still view and pick favorites.") : "There's nothing to download yet."}
+        </p>
+      ) : null}
+      <ul className="zips">
+        {options?.map((o) => (
+          <li key={o.key}>
+            <div>
+              <b>{o.name}</b>
+              <span>
+                {plural(o.count, "photo")} · {sizeText(o.bytes)}
+              </span>
+            </div>
+            {o.parts === 1 ? (
+              <a className="btn primary sm" href={href(o, 1)} download>
+                <Icon name="download" /> Download
+              </a>
+            ) : (
+              <div className="zparts">
+                {Array.from({ length: o.parts }, (_, i) => (
+                  <a key={i} className="btn sm" href={href(o, i + 1)} download>
+                    Part {i + 1}
+                  </a>
+                ))}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {options?.some((o) => o.parts > 1) ? <p className="hint">Open all the parts and extract them into the same folder.</p> : null}
+      {locked && options && options.length > 0 ? (
+        <p className="lockbar">
+          <Icon name="lock" />
+          Some photos are still locked until your gallery is paid for.
+        </p>
+      ) : null}
+    </Dialog>
+  );
+}
+
 function EmailGate({ slug, pending, onClose, onDone, studioName }: { slug: string; pending: Pending; onClose: () => void; onDone: (me: ClientMe) => void; studioName: string }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -494,12 +572,12 @@ function EmailGate({ slug, pending, onClose, onDone, studioName }: { slug: strin
       setBusy(false);
     }
   };
-  const what = pending?.kind === "download" ? "download" : "save your favorites";
+  const what = pending?.kind === "download" || pending?.kind === "zips" ? "download" : "save your favorites";
   return (
     <Dialog
       open={pending !== null}
       onClose={onClose}
-      title={pending?.kind === "download" ? "Where should we send your downloads?" : "Save your favorites"}
+      title={pending?.kind === "download" || pending?.kind === "zips" ? "Where should we send your downloads?" : "Save your favorites"}
       description={`Enter your email to ${what}. ${studioName || "The studio"} uses it to see your picks, and it keeps them on any device.`}
     >
       <form onSubmit={submit} className="gate-form" noValidate>

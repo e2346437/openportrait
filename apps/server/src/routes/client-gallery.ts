@@ -8,6 +8,7 @@ import { derivativePath, renderVariant, VARIANTS, type Variant } from "../galler
 import { newId, resolveInside } from "../galleries/files.js";
 import { designOf, downloadState, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
 import { verifyPassword } from "../auth.js";
+import { planZip, splitParts, streamZip, zipFilename, type Scope } from "../galleries/zip.js";
 import { email, parse } from "../validate.js";
 
 const { gallery, gallerySet, photo, favoriteList, favoriteSelection, favoriteItem, galleryView, galleryVisitor, downloadEvent } = tables;
@@ -250,6 +251,62 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     if (n === 0) return reply.code(409).send({ error: "empty", message: "Add at least one photo before sending." });
     db.update(favoriteSelection).set({ submittedAt: new Date() }).where(eq(favoriteSelection.id, ctx.sel.id)).run();
     return { me: me(ctx.g, ctx.who) };
+  });
+
+  /** Zips the visitor can download right now, with sizes, so the page can show "3 parts, 4.2 GB" before they click. */
+  app.get<{ Params: { slug: string } }>("/:slug/downloads", async (req, reply) => {
+    const g = load(req, reply);
+    if (!g) return;
+    const who = clientEmail(req);
+    if (gateFor(req, g, who)) return reply.code(401).send({ error: "gate", message: "Open the gallery first." });
+    reply.header("Cache-Control", "private, no-store");
+    const { sets } = loadSetsAndPhotos(db, g.id);
+    const describe = (key: string, name: string, scope: Scope) => {
+      const { entries } = planZip(db, g, scope);
+      return entries.length ? { key, name, scope: scope.kind, setId: scope.kind === "set" ? scope.setId : undefined, listId: scope.kind === "favorites" ? scope.listId : undefined, count: entries.length, bytes: entries.reduce((n, e) => n + e.bytes, 0), parts: splitParts(entries).length } : null;
+    };
+    const lists = who ? db.select().from(favoriteList).where(eq(favoriteList.galleryId, g.id)).all() : [];
+    const visibleSets = sets.filter((s) => !s.hidden);
+    const downloads = [
+      describe("gallery", "Everything", { kind: "gallery" }),
+      ...(visibleSets.length > 1 ? visibleSets.map((s) => describe(`set:${s.id}`, s.name, { kind: "set", setId: s.id })) : []),
+      ...lists.map((l) => describe(`favorites:${l.id}`, `Your favorites${lists.length > 1 ? `: ${l.name}` : ""}`, { kind: "favorites", listId: l.id, email: who! })),
+    ].filter((d): d is NonNullable<typeof d> => !!d);
+    return { downloads, size: g.downloadSize };
+  });
+
+  /** One zip part, streamed as it is built: nothing is stored, and a closed tab stops the work. */
+  app.get<{ Params: { slug: string }; Querystring: { scope?: string; set?: string; list?: string; part?: string } }>("/:slug/zip", async (req, reply) => {
+    const g = load(req, reply);
+    if (!g) return;
+    const who = clientEmail(req);
+    if (gateFor(req, g, who)) return reply.code(401).send({ error: "gate", message: "Open the gallery first." });
+    if (!who && !req.user) return reply.code(401).send({ error: "identify", message: "Enter your email to download." });
+    const q = req.query;
+    let scope: Scope;
+    if (q.scope === "set" && q.set) scope = { kind: "set", setId: q.set };
+    else if (q.scope === "favorites" && q.list) scope = { kind: "favorites", listId: q.list, email: who ?? "" };
+    else if (q.scope === "gallery") scope = { kind: "gallery" };
+    else return reply.code(400).send({ error: "invalid", message: "Choose what to download." });
+    const { entries, label } = planZip(db, g, scope);
+    if (!entries.length) {
+      const off = g.downloadSize === "none";
+      return reply.code(off ? 403 : 404).send({ error: off ? "off" : "empty", message: off ? "Downloads are turned off for this gallery." : "Nothing here can be downloaded right now. It may still be locked, or there are no photos." });
+    }
+    const parts = splitParts(entries);
+    const part = Math.min(Math.max(Number(q.part) || 1, 1), parts.length);
+    const chosen = parts[part - 1]!;
+    db.insert(downloadEvent).values({ galleryId: g.id, photoId: null, scope: scope.kind === "gallery" ? "gallery" : scope.kind, variant: g.downloadSize === "web" ? "web" : "full", clientEmail: who, ip: app.ctx.ip(req) }).run();
+    const name = zipFilename(label, part, parts.length);
+    const archive = streamZip({ galleriesDir: app.ctx.config.galleriesDir, cacheDir: app.ctx.config.cacheDir, gallery: g, entries: chosen, onError: (err) => app.log.warn({ err: String(err) }, "zip entry failed") });
+    req.raw.on("close", () => {
+      if (!reply.raw.writableEnded) archive.abort();
+    });
+    reply.header("Content-Type", "application/zip");
+    reply.header("Content-Disposition", `attachment; filename="${name.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(name)}`);
+    reply.header("Cache-Control", "private, no-store");
+    reply.header("X-Accel-Buffering", "no");
+    return reply.send(archive);
   });
 
   /** One photo, as the original file or a 2048 px JPEG, depending on the gallery's download size. */

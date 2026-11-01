@@ -187,7 +187,7 @@ export function InternetSettingsPage() {
                 Choose <b>Create a tunnel</b>, and name it <span className="mono">openportrait</span>.
               </li>
               <li>
-                On the install screen, don't install anything. Copy the command shown and paste it in the next step. OpenPortrait finds the token in it.
+                Choose your operating system and copy the install command. You don't run it, because OpenPortrait already includes cloudflared. Paste it in the next step, and OpenPortrait finds the token in it.
               </li>
             </ol>
             <ExternalLink href={CF_TUNNELS}>Open Tunnels</ExternalLink>
@@ -251,18 +251,17 @@ export function InternetSettingsPage() {
 
           <Step n={4} state={stateOf(3)} title="Add a public hostname">
             <p>
-              In the tunnel's <b>Public Hostname</b> tab (called <b>Published application routes</b> in newer dashboards), add a route with these values. A subdomain like <span className="mono">studio</span> works well.
+              Open your tunnel, go to the <b>Routes</b> tab, click <b>Add route</b>, and choose <b>Published application</b>. Enter these values. A subdomain like <span className="mono">studio</span> works well.
             </p>
             <div className="values">
               <span>Subdomain</span>
               <CopyValue value="studio" label="subdomain" />
               <span>Domain</span>
               <span style={{ color: "var(--ink)" }}>Your domain</span>
-              <span>Service type</span>
-              <CopyValue value="HTTP" label="service type" />
-              <span>URL</span>
-              <CopyValue value={`localhost:${port}`} label="service URL" />
+              <span>Service URL</span>
+              <CopyValue value={`http://localhost:${port}`} label="service URL" />
             </div>
+            <p className="hint">Cloudflare creates the DNS record for you.</p>
             {t?.hostnames.length ? (
               <Callout tone="ok" title="Hostname found">
                 Your tunnel serves {t.hostnames.join(", ")}.
@@ -284,9 +283,9 @@ export function InternetSettingsPage() {
       <Panel title="Protect your back office" description="Recommended. Adds a Cloudflare sign-in in front of the studio pages, on top of your OpenPortrait password.">
         <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6, color: "var(--ink-2)" }}>
           <li>
-            In Zero Trust, open <b>Access → Applications</b> and add a <b>Self-hosted</b> application.
+            In Zero Trust, open <b>Access controls</b>, then <b>Applications</b>. Click <b>Create new application</b> and choose <b>Self-hosted and private</b>.
           </li>
-          <li>Use your public hostname, and add these two paths. Client pages like galleries and booking stay public.</li>
+          <li>Add your public hostname with these two paths. Client pages like galleries and booking stay public.</li>
         </ol>
         <div className="values">
           <span>Path</span>

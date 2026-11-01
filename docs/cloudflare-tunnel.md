@@ -14,8 +14,8 @@ The same steps are in the app under **Settings > Internet access**, with live ch
 ### 1. Create a tunnel
 
 1. In the Cloudflare dashboard, open **Networks**, then **Tunnels**.
-2. Click **Create a tunnel**, and name it `openportrait`.
-3. On the install screen, **don't install anything**. OpenPortrait already includes cloudflared. Copy the command shown for any operating system; it contains your token (a long value starting with `eyJ`).
+2. Click **Create a tunnel**, and name it `openportrait`. Then click **Create tunnel**.
+3. Choose your operating system and copy the install command. **Don't run it.** OpenPortrait already includes cloudflared. The command contains your token (a long value starting with `eyJ`).
 
 ### 2. Give the token to OpenPortrait
 
@@ -28,14 +28,16 @@ Within a few seconds the status changes to **Connected**, and Cloudflare shows t
 
 ### 3. Add a public hostname
 
-In the tunnel's **Public Hostname** tab (called **Published application routes** in newer dashboards), add a route:
+Open your tunnel, go to the **Routes** tab, click **Add route**, and choose **Published application**. Enter:
 
 | Field | Value |
 |---|---|
 | Subdomain | `studio` (or anything you like) |
 | Domain | your domain |
-| Service type | `HTTP` |
-| URL | `localhost:8080` |
+| Path | leave empty |
+| Service URL | `http://localhost:8080` |
+
+Click **Add route**. Cloudflare confirms with "Route added successfully" and creates the DNS record for you.
 
 Use `localhost:8080` even though OpenPortrait runs in a container: the built-in cloudflared runs inside the same container. If you changed `PORT`, use that port.
 
@@ -45,11 +47,12 @@ Back in **Settings > Internet access**, click **Run the test**. OpenPortrait ask
 
 ## Protect your back office (recommended)
 
-Client pages need to stay public, but the studio pages don't. Cloudflare Access can put a sign-in in front of them, on top of your OpenPortrait password, at no cost for up to 50 users.
+Client pages need to stay public, but the studio pages don't. Cloudflare Access can put a sign-in in front of them, on top of your OpenPortrait password. Check Cloudflare's pricing page for the current user limit.
 
-1. In Zero Trust, open **Access > Applications** and add a **Self-hosted** application.
-2. Use your public hostname, and add two paths: `studio` and `api/studio`.
-3. Add a policy that allows only your email address (and your staff's).
+1. In Zero Trust, open **Access controls**, then **Applications**. Click **Create new application** and choose **Self-hosted and private**.
+2. Click **Add public hostname** and choose your domain. Add your hostname with two paths: `studio` and `api/studio` (for example `studio.yourdomain.com/studio`).
+3. Under **Access policies**, add a policy that allows only your email address (and your staff's).
+4. Set a session duration, then click **Create**.
 
 Galleries (`/g`), booking pages (`/book`), the client portal (`/portal`), contract signing (`/sign`) and `/api/health` are not under those paths, so clients never see the Cloudflare sign-in.
 

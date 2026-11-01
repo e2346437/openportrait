@@ -50,3 +50,34 @@ export interface InternetStatus {
   lan: { addresses: string[]; port: number };
   platform: "unraid" | "docker";
 }
+
+export type AiLevel = "read" | "assist" | "full";
+export interface AiConnection {
+  id: string;
+  label: string;
+  kind: "token" | "oauth";
+  level: AiLevel;
+  areas: string[];
+  tokenHint: string;
+  createdAt: number;
+  expiresAt: number | null;
+  lastUsedAt: number | null;
+  expired: boolean;
+}
+export interface AiStatus {
+  enabled: boolean;
+  paused: boolean;
+  urls: { public: string | null; lan: string | null };
+  online: boolean;
+  areas: string[];
+  toolCount: number;
+  connections: AiConnection[];
+  lastSeenAt: number | null;
+}
+export interface AiActivityItem {
+  id: number;
+  at: number;
+  connection: string;
+  action: string;
+  ok: boolean;
+}

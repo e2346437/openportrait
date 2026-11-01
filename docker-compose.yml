@@ -1,0 +1,26 @@
+# OpenPortrait with plain Docker. See docs/install-docker.md.
+#   docker compose up -d
+# then open http://<this-machine>:8080 and follow the setup screen.
+services:
+  openportrait:
+    image: ghcr.io/e2346437/openportrait:latest
+    container_name: openportrait
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Run as your own user so files on your shares get the right owner (`id -u`, `id -g`).
+      PUID: "1000"
+      PGID: "1000"
+      UMASK: "022"
+      TZ: "America/New_York"
+      # Optional: the token for the built-in Cloudflare Tunnel. You can paste it in
+      # Settings > Internet access instead, which stores it encrypted.
+      CLOUDFLARE_TUNNEL_TOKEN: ""
+      # Optional: your public address. Filled in from the tunnel when left empty.
+      APP_URL: ""
+    volumes:
+      - ./appdata:/config            # database, keys, backups
+      - ./galleries:/galleries       # shoot folders and delivered photos
+      - ./incoming:/incoming         # camera uploads waiting to be sorted
+      - ./appdata/cache:/cache       # generated previews (safe to delete)

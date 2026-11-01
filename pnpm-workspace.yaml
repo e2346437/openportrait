@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+onlyBuiltDependencies:
+  - esbuild
+  - "@node-rs/argon2"
+# better-sqlite3 13 bundles prebuilt binaries for linux/macOS/windows (x64 and arm64), so its node-gyp step is skipped.
+ignoredBuiltDependencies:
+  - better-sqlite3

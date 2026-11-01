@@ -16,9 +16,19 @@ export interface SettingTypes {
   "folders.pattern": string;
   "folders.rawSubdir": string;
   "folders.deliverySubdir": string;
+  /** Google Calendar (see google/). Client ID and secret are the studio's own OAuth client. */
+  "google.clientId": string;
+  "google.clientSecret": string; // secret
+  "google.refreshToken": string; // secret
+  "google.email": string;
+  "google.studioCalendarId": string;
+  "google.oauthState": string;
+  "google.needsReconnect": boolean;
+  "google.lastSyncAt": number;
+  "google.lastError": string;
 }
 
-const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token"]);
+const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token", "google.clientSecret", "google.refreshToken"]);
 
 export class Settings {
   constructor(

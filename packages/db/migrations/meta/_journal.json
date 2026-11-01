@@ -15,6 +15,13 @@
       "when": 1793561468960,
       "tag": "0001_exotic_wilson_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793562594049,
+      "tag": "0002_nervous_ultimo",
+      "breakpoints": true
     }
   ]
 }

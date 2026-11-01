@@ -17,6 +17,8 @@ import { LeadsPage } from "./pages/leads/Leads.js";
 import { LeadDetailPage } from "./pages/leads/LeadDetail.js";
 import { ShootsPage } from "./pages/shoots/Shoots.js";
 import { ShootDetailPage } from "./pages/shoots/ShootDetail.js";
+import { CalendarPage } from "./pages/calendar/Calendar.js";
+import { CalendarSettingsPage } from "./pages/settings/Calendar.js";
 import { NotFoundPage } from "./pages/NotFound.js";
 
 function Boot() {
@@ -60,7 +62,7 @@ export function App() {
                   <Route path="leads/:id" element={<LeadDetailPage />} />
                   <Route path="shoots" element={<ShootsPage />} />
                   <Route path="shoots/:id" element={<ShootDetailPage />} />
-                  <Route path="calendar" element={<ComingSoonPage area="calendar" />} />
+                  <Route path="calendar" element={<CalendarPage />} />
                   <Route path="clients" element={<ClientsPage />} />
                   <Route path="clients/:id" element={<ContactDetailPage />} />
                   <Route path="orders" element={<ComingSoonPage area="orders" />} />
@@ -70,6 +72,7 @@ export function App() {
                     <Route index element={<Navigate to="studio" replace />} />
                     <Route path="studio" element={<StudioSettingsPage />} />
                     <Route path="shoots" element={<ShootSettingsPage />} />
+                    <Route path="calendar" element={<CalendarSettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />
                   </Route>

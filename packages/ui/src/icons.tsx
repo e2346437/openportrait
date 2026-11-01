@@ -38,6 +38,8 @@ const P = {
   phone: '<path d="M6.5 4h3l1.5 4-2 1.3a10 10 0 0 0 5.7 5.7L16 13l4 1.5v3a2 2 0 0 1-2 2A14 14 0 0 1 4.5 6a2 2 0 0 1 2-2z"/>',
   clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   pin: '<path d="M12 21s6.5-5.7 6.5-11A6.5 6.5 0 0 0 5.5 10c0 5.3 6.5 11 6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
+  chevronLeft: '<path d="m14.5 6-6 6 6 6"/>',
+  chevronRight: '<path d="m9.5 6 6 6-6 6"/>',
   chevronDown: '<path d="m6 9.5 6 6 6-6"/>',
   arrowUp: '<path d="M12 19V5M6 11l6-6 6 6"/>',
   arrowDown: '<path d="M12 5v14M6 13l6 6 6-6"/>',

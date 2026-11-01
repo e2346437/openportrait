@@ -375,6 +375,13 @@ Delivered as its own milestone after the skeleton, and extended as each module l
 
 Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Draft tool; a blocked action does not exist), approval flow, and an end-to-end run with the MCP SDK client against the real server.
 
+### Email, inquiry and booking (step 3c)
+
+- Outgoing email uses the studio's own SMTP account (Settings > Email), queued as a retrying job, with a log of recent sends. If email isn't configured, nothing fails; the client just isn't emailed.
+- Public pages live under `/inquire`, `/book/:slug` and `/book/cancel/:token`, backed by `/api/public/*`, which is outside the Cloudflare Access paths and rate limited. `?embed=1` drops the page frame for use in an iframe.
+- A booking page ("scheduler") has weekly hours, length, buffers, minimum notice and a horizon. Slots are computed from the weekly hours minus calendar busy time and re-checked when booked. Requests hold a "Pending" calendar entry until confirmed or declined. Details: [`booking.md`](booking.md).
+- Booking pages that include packages, contracts or deposits arrive with quotes and contracts (steps 3d and 3e).
+
 ## 11. Milestones
 
 1. **Spec** (this document).

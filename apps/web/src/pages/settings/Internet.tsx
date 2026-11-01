@@ -171,7 +171,7 @@ export function InternetSettingsPage() {
     <>
       <StatusPanel status={status} check={check} checking={checking} onCheck={runCheck} />
 
-      <Panel title="Connect a Cloudflare Tunnel" description="A tunnel lets clients reach OpenPortrait securely without opening ports on your router. The tunnel is set up in Cloudflare Zero Trust. Signing up for its free plan asks for a credit or debit card.">
+      <Panel title="Connect a Cloudflare Tunnel" description="A tunnel lets clients reach OpenPortrait securely without opening ports on your router. Creating a tunnel doesn't need a credit card.">
         <ol className="steps" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           <Step n={1} state={stateOf(0)} title="Have a domain on Cloudflare">
             <p>You need a domain, such as yourstudio.com, using Cloudflare for DNS. If yours isn't there yet, add it in Cloudflare and follow their steps to switch nameservers.</p>
@@ -280,7 +280,7 @@ export function InternetSettingsPage() {
         </ol>
       </Panel>
 
-      <Panel title="Protect your back office (optional)" description="Adds a Cloudflare sign-in in front of the studio pages, on top of your OpenPortrait password. OpenPortrait already has its own login, so you can skip this and still finish setup.">
+      <Panel title="Protect your back office (optional)" description="Adds a Cloudflare sign-in in front of the studio pages, on top of your OpenPortrait password. OpenPortrait already has its own login, so you can skip this and still finish setup. Cloudflare Access asks for a credit or debit card before it opens. It's $0 for up to 50 users.">
         <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6, color: "var(--ink-2)" }}>
           <li>
             In Zero Trust, open <b>Access controls</b>, then <b>Applications</b>. Click <b>Create new application</b> and choose <b>Self-hosted and private</b>.

@@ -30,7 +30,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
 
 export interface Me {
   user: { id: string; email: string; name: string; role: "owner" | "staff" | "assistant" } | null;
-  studio: { name: string };
+  studio: { name: string; timezone: string };
 }
 
 export interface InternetStatus {

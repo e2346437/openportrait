@@ -12,6 +12,9 @@ export function SettingsLayout() {
         <NavLink to="studio">
           <Icon name="building" /> Studio
         </NavLink>
+        <NavLink to="shoots">
+          <Icon name="camera" /> Shoots &amp; folders
+        </NavLink>
         {owner ? (
           <NavLink to="internet">
             <Icon name="globe" /> Internet access

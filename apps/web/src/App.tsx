@@ -11,6 +11,12 @@ import { StudioSettingsPage } from "./pages/settings/Studio.js";
 import { InternetSettingsPage } from "./pages/settings/Internet.js";
 import { AccountSettingsPage } from "./pages/settings/Account.js";
 import { NotFoundPage } from "./pages/NotFound.js";
+import { GalleriesListPage } from "./pages/galleries/GalleriesList.js";
+import { GalleryDetailPage } from "./pages/galleries/GalleryDetail.js";
+import { GallerySettingsPage } from "./pages/settings/Galleries.js";
+import { ClientGalleryPage } from "./pages/client/ClientGallery.js";
+import "./pages/client/client.css";
+import "./pages/galleries/galleries.css";
 
 function Boot() {
   return (
@@ -54,11 +60,13 @@ export function App() {
                   <Route path="calendar" element={<ComingSoonPage area="calendar" />} />
                   <Route path="clients" element={<ComingSoonPage area="clients" />} />
                   <Route path="orders" element={<ComingSoonPage area="orders" />} />
-                  <Route path="galleries" element={<ComingSoonPage area="galleries" />} />
+                  <Route path="galleries" element={<GalleriesListPage />} />
+                  <Route path="galleries/:id" element={<GalleryDetailPage />} />
                   <Route path="incoming" element={<ComingSoonPage area="incoming" />} />
                   <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<Navigate to="studio" replace />} />
                     <Route path="studio" element={<StudioSettingsPage />} />
+                    <Route path="galleries" element={<GallerySettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />
                   </Route>
@@ -66,6 +74,7 @@ export function App() {
                 </Route>
               </Route>
             </Route>
+            <Route path="/g/:slug" element={<ClientGalleryPage />} />
             <Route path="*" element={<NotFoundPage standalone />} />
           </Routes>
         </BrowserRouter>

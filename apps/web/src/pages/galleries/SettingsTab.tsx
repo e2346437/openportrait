@@ -159,6 +159,23 @@ export function SettingsTab({ data, patch, onDeleted }: { data: GalleryDetail; p
         </Field>
       </Panel>
 
+      <Panel title="Emails sent" description="Gallery links and notices OpenPortrait sent for this gallery.">
+        {g.status === "live" && data.emails.length === 0 ? <p className="muted">Nothing sent yet. Use “Email client” at the top to send the link.</p> : null}
+        {g.status !== "live" ? <p className="muted">Emails can be sent once the gallery is shared.</p> : null}
+        {data.emails.length ? (
+          <ul className="mail-log">
+            {data.emails.map((m) => (
+              <li key={m.id}>
+                <b>{m.toEmail}</b>
+                <span className={`test-result ${m.status === "sent" ? "ok" : "bad"}`}>{m.status === "sent" ? "Sent" : "Failed"} · {formatDate(m.at)}</span>
+                <span className="sub">{m.subject}</span>
+                {m.error ? <span className="err">{m.error}</span> : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Panel>
+
       <Panel title="Folder">
         <dl className="kv">
           <dt>Shoot folder</dt>

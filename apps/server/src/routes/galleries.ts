@@ -8,9 +8,10 @@ import { hashPassword, requireOwner, requireUser } from "../auth.js";
 import { fillCovers } from "../galleries/derivatives.js";
 import { newId, titleFromFolder } from "../galleries/files.js";
 import { designOf, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
-import { parse } from "../validate.js";
+import { galleryRecipients, sendGalleryReady } from "../galleries/notify.js";
+import { email as emailField, parse } from "../validate.js";
 
-const { gallery, gallerySet, photo, ingestFolder, favoriteList, favoriteSelection, favoriteItem, galleryView, downloadEvent } = tables;
+const { message, gallery, gallerySet, photo, ingestFolder, favoriteList, favoriteSelection, favoriteItem, galleryView, downloadEvent } = tables;
 
 const lock = z.enum(["until_paid", "highlights_early", "none"]);
 const focal = z.number().min(0).max(100);
@@ -172,6 +173,16 @@ export async function galleryRoutes(app: FastifyInstance) {
       sets: sets.map((s) => ({ id: s.id, name: s.name, folderName: s.folderName, hidden: s.hidden, earlyDownload: s.earlyDownload, coverPhotoId: s.coverPhotoId, coverFocalX: s.coverFocalX, coverFocalY: s.coverFocalY, sort: s.sort })),
       photos: photos.map((p) => ({ ...photoJson(secrets, p), state: p.state, error: p.error, hidden: p.hidden, relPath: p.relPath })),
       lists: lists.map((l) => ({ id: l.id, name: l.name, maxCount: l.maxCount })),
+      recipients: galleryRecipients(app.ctx, g),
+      emailReady: app.ctx.mailer.configured(),
+      emails: db
+        .select({ id: message.id, kind: message.kind, toEmail: message.toEmail, subject: message.subject, status: message.status, error: message.error, at: message.createdAt })
+        .from(message)
+        .where(eq(message.galleryId, g.id))
+        .orderBy(desc(message.createdAt))
+        .limit(30)
+        .all()
+        .map((m) => ({ ...m, at: m.at.getTime() })),
     };
   };
 
@@ -217,6 +228,25 @@ export async function galleryRoutes(app: FastifyInstance) {
     if (ready === 0) return reply.code(409).send({ error: "empty", message: "There are no visible photos to share yet." });
     db.update(gallery).set({ status: "live", downloadLock: body.downloadLock, publishedAt: g.publishedAt ?? new Date(), updatedAt: new Date() }).where(eq(gallery.id, g.id)).run();
     return detail(g.id);
+  });
+
+  app.post<{ Params: { id: string } }>("/:id/email", async (req, reply) => {
+    const body = parse(z.object({ to: z.array(z.object({ email: emailField, name: z.string().trim().max(120).optional(), contactId: z.string().nullish() })).min(1, "Choose who to email.").max(10), message: z.string().trim().max(2000).default("") }), req.body, reply);
+    if (!body) return;
+    const g = db.select().from(gallery).where(eq(gallery.id, req.params.id)).get();
+    if (!g) return notFound(reply);
+    if (g.status !== "live") return reply.code(409).send({ error: "draft", message: "Share the gallery first, then email the link." });
+    if (!app.ctx.mailer.configured()) return reply.code(409).send({ error: "no_email", message: "Email isn't set up yet. Add your SMTP details in Settings › Email." });
+    if (!/^https?:\/\//.test(app.ctx.publicUrl())) {
+      return reply.code(409).send({ error: "no_url", message: "Set your public address in Settings › Internet access first, so the link in the email works for your client." });
+    }
+    const known = galleryRecipients(app.ctx, g);
+    const to = body.to.map((r) => {
+      const match = known.find((k) => k.email.toLowerCase() === r.email.toLowerCase());
+      return { contactId: match?.contactId ?? null, name: r.name || match?.name || "", email: r.email };
+    });
+    const results = await sendGalleryReady(app.ctx, g, to, body.message, req.user?.id ?? null);
+    return { results, ...detail(g.id) };
   });
 
   app.post<{ Params: { id: string } }>("/:id/unpublish", async (req, reply) => {

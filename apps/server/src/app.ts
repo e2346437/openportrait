@@ -16,6 +16,8 @@ import { Settings } from "./settings.js";
 import { TunnelManager } from "./tunnel.js";
 import { registerDerivativesJob } from "./galleries/derivatives.js";
 import { GalleryIngest } from "./galleries/ingest.js";
+import { Mailer } from "./email/mailer.js";
+import { emailRoutes } from "./routes/email.js";
 import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
 import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
@@ -45,6 +47,7 @@ export interface AppContext {
   tunnel: TunnelManager;
   jobs: JobRunner;
   galleries: GalleryIngest;
+  mailer: Mailer;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
   publicUrl(): string;
   ip(req: import("fastify").FastifyRequest): string;
@@ -61,9 +64,11 @@ export interface BuildOptions {
   /** Tests pass false to skip timers and child processes. */
   startBackground?: boolean;
   logger?: boolean | object;
+  /** Tests pass a transport that records mail instead of sending it. */
+  mailTransport?: import("nodemailer").Transporter;
 }
 
-export async function buildApp({ config, startBackground = true, logger }: BuildOptions): Promise<FastifyInstance> {
+export async function buildApp({ config, startBackground = true, logger, mailTransport }: BuildOptions): Promise<FastifyInstance> {
   for (const dir of [config.configDir, config.cacheDir]) fs.mkdirSync(dir, { recursive: true });
 
   const app = Fastify({
@@ -78,6 +83,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   const tunnel = new TunnelManager(app.log);
   const jobs = new JobRunner(db, { logger: app.log });
   const galleries = new GalleryIngest({ db, settings, galleriesDir: config.galleriesDir, settleSeconds: config.ingestSettleSeconds, logger: app.log });
+  const mailer = new Mailer(db, settings, app.log, mailTransport);
   registerDerivativesJob(config);
 
   const ctx: AppContext = {
@@ -88,6 +94,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     tunnel,
     jobs,
     galleries,
+    mailer,
     publicUrl() {
       const host = tunnel.getStatus().hostnames[0];
       return settings.get("internet.publicUrl") || config.appUrl || (host ? `https://${host}` : "");
@@ -136,6 +143,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(clientGalleryRoutes, { prefix: "/api/g" });
   await app.register(mediaRoutes);
   await app.register(brandingRoutes);
+  await app.register(emailRoutes, { prefix: "/api/studio/email" });
   await app.register(uploadRoutes, { prefix: "/api/studio/uploads" });
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });

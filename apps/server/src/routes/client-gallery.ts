@@ -8,6 +8,7 @@ import { derivativePath, renderVariant, VARIANTS, type Variant } from "../galler
 import { newId, resolveInside } from "../galleries/files.js";
 import { designOf, downloadState, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
 import { verifyPassword } from "../auth.js";
+import { notifyFavoritesSubmitted } from "../galleries/notify.js";
 import { email, parse } from "../validate.js";
 
 const { gallery, gallerySet, photo, favoriteList, favoriteSelection, favoriteItem, galleryView, galleryVisitor, downloadEvent } = tables;
@@ -249,6 +250,8 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     const n = db.select({ id: favoriteItem.photoId }).from(favoriteItem).where(eq(favoriteItem.selectionId, ctx.sel.id)).all().length;
     if (n === 0) return reply.code(409).send({ error: "empty", message: "Add at least one photo before sending." });
     db.update(favoriteSelection).set({ submittedAt: new Date() }).where(eq(favoriteSelection.id, ctx.sel.id)).run();
+    // The studio hears about it by email when that is set up; a mail problem never reaches the client.
+    notifyFavoritesSubmitted(app.ctx, ctx.g, ctx.list.id, ctx.who, n).catch((err) => app.log.warn({ err: String(err) }, "favorites notice failed"));
     return { me: me(ctx.g, ctx.who) };
   });
 

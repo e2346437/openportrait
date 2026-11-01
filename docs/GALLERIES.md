@@ -1,6 +1,6 @@
 # Galleries: design
 
-Status: draft for Eric's review. This expands sections 2, 4 and 5 of [`SPEC.md`](SPEC.md) for milestone 4. Where the two disagree, this file is newer, and SPEC.md gets updated when it merges.
+Status: reviewed by Eric (decisions in section 11). This expands sections 2, 4 and 5 of [`SPEC.md`](SPEC.md) for milestone 4. Where the two disagree, this file is newer, and SPEC.md gets updated when it merges.
 
 Clickable prototype of every screen below: https://claude.ai/artifact/EEJivTCVktFUipZEGrUYug (private to the project owner).
 
@@ -86,11 +86,12 @@ Built by the job queue with sharp, stored in `/cache/<gallery id>/`, never next 
 | `thumb` | 640 px | WebP | Grid (covers 2x density at 320 px tiles) |
 | `preview` | 2048 px | WebP | Lightbox, cover image |
 | `web` | 2048 px | JPEG, sRGB, EXIF kept except GPS | "Web size" downloads |
-| `wm-*` | as above | WebP | Watermarked variants, only when the watermark is on |
+| `wm-*` | as above | WebP | Watermarked previews, built only while a gallery's downloads are payment-locked |
 
 - Orientation is applied, everything is converted to sRGB, and GPS data is stripped from anything served to clients.
 - A tiny blurred placeholder (about 24 px, stored inline in the database) shows while each thumbnail loads, so the grid never jumps.
-- Jobs for the cover and the first screen of photos run first. A full re-render (for example after the watermark changes) runs at low priority.
+- Jobs for the cover and the first screen of photos run first. A full re-render (for example after the watermark image changes) runs at low priority.
+- Downloads are never watermarked: web-size downloads come from `web`, full resolution from the original.
 - Full-resolution downloads stream the original file unchanged.
 - `/cache` is disposable: deleting it rebuilds everything.
 
@@ -109,8 +110,8 @@ Built by the job queue with sharp, stored in `/cache/<gallery id>/`, never next 
 
 `Draft` → `Live` → `Archived`, plus `Expired` when the expiry date passes (clients see an "expired" page with a contact link, and the photographer can extend with one click).
 
-- New galleries start as **Draft**. The photographer reviews, picks a cover, then clicks **Publish and email client**, which sends the gallery email template and logs it on the shoot.
-- Per shoot type, a photographer can turn on **Publish automatically when the export is quiet**, for workflows such as mini sessions.
+- New galleries start as **Draft**. The photographer reviews, picks a cover, then clicks **Publish and email client**. The publish dialog sets the **download lock** for this gallery (section 6.4), starting from the studio default in Settings › Galleries, then sends the gallery email template and logs it on the shoot.
+- **Auto-publish** is a switch on each shoot type, off by default. When it is on, a matched export goes live once the folder is quiet, using the studio defaults, for workflows such as mini sessions.
 - A gallery added to a Live gallery's folder later (for example a second batch) appears to clients right away, and the photographer can choose whether to notify them.
 
 ### 5.2 Screens
@@ -120,7 +121,7 @@ Built by the job queue with sharp, stored in `/cache/<gallery id>/`, never next 
    - **Photos:** sets as a sidebar list (reorder, rename, hide), the photo grid with per-photo state (processing, updated, missing, hidden), multi-select to hide, move, or set the cover, and sort by capture time, filename, or manual order. Drag to reorder.
    - **Favorites:** each client's lists with counts, submitted state, and notes; export the filenames as a Lightroom-ready search string (`DSC_0012 OR DSC_0047 …`) and as CSV.
    - **Activity:** views, downloads (which photos, which size), favorites, and emails sent, in one timeline.
-   - **Settings:** access, downloads, watermark, favorites lists, expiry, and the linked order or package.
+   - **Settings:** access, download size, download lock, favorites lists, expiry, and the linked order or invoice.
 3. **Unmatched inbox.** Folders waiting for a shoot, each with its path, photo count, capture date range, sample thumbnails, state (still copying, or ready), and suggested shoots. Actions: attach, create a new shoot from the folder, or ignore.
 4. **Upload.** Choose a gallery and set (or create one), drop files, and watch progress. The same page is reachable from the gallery detail with the gallery preselected.
 
@@ -131,8 +132,8 @@ A count of unmatched folders appears as a badge on the Galleries item in the mai
 ### 6.1 Getting in
 
 - The link is `APP_URL/g/<slug>`, for example `/g/smith-family-2026`.
-- Access modes, per gallery: **anyone with the link**, **password**, or **invited emails only** (magic link, same as the client portal).
-- In link and password mode, the client is asked for an email only at the first action that needs one (first favorite or first download), never before seeing the photos. This keeps the first visit to zero steps while still tracking who favorited what.
+- Access modes, per gallery: **private link** (the default: an unguessable URL), **password**, or **invited emails only** (magic link, same as the client portal). The default for new galleries is set in Settings › Galleries.
+- In private-link and password mode, the client is asked for an email only at the first action that needs one (first favorite or first download), never before seeing the photos. This keeps the first visit to zero steps while still tracking who favorited what.
 - Signed-in portal clients go straight in, and their galleries are listed in the portal.
 
 ### 6.2 Layout
@@ -146,13 +147,19 @@ A count of unmatched folders appears as a badge on the Galleries item in the mai
 
 ### 6.3 Favorites and proofing
 
-- Every gallery has a default list called **Favorites**. The photographer can add named lists with an optional limit, such as "Album picks (40)" or "Wall print (1)". The limit is shown as a counter, and the heart refuses with an explanation when the list is full.
+- Every gallery has a default list called **Favorites**. The photographer can add more named lists, each with an optional limit, such as "Album picks (40)" or "Wall print (1)". The limit is shown as a counter, and the heart refuses with an explanation when the list is full.
 - A client can add a note to any favorite ("crop tighter", "remove the exit sign").
-- **Submit to photographer** locks the list (the client can ask to unlock it) and notifies the photographer. Favorites from different emails on the same gallery are kept as separate lists, so a couple can each choose.
+- Each list is submitted separately. **Submit to photographer** locks that list (the client can ask to unlock it) and notifies the photographer. Favorites from different emails on the same gallery are kept as separate lists, so a couple can each choose.
 
 ### 6.4 Downloads
 
-- Per-gallery policy: no downloads, web size only, or web size and full resolution. Optionally per set (for example "Highlights" downloadable and "Full gallery" view-only until the balance is paid). When a policy depends on payment, the download button says why ("Downloads open once the final invoice is paid") and links to the invoice.
+- **Download size**, per gallery: no downloads, web size only, or web size and full resolution.
+- **Download lock**, tied to the shoot's final invoice. The studio owner picks one of three modes when publishing, starting from the studio default in Settings › Galleries:
+  - **Lock until paid:** nothing downloads until the balance is paid.
+  - **Highlights early:** the Highlights set (any set marked "early") downloads now; the rest unlocks when paid.
+  - **No lock:** downloads open as soon as the gallery is published.
+- While anything is locked, the download dialog says why ("Full gallery downloads open once your final balance is paid") and links to the invoice. When the payment clears (PayPal webhook or a manual payment entry), the lock lifts automatically and the client can be emailed.
+- **Watermark:** previews of locked photos are watermarked, and the watermark disappears automatically once the balance is paid. Downloaded files are never watermarked. Galleries with no lock never show a watermark.
 - Optional download PIN, separate from the gallery password.
 - **Download all** or a whole set or the favorites builds a zip in the background. Zips of up to 2 GB stream immediately. Larger ones are split into parts, and the client gets an email when they are ready. Zips are cached in `/cache` for 7 days.
 - Single photos download straight from the lightbox.
@@ -160,7 +167,7 @@ A count of unmatched folders appears as a badge on the Galleries item in the mai
 
 ### 6.5 Orders
 
-The gallery links to the client's orders in the portal: an **Order** button opens the client's order and invoice list for the shoot, and when an unpaid balance gates downloads, the download dialog links to that invoice. A full print store is open question 4 in SPEC.md. Until it is decided, a lightweight **Request prints** action on favorites lists sends the photographer a print request (photos plus notes), which they turn into a quote or order in the existing Orders feature.
+The gallery links to the client's orders in the portal: an **Order** button opens the client's order and invoice list for the shoot, and when an unpaid balance gates downloads, the download dialog links to that invoice. Print ordering comes after 1.0 (SPEC.md). Until then, a lightweight **Request prints** action on favorites lists sends the photographer a print request (photos plus notes), which they turn into a quote or order in the existing Orders feature.
 
 ## 7. Data model
 
@@ -168,13 +175,14 @@ Adds to the Gallery entities in SPEC.md section 5. Names follow the Drizzle sche
 
 | Table | Key columns |
 |---|---|
-| `gallery` | `id`, `shoot_id` (nullable), `slug`, `title`, `folder_path` (relative to `/galleries`), `status` (draft, live, archived), `cover_photo_id`, `access_mode` (link, password, invited), `password_hash`, `download_policy` (none, web, full), `download_pin_hash`, `watermark` (bool), `theme` (light, dark), `expires_at`, `published_at`, `auto_publish` |
-| `gallery_set` | `id`, `gallery_id`, `name`, `folder_name`, `sort`, `hidden`, `download_policy` (nullable override) |
+| `gallery` | `id`, `shoot_id` (nullable), `slug`, `title`, `folder_path` (relative to `/galleries`), `status` (draft, live, archived), `cover_photo_id`, `access_mode` (link, password, invited), `password_hash`, `download_size` (none, web, full), `download_lock` (until_paid, highlights_early, none), `unlocked_at`, `download_pin_hash`, `theme` (light, dark), `expires_at`, `published_at` |
+| `gallery_set` | `id`, `gallery_id`, `name`, `folder_name`, `sort`, `hidden`, `early_download` (bool, the set Highlights-early unlocks) |
 | `photo` | `id`, `gallery_id`, `set_id`, `rel_path`, `filename`, `content_hash` (SHA-256), `size_bytes`, `mtime`, `width`, `height`, `taken_at`, `exif` (JSON, GPS removed), `placeholder` (tiny base64), `state` (pending, ready, missing, unsupported, error), `missing_since`, `derivatives_version`, `sort`, `hidden` |
 | `ingest_folder` | `id`, `rel_path`, `state` (stabilizing, unmatched, matched, ignored), `file_count`, `taken_from`, `taken_to`, `first_seen_at`, `last_change_at`, `suggestions` (JSON), `gallery_id` |
 | `favorite_list` | `id`, `gallery_id`, `name`, `max_count`, `sort` (photographer-defined lists) |
 | `favorite_selection` | `id`, `favorite_list_id`, `client_email`, `submitted_at`, `locked` |
 | `favorite_item` | `selection_id`, `photo_id`, `note`, `created_at` |
+| `shoot_type` (existing) | adds `gallery_auto_publish` (bool, default false) |
 | `download_event` | `id`, `gallery_id`, `photo_id` (nullable for zips), `scope` (photo, set, gallery, favorites), `variant` (web, full), `client_email`, `ip`, `created_at` |
 | `gallery_view` | `id`, `gallery_id`, `client_email` (nullable), `ip_hash`, `created_at` |
 | `zip_job` | `id`, `gallery_id`, `scope`, `variant`, `state`, `parts` (JSON), `expires_at` |
@@ -186,8 +194,8 @@ Gallery views, favorites, downloads and emails also write to the shared `activit
 In the app's Settings, under Galleries (not in the Unraid template):
 
 - Shoot code prefix (default `OP`) and new-folder pattern.
-- Defaults for new galleries: access mode, download policy, watermark, expiry (days after publish), theme, cover on or off.
-- Watermark: image (PNG with transparency), position, size, and opacity, with a live preview.
+- Defaults for new galleries: access mode (private link), download size, **download lock** (until paid, Highlights early, or no lock), expiry (days after publish), theme, and cover on or off.
+- Watermark for payment-locked previews: image (PNG with transparency), position, size, and opacity, with a live preview.
 - Gallery email template, and whether the photographer is emailed when a list is submitted.
 - Advanced: settle seconds, zip cache days, missing-photo purge days.
 
@@ -208,10 +216,12 @@ Following the milestone 2 layout (tentative until the skeleton lands):
 - Admin screens: `apps/web` admin layout. Client gallery: `apps/web` client layout.
 - Shared pieces (justified grid, lightbox, upload queue, status chip): `packages/ui`.
 
-## 11. Questions for Eric
+## 11. Decisions (from Eric, 2026-11-01)
 
-1. **Default access.** Anyone with the link (lowest friction), or a password by default?
-2. **Downloads before final payment.** Should Highlights be downloadable before the balance is paid and the full gallery after, or is that not how you work?
-3. **Favorites lists.** Do you use more than one list today (for example album picks plus favorites), and do you cap them?
-4. **Auto-publish.** Any shoot types (minis, headshots) where photos should go live to the client as soon as the export finishes?
-5. **Watermarks.** Do you watermark proof galleries today?
+1. **Access:** new galleries default to a private link; the email is captured at the first favorite or download. Password and invited-email access stay available per gallery, and the default is a setting.
+2. **Downloads and payment:** all three lock modes (lock until paid, Highlights early, no lock). The owner picks per gallery when publishing; the studio default lives in Settings › Galleries.
+3. **Favorites:** several lists per gallery, each with an optional cap, each submitted separately.
+4. **Auto-publish:** a switch on each shoot type, off by default.
+5. **Watermarks:** only on previews while downloads are payment-locked; removed automatically once paid. Downloads are never watermarked.
+
+Payments go through PayPal behind a `PaymentProvider` interface (SPEC.md), and print ordering is after 1.0.

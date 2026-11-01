@@ -445,7 +445,7 @@ describe("gallery settings", () => {
   it("lets the owner rename the delivery folder and choose the default lock", async () => {
     const res = await studio("PUT", "/ingest/settings", { deliveryFolder: "Finals", privateFolders: ["Originals", "Culls"], defaultDownloadLock: "until_paid" });
     expect(res.statusCode).toBe(200);
-    expect((await studio("GET", "/ingest/settings")).json()).toEqual({ deliveryFolder: "Finals", privateFolders: ["Originals", "Culls"], defaultDownloadLock: "until_paid" });
+    expect((await studio("GET", "/ingest/settings")).json()).toEqual({ deliveryFolder: "Finals", privateFolders: ["Originals", "Culls"], defaultDownloadLock: "until_paid", watermarkText: "" });
     expect((await studio("PUT", "/ingest/settings", { deliveryFolder: "../x", privateFolders: [], defaultDownloadLock: "none" })).statusCode).toBe(400);
 
     await jpeg(path.join(share, "Ortiz/Finals/a.jpg"), red);

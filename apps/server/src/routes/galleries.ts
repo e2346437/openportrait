@@ -79,7 +79,7 @@ const GallerySettings = z.object({
     .refine((s) => !/[\\/:*?"<>|]/.test(s) && !s.startsWith("."), "Use a plain folder name without slashes."),
   privateFolders: z.array(z.string().trim().min(1).max(60)).max(10),
   defaultDownloadLock: lock,
-  watermarkText: z.string().trim().max(60),
+  watermarkText: z.string().trim().max(60).default(""),
 });
 
 const notFound = (reply: FastifyReply) => reply.code(404).send({ error: "not_found", message: "That gallery no longer exists." });

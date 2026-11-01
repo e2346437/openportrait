@@ -262,7 +262,7 @@ A guided screen with numbered steps, short screenshots, and live checks:
 2. **Create the tunnel:** a deep link to Networks > Tunnels, the exact values to enter (service type HTTP, URL `localhost:8080`), and a field to suggest a subdomain such as `studio`.
 3. **Paste the token:** a masked field that validates the token format and starts the tunnel.
 4. **Live status:** connector state (from cloudflared's local metrics endpoint), the public hostname, and an end-to-end test where the app fetches its own public URL. Each failure shows a plain-language fix.
-5. **Protect the admin (recommended):** step-by-step Cloudflare Access setup for the admin paths only. Client pages (`/g`, `/book`, `/portal`, `/sign`) stay public.
+5. **Protect the admin (optional):** step-by-step Cloudflare Access setup for the admin paths only. Client pages (`/g`, `/book`, `/portal`, `/sign`) stay public.
 
 The first-run setup wizard links to this screen, and the dashboard shows a banner until the tunnel is healthy.
 

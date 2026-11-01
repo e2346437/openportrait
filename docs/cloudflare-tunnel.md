@@ -7,6 +7,7 @@ The same steps are in the app under **Settings > Internet access**, with live ch
 ## What you need
 
 - A domain, such as `yourstudio.com`, whose DNS is on Cloudflare. The free plan is enough. If your domain is somewhere else, add it in Cloudflare (**Add a domain**) and switch your registrar's nameservers to the two Cloudflare gives you. That usually takes a few minutes and can take up to a day.
+- A Cloudflare Zero Trust account. The tunnel is set up there. **Signing up for the free plan asks for a credit or debit card**, even though the plan costs nothing.
 - OpenPortrait installed and set up (see [install-docker.md](install-docker.md)).
 
 ## Setup (about five minutes)
@@ -45,9 +46,9 @@ Use `localhost:8080` even though OpenPortrait runs in a container: the built-in 
 
 Back in **Settings > Internet access**, click **Run the test**. OpenPortrait asks Cloudflare for your public address and checks that the answer comes from this server, not some other one. Your public address is filled in automatically and used in every link the app sends.
 
-## Protect your back office (recommended)
+## Protect your back office (optional)
 
-Client pages need to stay public, but the studio pages don't. Cloudflare Access can put a sign-in in front of them, on top of your OpenPortrait password. Check Cloudflare's pricing page for the current user limit.
+OpenPortrait already requires its own login, so this step is optional. You can skip it and still finish setup. If you want it, Cloudflare Access can put a sign-in in front of the studio pages, on top of your OpenPortrait password. Client pages need to stay public either way. Check Cloudflare's pricing page for the current user limit.
 
 1. In Zero Trust, open **Access controls**, then **Applications**. Click **Create new application** and choose **Self-hosted and private**.
 2. Click **Add public hostname** and choose your domain. Add your hostname with two paths: `studio` and `api/studio` (for example `studio.yourdomain.com/studio`).

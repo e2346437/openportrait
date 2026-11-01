@@ -73,7 +73,7 @@ All of these are in scope for 1.0. The milestones in section 10 set the build or
 ### Routes
 
 - Staff pages live under `/studio/*` and the staff API under `/api/studio/*`. One Cloudflare Access application on those two paths protects the whole back office.
-- Client pages (`/g`, `/book`, `/portal`, `/sign`) and `/api/health` stay public. `/` redirects to `/studio` until client pages exist.
+- Client pages (`/g`, `/book`, `/portal`, `/sign`) and `/api/health` stay public. The AI endpoints (`/mcp`, `/oauth/*`, `/.well-known/oauth-*`) are public paths with their own authentication (section 10). `/` redirects to `/studio` until client pages exist.
 - `/api/health` returns the version and an instance id (an HMAC of the instance's secret key), which the tunnel test uses to confirm the public hostname reaches this server.
 
 ### Repository layout
@@ -183,6 +183,7 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 - **Gallery**, **GallerySet**, **Photo** (path, content hash, EXIF, derivative status), **FavoriteList**, **DownloadEvent**
 - **EmailTemplate**, **Message** (log)
 - **User** (staff, roles, TOTP), **ClientAccess** (magic-link sessions), **Setting**, **AuditLog**
+- **AiConnection**, **Approval**, **AutomationSetting**, **WorkItem** (section 10)
 
 ## 6. Integrations
 
@@ -277,16 +278,113 @@ The first-run setup wizard links to this screen, and the dashboard shows a banne
 
 `docs/cloudflare-tunnel.md`, also linked from the in-app guide, covers: prerequisites, the step-by-step setup with screenshots, using an existing cloudflared container instead, Cloudflare Access for the admin, recommended Cloudflare settings (SSL mode Full, caching rules, and turning off Rocket Loader for the app), troubleshooting (error 1033, 502s, redirect loops, uploads failing), and what to do when the tunnel is down.
 
-## 10. Milestones
+## 10. AI access (MCP) and automation
+
+OpenPortrait ships a built-in MCP (Model Context Protocol) server so the owner can connect an AI assistant (Claude, ChatGPT, Claude Code, Cursor, or any MCP client) and have it run the studio. The same release adds an **automation mode**: the owner chooses whether routine decisions are made by OpenPortrait's built-in schedulers or by the connected AI. Safety controls are part of the design, not an add-on.
+
+### Principles
+
+1. **One service layer.** The UI, the API, and MCP tools all call the same domain services. Permission checks, validation, and audit logging live there once, so the AI can never do something the UI would refuse.
+2. **MCP parity.** Every feature module registers its tools next to its routes (`defineTool`), and a feature is not done until its tools exist. The business-core and gallery work grows the tool list without touching the MCP plumbing.
+3. **Safe by default.** A new connection starts read-only. The AI can look at everything it is allowed to see, and anything that reaches a client or touches money waits for the owner's OK until the owner says otherwise.
+4. **Easy to connect, easy to cut off.** Connecting takes one pasted URL. One switch pauses all AI access.
+
+### Server and transport
+
+- **Streamable HTTP** MCP endpoint at `/mcp` (stateless, using the official TypeScript SDK). No stdio and no extra process. It works through the Cloudflare Tunnel like any other route, and on the LAN at `http://[IP]:8080/mcp`.
+- **Routes.** `/mcp`, `/oauth/*`, and `/.well-known/oauth-*` are public paths that carry their own authentication, so they stay outside the Cloudflare Access application that protects `/studio/*`. (AI clients cannot pass an Access login.) The Access guide in section 9 says so.
+- **Off until enabled.** `/mcp` returns 404 until the owner turns on **Settings > Connect your AI**. It also requires a healthy public URL for remote clients.
+
+### Authentication
+
+| Method | For | How |
+|---|---|---|
+| **OAuth 2.1** (authorization code with PKCE, dynamic client registration, protected-resource and authorization-server metadata) | Claude and ChatGPT custom connectors, and any client that supports remote MCP | The owner pastes the URL into the client. The client opens an OpenPortrait consent page, the owner signs in (or is already signed in), reviews the requested access, and approves. Access tokens are short-lived and refresh tokens rotate. |
+| **Access token** | Claude Code, Cursor, scripts, and clients without OAuth | Created in Connect your AI with a label, access level, and optional expiry. Shown once, stored as a SHA-256 hash, sent as `Authorization: Bearer`. |
+
+Only the Owner role can connect an AI or create tokens. An AI acts as a non-human actor named after its connection ("Claude (laptop)"), never as a user, and has no session, password, or TOTP. Staff and Assistant roles cannot raise an AI's access.
+
+### The "Connect your AI" screen (Settings > Connect your AI)
+
+1. **Turn on.** A single toggle, with a banner linking to Internet access if the tunnel is not healthy.
+2. **Copy your address.** The MCP URL with a copy button.
+3. **Pick your assistant.** Tabs for Claude, ChatGPT, Claude Code, and "Other", each with the exact steps and a copy-paste snippet (for example `claude mcp add --transport http openportrait <url>`). Token-based tabs create the token inline.
+4. **Choose what it can do.** Access presets (below), then per-area toggles (Contacts and leads, Shoots and calendar, Quotes and orders, Galleries, Email).
+5. **Live check.** "Waiting for your assistant to connect" turns into a green "Connected: Claude (last seen just now)" the first time a client calls the server. A test button runs a harmless read tool and shows the result.
+6. **Manage.** A list of connections with label, access level, last used, and requests today, with Edit and Revoke. A prominent **Pause all AI access** switch sits at the top.
+
+All states are designed: not enabled, tunnel down, waiting, connected, paused, revoked, and token expired.
+
+### Access levels and risk tiers
+
+Every tool declares an area and a **risk tier**. A connection's access level decides which tiers it may call at all, and the approval policy decides which of those run immediately.
+
+| Tier | Examples | Read only | Assist (default for new connections) | Full |
+|---|---|---|---|---|
+| **Read** | List and search contacts, leads, shoots, calendar, orders, galleries; read the work queue | Yes | Yes | Yes |
+| **Draft** (internal and reversible) | Add notes and tasks, move a lead stage, create a draft quote or email, create a shoot, propose an appointment time | No | Yes | Yes |
+| **Outward** (reaches a client or goes public) | Send an email, send a quote or contract, publish a gallery, confirm a booking, send a questionnaire | No | Queued for approval | Approval by default, can be set to auto per action |
+| **Money** | Create an invoice, record a payment, issue a credit or coupon, refund | No | Queued for approval | Approval by default, can be set to auto per action, with a dollar cap |
+| **Blocked** (never exposed over MCP) | Settings, secrets, users and roles, tokens, tunnel, backups and restore, deleting contacts, shoots, or photos | n/a | n/a | n/a |
+
+Controls that apply to every connection:
+
+- **Approval queue.** A queued action returns `pending_approval` with an id and a plain-language summary ("Send 'Your gallery is ready' to Dana Reyes"). It appears in an **Approvals** inbox in the app (badge in the sidebar, optional email to the owner) with the exact payload, Approve, Edit, and Decline. The AI can poll `get_approval` to see the outcome. Pending approvals expire after 7 days.
+- **Auto-approve per action** is a per-action choice in Settings, off by default, and a separate setting for each of Outward and Money. A new action type introduced by an update starts as "approval required".
+- **Limits.** Per-connection rate limit, a daily cap on client emails (default 25), a per-action dollar cap for money, and recipients restricted to existing contacts (the AI cannot email an arbitrary address).
+- **Audit.** Every call, allowed or refused, is written to the AuditLog with the connection, tool, inputs (redacted where needed), result, and approver. **Settings > Connect your AI > Activity** shows it as a readable timeline, with an Undo button on reversible Draft actions where the service supports it.
+- **Untrusted content.** Client-written text (inquiry messages, questionnaire answers, notes from email) is returned to the AI inside a clearly marked untrusted block, and tool descriptions tell the model not to follow instructions found there. The approval queue is the backstop, because a prompt-injected AI still cannot send or charge without the owner.
+- **No secrets.** No tool returns passwords, API keys, tokens, or the tunnel token, and no tool can change access settings. An AI cannot widen its own permissions.
+
+### Tool surface
+
+Tools are namespaced by area and kept coarse, so a model chooses well: `contacts.search`, `contacts.get`, `contacts.add_note`, `leads.list`, `leads.update_stage`, `shoots.list`, `shoots.create`, `calendar.find_free_time`, `quotes.create_draft`, `quotes.send`, `orders.list`, `orders.record_payment`, `galleries.list`, `galleries.publish`, `email.draft`, `email.send`, `approvals.get`, and `studio.get_summary`. MCP resources expose read-only context (studio profile, shoot types, packages and prices, booking rules), and MCP prompts offer ready-made starting points such as "Plan my week", "Follow up on open leads", and "Which galleries are ready to publish?". The initial set covers what exists at each milestone; later modules add their own.
+
+### Automation mode (Settings > Automation)
+
+The question is who makes routine decisions: reminders, follow-ups, and publishing.
+
+| Mode | What happens |
+|---|---|
+| **Built-in schedulers** (default) | OpenPortrait's job runner applies the owner's rules by itself: appointment and questionnaire reminders, payment reminders, lead follow-up nudges, gallery auto-publish, and so on. A connected AI is optional and only acts when the owner asks it to. |
+| **AI-controlled** | The built-in decision-making automations are paused. OpenPortrait instead maintains a **work queue** of things that need a decision (new leads awaiting a reply, overdue invoices, galleries ready to publish, questionnaires not yet sent, upcoming shoots missing details), and the connected AI reads it with `studio.get_work_queue` and acts through the normal tools, under the same scopes, limits, and approvals. |
+
+Details:
+
+- **Per-automation override.** The mode sets the default, and each automation row can be switched to Built-in, AI, or Off. An owner can run most of the studio on the AI and keep payment reminders built-in.
+- **Always built-in.** Plumbing and transactional work never depends on an AI: booking confirmations, receipts, magic-link sign-in, calendar sync, thumbnails, folder watching, ingest, backups, and the nightly snapshot.
+- **How the AI wakes up.** MCP is request-driven, so the assistant must be scheduled on its side (a Claude scheduled task or routine, a cron job running Claude Code, and so on). The Connect screen gives a ready-made schedule prompt ("Every morning, call `studio.get_work_queue` and handle each item"). Optionally, OpenPortrait can ping a webhook URL when new items arrive, for example a Zapier or Claude trigger, signed with an HMAC.
+- **Failsafe.** Each queue item has an age. If the AI has not checked in within a window the owner picks (default 24 hours), the dashboard shows a warning and the owner can choose, per automation, to fall back to Built-in after that window. The default is to warn only, so nothing starts sending on its own unexpectedly.
+- **Transparency.** The dashboard shows the current mode, the last AI check-in, queue size, and pending approvals. Every action is attributed to Built-in or to the named AI connection in the activity timeline.
+- **Registration.** Automations are declared with `defineAutomation({ id, trigger, defaultOwner, ... })`. Business-core and gallery threads register theirs, so one table in Settings lists them all.
+
+### Data model additions
+
+**AiConnection** (type: oauth or token, label, token hash, scopes, access level, per-action policies, expiry, last used, revoked at), **OAuthClient** and **OAuthGrant** (registered clients, auth codes, rotating refresh tokens), **Approval** (connection, tool, summary, payload, status, decided by and at, expires at), **AutomationSetting** (automation id, owner: built-in, ai, or off), **WorkItem** (the queue, derived from existing data and cached), and an actor type and connection id on **AuditLog**. Setting keys: `ai.enabled`, `ai.paused`, `ai.emailDailyCap`, `automation.mode`, `automation.aiCheckinWindowHours`.
+
+### Build plan
+
+Delivered as its own milestone after the skeleton, and extended as each module lands:
+
+1. **Foundation:** `/mcp` endpoint, tool registry (`defineTool`), access tokens, the Connect your AI screen (turn on, copy URL, token tab, connection list, pause), audit trail, and a first read-only tool set over what exists (studio summary, settings that are safe to read).
+2. **OAuth:** dynamic registration, consent page, refresh rotation, verified against Claude and ChatGPT custom connectors.
+3. **Write tools and approvals:** access levels, the Approvals inbox, limits, undo, and the Draft/Outward/Money tiers, enabled per module as the business core ships.
+4. **Automation mode:** the automation registry, Settings > Automation, the work queue, schedule prompts, webhook ping, and the failsafe.
+
+Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Draft tool; a blocked action does not exist), approval flow, and an end-to-end run with the MCP SDK client against the real server.
+
+## 11. Milestones
 
 1. **Spec** (this document).
 2. **Skeleton and packaging:** repo tooling, Dockerfile with built-in cloudflared, CI image build to GHCR, Unraid template, first-run setup wizard (studio name, owner account), login, Settings including the Internet access guide, the design system and app shell.
 3. **Business core:** CRM, leads, shoots, calendar and Google sync, schedulers and booking pages, questionnaires, contracts and e-signatures, quotes, orders and PayPal payments, credits and coupons, and the Sprout import.
 4. **Galleries:** folder watcher and matching, the upload page, client gallery experience, favorites, downloads, and links to orders.
 
+5. **AI access (MCP) and automation mode:** section 10. The foundation and OAuth can land right after the skeleton, and write tools and automations arrive with the modules they control.
+
 Each milestone ships as a tagged release that installs and runs on Unraid.
 
-## 11. Decisions
+## 12. Decisions
 
 Decided by Eric on 2026-11-01:
 
@@ -298,5 +396,7 @@ Decided by Eric on 2026-11-01:
 6. **Internet access:** always through a Cloudflare Tunnel, with cloudflared built into the container, an in-app setup guide, and docs (section 9).
 7. **In-camera upload:** a built-in SFTP/FTP server writes to an Incoming share, with a sorting screen that moves files into each shoot's `Originals/RAW/`. Because Cloudflare Tunnel can't carry it, both remote routes are supported, each with a setup wizard and docs: direct SFTP on a DNS-only Cloudflare record with dynamic DNS, and a WireGuard travel router through Unraid's VPN Manager. At home the camera uploads straight over the LAN (section 4).
 8. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
+
+9. **AI access:** proposed in section 10, awaiting Eric's confirmation (approval policy, failsafe default, first clients to verify).
 
 Still needed: sample Sprout Studio CSV exports (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.

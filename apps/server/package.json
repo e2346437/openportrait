@@ -15,6 +15,7 @@
     "@fastify/cookie": "^11.1.5",
     "@fastify/rate-limit": "^11.2.1",
     "@fastify/static": "^10.1.8",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@node-rs/argon2": "^2.2.2",
     "@openportrait/config": "workspace:*",
     "@openportrait/db": "workspace:*",

@@ -20,6 +20,8 @@ export interface SettingTypes {
   "galleries.privateFolders": string[];
   /** Download lock the publish dialog starts on (docs/GALLERIES.md section 6.4). */
   "galleries.defaultDownloadLock": "until_paid" | "highlights_early" | "none";
+  "ai.enabled": boolean;
+  "ai.paused": boolean;
   /** Folder naming for new shoots (see domain/folders.ts). */
   "folders.pattern": string;
   "folders.rawSubdir": string;

@@ -9,6 +9,7 @@ import { ComingSoonPage } from "./pages/ComingSoon.js";
 import { SettingsLayout } from "./pages/settings/SettingsLayout.js";
 import { StudioSettingsPage } from "./pages/settings/Studio.js";
 import { InternetSettingsPage } from "./pages/settings/Internet.js";
+import { ConnectAISettingsPage } from "./pages/settings/ConnectAI.js";
 import { AccountSettingsPage } from "./pages/settings/Account.js";
 import { ShootSettingsPage } from "./pages/settings/Shoots.js";
 import { ClientsPage } from "./pages/clients/Clients.js";
@@ -17,6 +18,8 @@ import { LeadsPage } from "./pages/leads/Leads.js";
 import { LeadDetailPage } from "./pages/leads/LeadDetail.js";
 import { ShootsPage } from "./pages/shoots/Shoots.js";
 import { ShootDetailPage } from "./pages/shoots/ShootDetail.js";
+import { ApprovalsPage } from "./pages/Approvals.js";
+import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { NotFoundPage } from "./pages/NotFound.js";
 import { GalleriesListPage } from "./pages/galleries/GalleriesList.js";
 import { GalleryDetailPage } from "./pages/galleries/GalleryDetail.js";
@@ -40,7 +43,7 @@ function Gate({ need }: { need: "setup" | "anon" | "user" }) {
   if (loading) return <Boot />;
   if (needsSetup && need !== "setup") return <Navigate to="/studio/setup" replace />;
   if (!needsSetup && need === "setup") return <Navigate to={me?.user ? "/studio" : "/studio/login"} replace />;
-  if (need === "user" && !me?.user) return <Navigate to="/studio/login" replace state={{ from: location.pathname }} />;
+  if (need === "user" && !me?.user) return <Navigate to="/studio/login" replace state={{ from: location.pathname + location.search }} />;
   if (need === "anon" && me?.user) return <Navigate to="/studio" replace />;
   return <Outlet />;
 }
@@ -60,6 +63,7 @@ export function App() {
                 <Route path="login" element={<LoginPage />} />
               </Route>
               <Route element={<Gate need="user" />}>
+                <Route path="connect/consent" element={<ConsentAIPage />} />
                 <Route element={<Shell />}>
                   <Route index element={<DashboardPage />} />
                   <Route path="leads" element={<LeadsPage />} />
@@ -73,12 +77,14 @@ export function App() {
                   <Route path="galleries" element={<GalleriesListPage />} />
                   <Route path="galleries/:id" element={<GalleryDetailPage />} />
                   <Route path="incoming" element={<ComingSoonPage area="incoming" />} />
+                  <Route path="approvals" element={<ApprovalsPage />} />
                   <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<Navigate to="studio" replace />} />
                     <Route path="studio" element={<StudioSettingsPage />} />
                     <Route path="galleries" element={<GallerySettingsPage />} />
                     <Route path="shoots" element={<ShootSettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />
+                    <Route path="ai" element={<ConnectAISettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />
                   </Route>
                   <Route path="*" element={<NotFoundPage />} />

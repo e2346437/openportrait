@@ -55,6 +55,8 @@ CREATE TABLE `gallery` (
 	`design` text,
 	`access_mode` text DEFAULT 'link' NOT NULL,
 	`password_hash` text,
+	`registration` text DEFAULT 'none' NOT NULL,
+	`welcome_message` text,
 	`download_size` text DEFAULT 'full' NOT NULL,
 	`download_lock` text DEFAULT 'none' NOT NULL,
 	`unlocked_at` integer,
@@ -92,6 +94,15 @@ CREATE TABLE `gallery_view` (
 );
 --> statement-breakpoint
 CREATE INDEX `gallery_view_idx` ON `gallery_view` (`gallery_id`,`created_at`);--> statement-breakpoint
+CREATE TABLE `gallery_visitor` (
+	`gallery_id` text NOT NULL,
+	`email` text NOT NULL,
+	`name` text,
+	`created_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL,
+	PRIMARY KEY(`gallery_id`, `email`),
+	FOREIGN KEY (`gallery_id`) REFERENCES `gallery`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `ingest_folder` (
 	`id` text PRIMARY KEY NOT NULL,
 	`rel_path` text NOT NULL,

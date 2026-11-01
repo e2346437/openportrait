@@ -11,6 +11,7 @@ import { loadConfig } from "@openportrait/config";
 import { buildApp } from "../src/app.js";
 import { cleanVirtual, jailPath, landingVirtual, sweepStaleUploads } from "../src/upload/files.js";
 import { generatePassword, normalizePublicKey, usernameFromLabel } from "../src/upload/accounts.js";
+import { isRoutineDisconnect } from "../src/upload/ftp.js";
 import { scheduleProblem, scheduleState } from "../src/upload/schedule.js";
 
 const freePort = () =>
@@ -56,6 +57,16 @@ describe("schedule", () => {
     expect(scheduleProblem([{ days: [1], start: "9:00", end: "10:00" }])).toMatch(/18:00/);
     expect(scheduleProblem([{ days: [1], start: "09:00", end: "09:00" }])).toMatch(/same/);
     expect(scheduleProblem(evenings)).toBeNull();
+  });
+});
+
+describe("camera disconnects", () => {
+  it("treats a camera dropping its Wi-Fi as normal, not as an error", () => {
+    expect(isRoutineDisconnect(Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }))).toBe(true);
+    expect(isRoutineDisconnect(Object.assign(new Error("write EPIPE"), { code: "EPIPE" }))).toBe(true);
+    expect(isRoutineDisconnect(new Error("Premature close"))).toBe(false);
+    expect(isRoutineDisconnect(new Error("EACCES: permission denied, open '/incoming/x'"))).toBe(false);
+    expect(isRoutineDisconnect(undefined)).toBe(false);
   });
 });
 

@@ -16,20 +16,26 @@ Clickable prototype of every screen below: https://claude.ai/artifact/EEJivTCVkt
 ```
 /galleries                                  ← Unraid share, mapped in the template
   2026/
-    2026-11-14 Family - Smith Family/       ← one gallery, named from the shoot's date, type and subject
-      Highlights/                           ← a set
-      Full Gallery/                         ← a set
-      _hidden/                              ← ignored (leading underscore)
+    2026-11-14 Family - Smith Family/       ← shoot folder: the match target, named from date, type and subject
+      Originals/RAW/                        ← camera files; never read by the gallery watcher, never shown to clients
+      Gallery/                              ← delivery folder: the gallery root (Lightroom/Aftershoot export here)
+        Highlights/                         ← a set
+        Full Gallery/                       ← a set
+        _hidden/                            ← ignored (leading underscore)
   .openportrait/                            ← OpenPortrait's own temp area (uploads in progress)
+
+/incoming                                   ← separate share for in-camera uploads (SPEC.md section 4)
+  Z9/2026-11-14/                            ← one folder per camera and day
 ```
 
 Rules:
 
-- **A gallery is a folder.** Any folder that holds images directly, or holds subfolders that do, is a gallery candidate. The year folder above is only a convention; any depth works.
-- **Subfolders are sets.** One level only. Images loose in the gallery folder go into a set named after the gallery, which is hidden if it is empty. Deeper folders are flattened into their top-level set.
+- **A shoot folder holds a gallery.** The shoot folder is what gets matched to a shoot. Its **delivery folder** (default `Gallery/`, a setting) is the gallery root. The other subfolders created at booking (default `Originals/RAW/`, also a setting) are skipped entirely by the gallery watcher.
+- **Subfolders of the delivery folder are sets.** One level only. Images loose in the delivery folder go into a set named after the gallery, which is hidden if it is empty. Deeper folders are flattened into their top-level set.
+- **Hand-made folders without a delivery folder:** if a matched shoot folder has images but no `Gallery/` subfolder (for example an export straight into the shoot folder), its images and non-reserved subfolders are treated as the gallery, and the gallery detail offers to tidy them into `Gallery/`.
 - **Ignored:** names starting with `.` or `_`, `@eaDir`, `#recycle`, `Thumbs.db`, `.DS_Store`, AppleDouble `._*` files, sidecars (`.xmp`, `.json`, `.txt`), RAW files, and partial files (`*.tmp`, `*.part`, `*.crdownload`).
 - **Image types:** JPEG, PNG, TIFF, WebP, and AVIF. HEIC is accepted if the image's libvips build supports it; otherwise the file is flagged as unsupported. Video is out of scope for 1.0.
-- **OpenPortrait creates the folder when a shoot is booked**, from the folder pattern in Settings › Galleries, and stores its path on the shoot. Exporting into that folder is an exact match with nothing to type.
+- **OpenPortrait creates the shoot folder and its subfolders when a shoot is booked**, from the folder pattern in Settings › Galleries, and stores its path on the shoot. Exporting into that folder is an exact match with nothing to type.
 - **Folder pattern** tokens: `{year}` `{month}` `{date}` `{type}` `{subject}` `{client}` `{location}`. The default is `{year}/{date} {type} - {subject}`, for example `2026/2026-11-14 Headshot - Jane Smith/`. `{type}` is the shoot type's folder label (Headshot, Wedding, Lifestyle, Family…), and `{subject}` is the shoot's subject, which defaults to the client's name.
 - Names are made SMB-safe (no `\ / : * ? " < > |`, no trailing dots or spaces), and a name already in use gets a ` (2)` suffix.
 - **Renaming a shoot never moves its folder.** The gallery detail offers a **Rename folder** button that renames it to the current pattern and updates the stored path.
@@ -63,7 +69,7 @@ Files are imported as soon as they are stable, so a large export appears in the 
 In order:
 
 1. **Already known.** The folder path belongs to an existing gallery.
-2. **Shoot folder.** The folder is the one OpenPortrait created for a shoot (its stored path), or a set folder inside it.
+2. **Shoot folder.** The folder is, or is inside, a shoot folder OpenPortrait created (its stored path). Only new files under that shoot's delivery folder are imported.
 3. **Parsed name.** For a folder made by hand, the watcher parses its path with the same folder pattern. If the date, type and subject it reads match exactly one shoot (case- and accent-insensitive), the folder attaches to that shoot's gallery, creating the gallery if needed.
 4. **Otherwise the Unmatched inbox.** The folder waits in the admin with up to three suggested shoots, ranked by date (from the folder name, or the photos' capture dates when the name has none), then type, then subject. One click attaches it, and the photographer can tick "Rename the folder to match the shoot" so it follows the pattern from then on.
 
@@ -102,7 +108,7 @@ Built by the job queue with sharp, stored in `/cache/<gallery id>/`, never next 
 ## 4. Remote upload
 
 - **Protocol:** tus 1.0 (`@tus/server` with a file store, and Uppy in the browser). Chunks are 50 MB to stay under Cloudflare's 100 MB request limit.
-- **Where files land:** chunks are written to `/galleries/.openportrait/uploads/`, which the watcher ignores, then moved into the target set folder once complete. The watcher therefore never sees a half-uploaded file, and remote uploads take exactly the same import path as local exports.
+- **Where files land:** chunks are written to `/galleries/.openportrait/uploads/`, which the watcher ignores, then moved into the target set folder under the shoot's `Gallery/` once complete. The watcher therefore never sees a half-uploaded file, and remote uploads take exactly the same import path as local exports.
 - **Resume:** Uppy keeps a fingerprint of each file in the browser, so reopening the page and re-adding the same files continues where they stopped. Incomplete server-side uploads expire after 7 days.
 - **Duplicates:** a file whose hash already exists in the gallery is skipped and reported as "already in gallery".
 - **Concurrency:** 3 files at once by default. The page shows overall progress, per-file progress, speed, and time remaining, plus a clear "connection lost, retrying" state.
@@ -139,8 +145,9 @@ OpenPortrait is always exposed through Cloudflare Tunnel (SPEC.md section 9), so
    - **Settings:** access, download size, download lock, favorites lists, expiry, and the linked order or invoice.
 3. **Unmatched inbox.** Folders waiting for a shoot, each with its path, photo count, capture date range, sample thumbnails, state (still copying, or ready), and suggested shoots. Actions: attach, create a new shoot from the folder, or ignore.
 4. **Upload.** Choose a gallery and set (or create one), drop files, and watch progress. The same page is reachable from the gallery detail with the gallery preselected.
+5. **Incoming** (in-camera uploads, specified in SPEC.md section 4). Camera files grouped by camera and capture time, shown with the JPEG preview embedded in each RAW. Each group gets a suggested shoot (capture time against the calendar). Select photos or a whole group, then **Move to shoot**, which moves them into that shoot's `Originals/RAW/` with checksums verified first. A banner shows the network path of `/incoming` for photographers who would rather point Lightroom or Aftershoot at it directly. Nothing here ever reaches a client gallery. Only exports into `Gallery/` do.
 
-A count of unmatched folders appears as a badge on the Galleries item in the main navigation.
+Counts of unmatched folders and unsorted incoming photos appear as badges in the main navigation.
 
 ## 6. Client experience
 

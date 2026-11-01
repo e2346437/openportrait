@@ -14,6 +14,8 @@ import { clientIp } from "./client-ip.js";
 import { Secrets } from "./secrets.js";
 import { Settings } from "./settings.js";
 import { TunnelManager } from "./tunnel.js";
+import { mcpRoutes } from "./ai/mcp.js";
+import { aiRoutes } from "./routes/ai.js";
 import { authRoutes } from "./routes/auth.js";
 import { internetRoutes } from "./routes/internet.js";
 import { settingsRoutes } from "./routes/settings.js";
@@ -110,6 +112,10 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(authRoutes, { prefix: "/api/studio/auth" });
   await app.register(settingsRoutes, { prefix: "/api/studio/settings" });
   await app.register(internetRoutes, { prefix: "/api/studio/internet" });
+
+  await app.register(aiRoutes, { prefix: "/api/studio/ai" });
+  // Public path with its own bearer-token auth, so it sits outside the Cloudflare Access rule for /studio.
+  await app.register(mcpRoutes);
 
   app.all("/api/*", async (_req, reply) => reply.code(404).send({ error: "not_found", message: "No such endpoint." }));
 

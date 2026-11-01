@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { VERSION } from "../../app.js";
+import { modeOf } from "../../automation/registry.js";
+import { recordCheckin, workQueue } from "../../automation/queue.js";
 import { listShootTypes, listStages } from "../../domain/catalog.js";
 import { approvalFor } from "../approvals.js";
 import { defineTool, toolsFor } from "../registry.js";
@@ -59,5 +61,20 @@ defineTool({
       shootTypes: listShootTypes(s).map((t) => ({ id: t.id, name: t.name })),
       leadStages: listStages(s).map((st) => ({ id: st.id, name: st.name, kind: st.kind })),
     };
+  },
+});
+
+defineTool({
+  name: "studio_get_work_queue",
+  title: "Work queue",
+  description:
+    "Things that need a decision right now, for the automations the studio owner has handed to you. Call this on a schedule (for example every morning), then handle each item with your other tools. Anything that reaches a client waits for the owner's approval. Calling this tells the studio you are on duty.",
+  area: "studio",
+  tier: "read",
+  input: {},
+  handler: (ctx) => {
+    recordCheckin(ctx);
+    const items = workQueue(ctx);
+    return { mode: modeOf(ctx.settings), count: items.length, items: items.map((i) => ({ ...i, since: new Date(i.since).toISOString() })) };
   },
 });

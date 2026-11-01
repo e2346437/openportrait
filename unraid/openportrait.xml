@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>openportrait</Name>
+  <Repository>ghcr.io/e2346437/openportrait:latest</Repository>
+  <Registry>https://github.com/e2346437/openportrait/pkgs/container/openportrait</Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/e2346437/openportrait/issues</Support>
+  <Project>https://openportrait.app</Project>
+  <Overview>OpenPortrait is a self-hosted studio CRM for photographers: leads, shoots, calendar, booking pages, quotes and orders, contracts, and client galleries, all in one container. It includes a built-in Cloudflare Tunnel so clients can reach your galleries and booking pages without opening ports.[br][br]After installing, open the WebUI and follow the setup screen. Settings &gt; Internet access walks you through connecting your domain.</Overview>
+  <Category>Productivity: MediaServer:Photos</Category>
+  <WebUI>http://[IP]:[PORT:8080]/studio</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/e2346437/openportrait/main/unraid/openportrait.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/e2346437/openportrait/main/docs/brand/openportrait-icon-512.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <Requires>A domain on Cloudflare is recommended so clients can reach galleries and booking pages from the internet. See Settings &gt; Internet access after install.</Requires>
+  <Config Name="WebUI port" Target="8080" Default="8080" Mode="tcp" Description="Port for the OpenPortrait web interface." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="App data" Target="/config" Default="/mnt/user/appdata/openportrait" Mode="rw" Description="Database, encryption key and nightly backups. Keep this on a share that is backed up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/openportrait</Config>
+  <Config Name="Galleries" Target="/galleries" Default="/mnt/user/galleries" Mode="rw,slave" Description="Your photo share. Each shoot gets a folder here, with Originals/RAW and Gallery (the delivered photos) inside." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/galleries</Config>
+  <Config Name="Incoming" Target="/incoming" Default="/mnt/user/incoming" Mode="rw,slave" Description="Photos sent straight from the camera (SFTP/FTP) wait here until you sort them into a shoot." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/incoming</Config>
+  <Config Name="Cache" Target="/cache" Default="/mnt/user/appdata/openportrait/cache" Mode="rw" Description="Generated previews and thumbnails. Safe to delete; a cache pool is ideal." Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/openportrait/cache</Config>
+  <Config Name="Cloudflare Tunnel token" Target="CLOUDFLARE_TUNNEL_TOKEN" Default="" Mode="" Description="Optional. Starts the built-in Cloudflare Tunnel. You can also paste it later in Settings &gt; Internet access, which walks you through getting one." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Public URL" Target="APP_URL" Default="" Mode="" Description="Optional. Your public address, for example https://studio.example.com. Filled in from the tunnel when left empty." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User id that owns files OpenPortrait writes. 99 is Unraid's nobody." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group id for files OpenPortrait writes. 100 is Unraid's users group." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
+  <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="Permission mask for new files. Use 002 to let the users group write too." Type="Variable" Display="advanced" Required="false" Mask="false">022</Config>
+  <Config Name="Log level" Target="LOG_LEVEL" Default="info" Mode="" Description="fatal, error, warn, info, debug or trace." Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
+  <Config Name="Folder rescan (minutes)" Target="WATCH_RESCAN_MINUTES" Default="5" Mode="" Description="How often the galleries share is rescanned as a backstop for missed file events." Type="Variable" Display="advanced" Required="false" Mask="false">5</Config>
+  <Config Name="Platform" Target="OPENPORTRAIT_PLATFORM" Default="unraid" Mode="" Description="Tells OpenPortrait it runs on Unraid so its guides match. Leave as is." Type="Variable" Display="advanced-hide" Required="false" Mask="false">unraid</Config>
+</Container>

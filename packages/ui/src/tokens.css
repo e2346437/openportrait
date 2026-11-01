@@ -1,0 +1,108 @@
+/*
+ * OpenPortrait design tokens. Brand colors come from docs/brand (Ink, Paper, Lens).
+ * Light is the default; dark follows the OS unless [data-theme] forces one.
+ */
+:root {
+  --bg: #f3eee5;
+  --surface: #fbf8f2;
+  --surface-2: #ebe4d7;
+  --surface-3: #e2d9c9;
+  --ink: #171613;
+  --ink-2: #4a463f;
+  --ink-3: #6b655b;
+  --line: #d8cfbf;
+  --line-2: #c9bfad;
+  --accent: #c2461f;
+  --accent-ink: #fff8f2;
+  --accent-soft: #f3d9cd;
+  --ok: #2f6b45;
+  --ok-soft: #dbe9de;
+  --warn: #8a5d00;
+  --warn-soft: #f3e3bf;
+  --info: #2d5a7b;
+  --info-soft: #d8e4ee;
+  --bad: #a3301b;
+  --bad-soft: #f4d6cf;
+  --inverse-bg: #171613;
+  --inverse-ink: #f1ebe0;
+  --inverse-ink-2: #a69d8f;
+  --shadow: 0 1px 2px rgba(23, 22, 19, 0.06), 0 8px 24px -12px rgba(23, 22, 19, 0.18);
+  --shadow-lg: 0 24px 60px -20px rgba(23, 22, 19, 0.35);
+
+  --sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --sidebar: 232px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151412;
+    --surface: #1d1b18;
+    --surface-2: #262420;
+    --surface-3: #2f2c27;
+    --ink: #f1ebe0;
+    --ink-2: #c9c0b2;
+    --ink-3: #9d9486;
+    --line: #35312b;
+    --line-2: #453f37;
+    --accent: #e46a40;
+    --accent-ink: #1a0d07;
+    --accent-soft: #3a2219;
+    --ok: #86c79c;
+    --ok-soft: #1d3226;
+    --warn: #e3b65c;
+    --warn-soft: #3a2f17;
+    --info: #93bddb;
+    --info-soft: #1c2c38;
+    --bad: #f08f78;
+    --bad-soft: #3d1f18;
+    --inverse-bg: #f1ebe0;
+    --inverse-ink: #171613;
+    --inverse-ink-2: #4a463f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #151412;
+  --surface: #1d1b18;
+  --surface-2: #262420;
+  --surface-3: #2f2c27;
+  --ink: #f1ebe0;
+  --ink-2: #c9c0b2;
+  --ink-3: #9d9486;
+  --line: #35312b;
+  --line-2: #453f37;
+  --accent: #e46a40;
+  --accent-ink: #1a0d07;
+  --accent-soft: #3a2219;
+  --ok: #86c79c;
+  --ok-soft: #1d3226;
+  --warn: #e3b65c;
+  --warn-soft: #3a2f17;
+  --info: #93bddb;
+  --info-soft: #1c2c38;
+  --bad: #f08f78;
+  --bad-soft: #3d1f18;
+  --inverse-bg: #f1ebe0;
+  --inverse-ink: #171613;
+  --inverse-ink-2: #4a463f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
+  color-scheme: dark;
+}

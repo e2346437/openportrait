@@ -135,8 +135,8 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   // The container health check calls this every 30 seconds, so keep it out of the info log.
   app.get("/api/health", { logLevel: "warn" }, async () => ({ ok: true, version: VERSION, instanceId: secrets.instanceId() }));
 
-  // Staff-only API lives under /api/studio and the staff UI under /studio, so one Cloudflare
-  // Access rule on those two paths protects the whole back office while client pages stay public.
+  // Staff-only API lives under /api/studio and the staff UI under /studio. Staff sign in with the
+  // OpenPortrait login; client pages stay public.
   await app.register(setupRoutes, { prefix: "/api/studio/setup" });
   await app.register(authRoutes, { prefix: "/api/studio/auth" });
   await app.register(settingsRoutes, { prefix: "/api/studio/settings" });
@@ -153,7 +153,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
 
   await app.register(aiRoutes, { prefix: "/api/studio/ai" });
   await app.register(automationRoutes, { prefix: "/api/studio/automation" });
-  // Public path with its own bearer-token auth, so it sits outside the Cloudflare Access rule for /studio.
+  // Public path with its own bearer-token auth, so AI clients connect without a second sign-in.
   await app.register(mcpRoutes);
   await app.register(oauthRoutes);
   await app.register(oauthStudioRoutes, { prefix: "/api/studio/oauth" });

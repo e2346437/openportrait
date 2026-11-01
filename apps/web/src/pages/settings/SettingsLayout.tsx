@@ -26,6 +26,11 @@ export function SettingsLayout() {
           </NavLink>
         ) : null}
         {owner ? (
+          <NavLink to="camera-upload">
+            <Icon name="camera" /> Camera upload
+          </NavLink>
+        ) : null}
+        {owner ? (
           <NavLink to="internet">
             <Icon name="globe" /> Internet access
           </NavLink>

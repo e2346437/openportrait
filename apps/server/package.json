@@ -22,12 +22,17 @@
     "@openportrait/jobs": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.7",
+    "ftp-srv": "^4.6.3",
     "nodemailer": "^10.3.1",
+    "selfsigned": "^5.5.0",
     "sharp": "^0.35.5",
+    "ssh2": "^1.17.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.2",
+    "@types/ssh2": "^1.15.6",
+    "basic-ftp": "^6.2.5",
     "tsx": "^4.23.15",
     "vitest": "^5.0.5"
   }

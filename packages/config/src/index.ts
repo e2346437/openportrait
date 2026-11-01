@@ -26,6 +26,15 @@ export interface AppConfig {
   /** Backstop rescan interval for the folder watcher. */
   watchRescanMinutes: number;
   ingestSettleSeconds: number;
+  /** Camera upload server (see apps/server/src/upload). Ports are infrastructure; protocol and access mode are settings. */
+  sftpPort: number;
+  ftpPort: number;
+  /** Passive data ports for FTP/FTPS. Publish this whole range from the container. */
+  ftpPassiveMin: number;
+  ftpPassiveMax: number;
+  /** First-run defaults for the Settings > Camera upload choices, so a template can pre-select them. */
+  uploadProtocol: "sftp" | "ftp" | "ftps";
+  uploadAccessMode: "on_demand" | "scheduled" | "always_on";
   /** True when the container runs on Unraid (set by the Unraid template). */
   isUnraid: boolean;
   isProduction: boolean;
@@ -38,6 +47,19 @@ function int(value: string | undefined, fallback: number, name: string): number 
   const n = Number(value);
   if (!Number.isInteger(n) || n < 0) throw new Error(`${name} must be a whole number, got "${value}"`);
   return n;
+}
+
+function port(value: string | undefined, fallback: number, name: string): number {
+  const n = int(value, fallback, name);
+  if (n < 1024 || n > 65535) throw new Error(`${name} must be between 1024 and 65535, got "${value}"`);
+  return n;
+}
+
+function oneOf<T extends string>(value: string | undefined, allowed: readonly T[], fallback: T, name: string): T {
+  const v = (value ?? "").trim().toLowerCase();
+  if (v === "") return fallback;
+  if (!(allowed as readonly string[]).includes(v)) throw new Error(`${name} must be one of ${allowed.join(", ")}, got "${value}"`);
+  return v as T;
 }
 
 function url(value: string | undefined): string {
@@ -77,6 +99,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logLevel: level as AppConfig["logLevel"],
     watchRescanMinutes: int(env.WATCH_RESCAN_MINUTES, 5, "WATCH_RESCAN_MINUTES"),
     ingestSettleSeconds: int(env.INGEST_SETTLE_SECONDS, 10, "INGEST_SETTLE_SECONDS"),
+    sftpPort: port(env.SFTP_PORT, 2222, "SFTP_PORT"),
+    ftpPort: port(env.FTP_PORT, 2121, "FTP_PORT"),
+    ftpPassiveMin: port(env.FTP_PASSIVE_MIN, 30000, "FTP_PASSIVE_MIN"),
+    ftpPassiveMax: port(env.FTP_PASSIVE_MAX, 30009, "FTP_PASSIVE_MAX"),
+    uploadProtocol: oneOf(env.UPLOAD_PROTOCOL, ["sftp", "ftp", "ftps"] as const, "sftp", "UPLOAD_PROTOCOL"),
+    uploadAccessMode: oneOf(env.UPLOAD_ACCESS_MODE, ["on_demand", "scheduled", "always_on"] as const, "on_demand", "UPLOAD_ACCESS_MODE"),
     isUnraid: env.OPENPORTRAIT_PLATFORM === "unraid",
     isProduction: env.NODE_ENV === "production",
   };

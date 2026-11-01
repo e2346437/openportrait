@@ -126,9 +126,10 @@ Gallery folders are named from the shoot's **subject name**, **shoot date**, and
 Cameras such as the Nikon Z9 can send each photo over the network as it is taken. OpenPortrait includes a built-in upload server for this.
 
 **Server**
-- A built-in server for **SFTP** (recommended, one port, encrypted), plus **FTPS** and plain **FTP** for cameras that need them. Each protocol is off until it's turned on in Settings > Camera upload.
-- Each camera gets its own login, created in Settings with a generated password and a printable setup card listing the exact values to enter on the camera (host, port, protocol, user, password, folder). Logins can upload only, cannot delete or overwrite, and are limited to their own folder.
-- Files land in an **Incoming** area, a separate Unraid share (for example `/mnt/user/incoming` mapped to `/incoming`), in one folder per camera and day: `/incoming/Z9/2026-11-14/`. It's visible on the network, so Lightroom or Aftershoot can import straight from it.
+- A built-in server for **SFTP** (the default, encrypted, one port), **FTPS** (FTP with explicit TLS and a generated certificate) and plain **FTP** for cameras that only speak it. One protocol is active at a time, chosen in Settings > Camera upload. Choosing plain FTP shows a warning that it is unencrypted and belongs on the home network or WireGuard.
+- **When the server is open** is a setting, so a port isn't left listening when nobody is shooting: **Only when needed** (the default; opened by hand or by a live view starting, and closed after a configurable quiet period), **On a schedule** (weekly windows in the studio's time zone, which can run past midnight), or **Always open** (labelled not recommended and needs a confirmation). The settings screen shows the live state, when it will next open or close, and has Open now and Close now buttons. Every open, close, failed sign-in and block is written to the audit log. A photo that is still arriving is never cut off by a schedule or idle close.
+- Each camera gets its own login with a generated password that is easy to type on a camera (shown once). Logins are limited to their own folder inside Incoming and can send files, make folders and list, but cannot download or delete. SFTP logins can also use an SSH public key. Files arrive under a hidden temporary name and are renamed when complete, so nothing downstream sees a half-written photo, and a dropped connection leaves nothing behind.
+- Files land in an **Incoming** area, a separate Unraid share (for example `/mnt/user/incoming` mapped to `/incoming`), in one folder per camera and, optionally, per day: `/incoming/Z9/2026-11-14/`. It's visible on the network, so Lightroom or Aftershoot can import straight from it.
 - Brute-force protection: failed logins are rate-limited and repeat offenders are blocked for a while, and the activity log shows every connection.
 
 **Getting from the camera to the server**
@@ -146,7 +147,7 @@ Cloudflare Tunnel only carries web traffic for free. Raw FTP or SFTP from a came
 - **At home:** the same camera login works directly on the LAN with no extra setup. The setup card lists both the LAN address and the remote address.
 - Each wizard ends with a live **Send a test photo** check that waits for the camera's first file and confirms it arrived in Incoming.
 
-**Documentation:** `docs/camera-upload-sftp.md` and `docs/camera-upload-wireguard.md` include step-by-step Nikon Z9 menus (other cameras with FTP/SFTP follow the same values), plus troubleshooting for timeouts, authentication failures, and hotspot NAT.
+**Documentation:** [camera-upload.md](camera-upload.md) covers the server, protocols and camera setup. `docs/camera-upload-sftp.md` and `docs/camera-upload-wireguard.md` include step-by-step Nikon Z9 menus (other cameras with FTP/SFTP follow the same values), plus troubleshooting for timeouts, authentication failures, and hotspot NAT.
 
 **Tethering live view:** a full-screen page that shows each photo the moment its upload finishes, with an upload progress bar, a choice of set, and a black, white or custom-colour background. See [tethering.md](tethering.md).
 
@@ -233,8 +234,9 @@ There is one image, `ghcr.io/e2346437/openportrait` (mirrored to Docker Hub as `
 | App data | Path | `/mnt/user/appdata/openportrait` → `/config` | Database, keys, backups |
 | Galleries | Path | `/mnt/user/galleries` → `/galleries` | Gallery originals share |
 | Incoming | Path | `/mnt/user/incoming` → `/incoming` | Camera uploads (SFTP/FTP) before sorting |
-| SFTP port | Port | `2222` | In-camera upload over SFTP (off until turned on in Settings) |
-| FTP ports | Port (advanced) | `2121`, passive `30000-30009` | Only needed for cameras without SFTP |
+| SFTP port | Port | `2222` | In-camera upload over SFTP (closed until opened in Settings > Camera upload) |
+| FTP ports | Port | `2121`, passive `30000-30009` | FTP and FTPS, for cameras without SFTP. The passive range is configurable (`FTP_PASSIVE_MIN`, `FTP_PASSIVE_MAX`) |
+| Upload protocol / access | Variables (advanced) | `UPLOAD_PROTOCOL`, `UPLOAD_ACCESS_MODE` | First-run defaults for the Camera upload settings |
 | Cache | Path | `/mnt/user/appdata/openportrait/cache` → `/cache` | Previews; can live on a cache pool |
 | `PUID` / `PGID` / `UMASK` | Variable | `99` / `100` / `022` | Unraid's nobody:users |
 | `TZ` | Variable | from Unraid | |

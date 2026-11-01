@@ -81,3 +81,17 @@ export interface AiActivityItem {
   action: string;
   ok: boolean;
 }
+
+export interface AiApproval {
+  id: string;
+  connection: string;
+  tool: string;
+  tier: "outward" | "money";
+  summary: string;
+  args: unknown;
+  status: "pending" | "approved" | "declined" | "expired" | "failed";
+  result: unknown;
+  createdAt: number;
+  decidedAt: number | null;
+  expiresAt: number;
+}

@@ -73,5 +73,54 @@ export const aiConnection = sqliteTable(
     expiresAt: integer({ mode: "timestamp_ms" }),
     lastUsedAt: integer({ mode: "timestamp_ms" }),
     revokedAt: integer({ mode: "timestamp_ms" }),
+    /** OAuth connections only: the client, a short access-token lifetime, and rotating refresh tokens. */
+    clientId: text(),
+    accessExpiresAt: integer({ mode: "timestamp_ms" }),
+    refreshHash: text(),
+    /** The refresh token this one replaced. Presenting it again means a copy leaked, so the connection is revoked. */
+    refreshPrevHash: text(),
   },
+);
+
+/** Clients registered through dynamic client registration (RFC 7591). All are public clients using PKCE. */
+export const oauthClient = sqliteTable("oauth_client", {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  redirectUris: text({ mode: "json" }).$type<string[]>().notNull(),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+});
+
+/** One-time authorization codes, stored hashed and valid for ten minutes. */
+export const oauthCode = sqliteTable("oauth_code", {
+  id: text().primaryKey(),
+  clientId: text().notNull(),
+  redirectUri: text().notNull(),
+  codeChallenge: text().notNull(),
+  label: text().notNull(),
+  level: text({ enum: ["read", "assist", "full"] }).notNull(),
+  areas: text({ mode: "json" }).$type<string[]>().notNull(),
+  userId: text().notNull(),
+  expiresAt: integer({ mode: "timestamp_ms" }).notNull(),
+});
+
+/** An action an AI asked for that waits for the owner's OK (outward and money tools). */
+export const aiApproval = sqliteTable(
+  "ai_approval",
+  {
+    id: text().primaryKey(),
+    connectionId: text()
+      .notNull()
+      .references(() => aiConnection.id, { onDelete: "cascade" }),
+    tool: text().notNull(),
+    tier: text({ enum: ["outward", "money"] }).notNull(),
+    summary: text().notNull(),
+    args: text({ mode: "json" }).notNull(),
+    status: text({ enum: ["pending", "approved", "declined", "expired", "failed"] }).notNull().default("pending"),
+    result: text({ mode: "json" }),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+    expiresAt: integer({ mode: "timestamp_ms" }).notNull(),
+    decidedAt: integer({ mode: "timestamp_ms" }),
+    decidedBy: text().references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [index("ai_approval_status_idx").on(t.status, t.createdAt)],
 );

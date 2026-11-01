@@ -20,6 +20,8 @@ import { ShootsPage } from "./pages/shoots/Shoots.js";
 import { ShootDetailPage } from "./pages/shoots/ShootDetail.js";
 import { CalendarPage } from "./pages/calendar/Calendar.js";
 import { CalendarSettingsPage } from "./pages/settings/Calendar.js";
+import { ApprovalsPage } from "./pages/Approvals.js";
+import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { NotFoundPage } from "./pages/NotFound.js";
 
 function Boot() {
@@ -37,7 +39,7 @@ function Gate({ need }: { need: "setup" | "anon" | "user" }) {
   if (loading) return <Boot />;
   if (needsSetup && need !== "setup") return <Navigate to="/studio/setup" replace />;
   if (!needsSetup && need === "setup") return <Navigate to={me?.user ? "/studio" : "/studio/login"} replace />;
-  if (need === "user" && !me?.user) return <Navigate to="/studio/login" replace state={{ from: location.pathname }} />;
+  if (need === "user" && !me?.user) return <Navigate to="/studio/login" replace state={{ from: location.pathname + location.search }} />;
   if (need === "anon" && me?.user) return <Navigate to="/studio" replace />;
   return <Outlet />;
 }
@@ -57,6 +59,7 @@ export function App() {
                 <Route path="login" element={<LoginPage />} />
               </Route>
               <Route element={<Gate need="user" />}>
+                <Route path="connect/consent" element={<ConsentAIPage />} />
                 <Route element={<Shell />}>
                   <Route index element={<DashboardPage />} />
                   <Route path="leads" element={<LeadsPage />} />
@@ -69,6 +72,7 @@ export function App() {
                   <Route path="orders" element={<ComingSoonPage area="orders" />} />
                   <Route path="galleries" element={<ComingSoonPage area="galleries" />} />
                   <Route path="incoming" element={<ComingSoonPage area="incoming" />} />
+                  <Route path="approvals" element={<ApprovalsPage />} />
                   <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<Navigate to="studio" replace />} />
                     <Route path="studio" element={<StudioSettingsPage />} />

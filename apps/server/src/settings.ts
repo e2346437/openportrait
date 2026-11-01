@@ -18,6 +18,10 @@ export interface SettingTypes {
   "galleries.privateFolders": string[];
   /** Download lock the publish dialog starts on (docs/GALLERIES.md section 6.4). */
   "galleries.defaultDownloadLock": "until_paid" | "highlights_early" | "none";
+  /** Folder naming for new shoots (see domain/folders.ts). */
+  "folders.pattern": string;
+  "folders.rawSubdir": string;
+  "folders.deliverySubdir": string;
 }
 
 const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token"]);

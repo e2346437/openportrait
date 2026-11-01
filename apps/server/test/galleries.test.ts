@@ -52,6 +52,25 @@ async function galleryFromShare(): Promise<{ id: string; slug: string; detail: a
   return { id: created.galleryId, slug: detail.gallery.slug, detail };
 }
 
+describe("shoots", () => {
+  it("turns a shoot's delivery folder into its gallery, and shares it when the shoot type auto-publishes", async () => {
+    const type = (await studio("GET", "/shoot-types")).json().types[0];
+    await studio("PATCH", `/shoot-types/${type.id}`, { autoPublish: true });
+    const contact = (await studio("POST", "/contacts", { firstName: "Dana", lastName: "Lee", email: "dana@example.com" })).json();
+    const created = (await studio("POST", "/shoots", { primaryContactId: contact.contact?.id ?? contact.id, shootTypeId: type.id, subject: "Dana & Sam", events: [{ startsAt: Date.UTC(2026, 10, 14, 15), endsAt: Date.UTC(2026, 10, 14, 17) }] })).json();
+    const folder = created.shoot.folder.path as string;
+    await jpeg(path.join(share, folder, "Gallery/a.jpg"), red);
+
+    await studio("POST", "/ingest/rescan");
+    await app.ctx.jobs.drain();
+    const list = (await studio("GET", "/galleries")).json().galleries;
+    expect(list).toHaveLength(1);
+    expect(list[0].title).toBe("Dana & Sam");
+    expect(list[0].status).toBe("live");
+    expect((await studio("GET", "/ingest/folders")).json().folders).toHaveLength(0);
+  });
+});
+
 describe("folder discovery", () => {
   it("treats a folder with a Gallery subfolder as a shoot and never reads Originals", async () => {
     const shoot = path.join(share, "2026/2026-11-14 Family - Smith Family");

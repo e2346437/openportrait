@@ -10,6 +10,13 @@ import { SettingsLayout } from "./pages/settings/SettingsLayout.js";
 import { StudioSettingsPage } from "./pages/settings/Studio.js";
 import { InternetSettingsPage } from "./pages/settings/Internet.js";
 import { AccountSettingsPage } from "./pages/settings/Account.js";
+import { ShootSettingsPage } from "./pages/settings/Shoots.js";
+import { ClientsPage } from "./pages/clients/Clients.js";
+import { ContactDetailPage } from "./pages/clients/ContactDetail.js";
+import { LeadsPage } from "./pages/leads/Leads.js";
+import { LeadDetailPage } from "./pages/leads/LeadDetail.js";
+import { ShootsPage } from "./pages/shoots/Shoots.js";
+import { ShootDetailPage } from "./pages/shoots/ShootDetail.js";
 import { NotFoundPage } from "./pages/NotFound.js";
 import { GalleriesListPage } from "./pages/galleries/GalleriesList.js";
 import { GalleryDetailPage } from "./pages/galleries/GalleryDetail.js";
@@ -55,10 +62,13 @@ export function App() {
               <Route element={<Gate need="user" />}>
                 <Route element={<Shell />}>
                   <Route index element={<DashboardPage />} />
-                  <Route path="leads" element={<ComingSoonPage area="leads" />} />
-                  <Route path="shoots" element={<ComingSoonPage area="shoots" />} />
+                  <Route path="leads" element={<LeadsPage />} />
+                  <Route path="leads/:id" element={<LeadDetailPage />} />
+                  <Route path="shoots" element={<ShootsPage />} />
+                  <Route path="shoots/:id" element={<ShootDetailPage />} />
                   <Route path="calendar" element={<ComingSoonPage area="calendar" />} />
-                  <Route path="clients" element={<ComingSoonPage area="clients" />} />
+                  <Route path="clients" element={<ClientsPage />} />
+                  <Route path="clients/:id" element={<ContactDetailPage />} />
                   <Route path="orders" element={<ComingSoonPage area="orders" />} />
                   <Route path="galleries" element={<GalleriesListPage />} />
                   <Route path="galleries/:id" element={<GalleryDetailPage />} />
@@ -67,6 +77,7 @@ export function App() {
                     <Route index element={<Navigate to="studio" replace />} />
                     <Route path="studio" element={<StudioSettingsPage />} />
                     <Route path="galleries" element={<GallerySettingsPage />} />
+                    <Route path="shoots" element={<ShootSettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />
                   </Route>

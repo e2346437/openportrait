@@ -61,7 +61,8 @@ CREATE TABLE `gallery` (
 	`expires_at` integer,
 	`published_at` integer,
 	`created_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL,
-	`updated_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL
+	`updated_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL,
+	FOREIGN KEY (`shoot_id`) REFERENCES `shoot`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `gallery_slug_idx` ON `gallery` (`slug`);--> statement-breakpoint

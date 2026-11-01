@@ -1,13 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
-import { and, eq, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { tables, type Db } from "@openportrait/db";
 import { enqueue, type Logger } from "@openportrait/jobs";
 import { DEFAULT_RULES, discover, listGalleryFiles, type FolderRules } from "./discover.js";
 import { newId, resolveInside, sha256File, slugify, titleFromFolder } from "./files.js";
 import type { Settings } from "../settings.js";
 
-const { gallery, gallerySet, photo, ingestFolder, favoriteList } = tables;
+const { gallery, gallerySet, photo, ingestFolder, favoriteList, shoot, shootType } = tables;
 
 /** Photos missing from disk this long are deleted, with their favorites. */
 export const MISSING_PURGE_MS = 30 * 86_400_000;
@@ -100,7 +100,16 @@ export class GalleryIngest {
         result.missing += r.missing;
         result.waiting += r.waiting;
       } else {
-        if (this.upsertInbox(c.shootFolder, c.root)) result.unmatched++;
+        if (this.upsertInbox(c.shootFolder, c.root)) {
+          // A folder that belongs to a shoot in the CRM becomes its gallery as soon as it has stopped changing.
+          const row = db.select().from(ingestFolder).where(eq(ingestFolder.relPath, c.shootFolder)).get();
+          if (row && row.state === "unmatched" && row.stable && this.matchShoot(c.shootFolder)) {
+            await this.createFromFolder(row.id);
+            result.galleries++;
+          } else {
+            result.unmatched++;
+          }
+        }
       }
     }
 
@@ -141,6 +150,16 @@ export class GalleryIngest {
       this.scan().catch((err) => this.deps.logger.error({ err: String(err) }, "gallery rescan failed"));
     }, (this.deps.settleSeconds + 1) * 1000);
     this.followUp.unref();
+  }
+
+  /** The shoot whose folder this is, if any. */
+  private matchShoot(relPath: string) {
+    return this.deps.db
+      .select({ id: shoot.id, subject: shoot.subject, autoPublish: shootType.autoPublish })
+      .from(shoot)
+      .innerJoin(shootType, eq(shootType.id, shoot.shootTypeId))
+      .where(sql`lower(${shoot.folderPath}) = ${relPath.toLowerCase()}`)
+      .get();
   }
 
   /** Records (or refreshes) a folder in the Unmatched inbox. Returns true when it is waiting for the studio. */
@@ -296,7 +315,8 @@ export class GalleryIngest {
     const abs = resolveInside(galleriesDir, folder.relPath);
     const delivery = fs.existsSync(abs) ? fs.readdirSync(abs).find((n) => n.localeCompare(rules.deliveryFolder, undefined, { sensitivity: "accent" }) === 0) : undefined;
     const root = delivery ? `${folder.relPath}/${delivery}` : folder.relPath;
-    const title = opts.title?.trim() || titleFromFolder(path.basename(folder.relPath));
+    const match = this.matchShoot(folder.relPath);
+    const title = opts.title?.trim() || match?.subject?.trim() || titleFromFolder(path.basename(folder.relPath));
     const id = newId();
     db.transaction((tx) => {
       tx.insert(gallery)
@@ -306,7 +326,9 @@ export class GalleryIngest {
           title,
           shootFolder: folder.relPath,
           folderPath: root,
+          shootId: match?.id ?? null,
           downloadLock: opts.downloadLock ?? this.deps.settings.get("galleries.defaultDownloadLock") ?? "none",
+          ...(match?.autoPublish ? { status: "live" as const, publishedAt: new Date() } : {}),
         })
         .run();
       tx.insert(favoriteList).values({ id: newId(), galleryId: id, name: "Favorites", sort: 0 }).run();

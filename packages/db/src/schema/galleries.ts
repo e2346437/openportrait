@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { shoot } from "./pipeline.js";
 
 const now = sql`(unixepoch('subsec') * 1000)`;
 
@@ -25,7 +26,7 @@ export const gallery = sqliteTable(
   {
     id: text().primaryKey(),
     /** Milestone 3 adds the shoot table; until then this stays null. */
-    shootId: text(),
+    shootId: text().references(() => shoot.id, { onDelete: "set null" }),
     slug: text().notNull(),
     title: text().notNull(),
     /** Shoot folder, relative to GALLERIES_DIR (the match target). */

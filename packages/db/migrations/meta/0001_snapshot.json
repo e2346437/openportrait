@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "eb6ebf36-13d9-49ae-a94e-7df7fc1a8d3f",
+  "id": "43f4c804-647c-4ff4-8d62-bf246d5b7062",
   "prevId": "9f0c5001-1863-41ad-9003-1d80ca91f51d",
   "tables": {
     "audit_log": {
@@ -371,8 +371,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "download_event": {
-      "name": "download_event",
+    "activity": {
+      "name": "activity",
       "columns": {
         "id": {
           "name": "id",
@@ -381,50 +381,57 @@
           "notNull": true,
           "autoincrement": true
         },
-        "gallery_id": {
-          "name": "gallery_id",
+        "contact_id": {
+          "name": "contact_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "photo_id": {
-          "name": "photo_id",
+        "lead_id": {
+          "name": "lead_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "scope": {
-          "name": "scope",
+        "shoot_id": {
+          "name": "shoot_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "variant": {
-          "name": "variant",
+        "summary": {
+          "name": "summary",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "client_email": {
-          "name": "client_email",
+        "detail": {
+          "name": "detail",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "ip": {
-          "name": "ip",
+        "actor_id": {
+          "name": "actor_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "created_at": {
-          "name": "created_at",
+        "at": {
+          "name": "at",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -433,22 +440,22 @@
         }
       },
       "indexes": {
-        "download_event_idx": {
-          "name": "download_event_idx",
+        "activity_contact_idx": {
+          "name": "activity_contact_idx",
           "columns": [
-            "gallery_id",
-            "created_at"
+            "contact_id",
+            "at"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "download_event_gallery_id_gallery_id_fk": {
-          "name": "download_event_gallery_id_gallery_id_fk",
-          "tableFrom": "download_event",
-          "tableTo": "gallery",
+        "activity_contact_id_contact_id_fk": {
+          "name": "activity_contact_id_contact_id_fk",
+          "tableFrom": "activity",
+          "tableTo": "contact",
           "columnsFrom": [
-            "gallery_id"
+            "contact_id"
           ],
           "columnsTo": [
             "id"
@@ -461,30 +468,108 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "favorite_item": {
-      "name": "favorite_item",
+    "contact": {
+      "name": "contact",
       "columns": {
-        "selection_id": {
-          "name": "selection_id",
+        "id": {
+          "name": "id",
           "type": "text",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
-        "photo_id": {
-          "name": "photo_id",
+        "household_id": {
+          "name": "household_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
-        "note": {
-          "name": "note",
+        "first_name": {
+          "name": "first_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
           "default": "''"
+        },
+        "last_name": {
+          "name": "last_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "company": {
+          "name": "company",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "address_line1": {
+          "name": "address_line1",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "address_line2": {
+          "name": "address_line2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "region": {
+          "name": "region",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "postal_code": {
+          "name": "postal_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
@@ -493,16 +578,100 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch('subsec') * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch('subsec') * 1000)"
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "contact_email_idx": {
+          "name": "contact_email_idx",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        },
+        "contact_name_idx": {
+          "name": "contact_name_idx",
+          "columns": [
+            "last_name",
+            "first_name"
+          ],
+          "isUnique": false
+        },
+        "contact_household_idx": {
+          "name": "contact_household_idx",
+          "columns": [
+            "household_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
-        "favorite_item_selection_id_favorite_selection_id_fk": {
-          "name": "favorite_item_selection_id_favorite_selection_id_fk",
-          "tableFrom": "favorite_item",
-          "tableTo": "favorite_selection",
+        "contact_household_id_household_id_fk": {
+          "name": "contact_household_id_household_id_fk",
+          "tableFrom": "contact",
+          "tableTo": "household",
           "columnsFrom": [
-            "selection_id"
+            "household_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "contact_tag": {
+      "name": "contact_tag",
+      "columns": {
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tag_id": {
+          "name": "tag_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "contact_tag_tag_idx": {
+          "name": "contact_tag_tag_idx",
+          "columns": [
+            "tag_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "contact_tag_contact_id_contact_id_fk": {
+          "name": "contact_tag_contact_id_contact_id_fk",
+          "tableFrom": "contact_tag",
+          "tableTo": "contact",
+          "columnsFrom": [
+            "contact_id"
           ],
           "columnsTo": [
             "id"
@@ -510,12 +679,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "favorite_item_photo_id_photo_id_fk": {
-          "name": "favorite_item_photo_id_photo_id_fk",
-          "tableFrom": "favorite_item",
-          "tableTo": "photo",
+        "contact_tag_tag_id_tag_id_fk": {
+          "name": "contact_tag_tag_id_tag_id_fk",
+          "tableFrom": "contact_tag",
+          "tableTo": "tag",
           "columnsFrom": [
-            "photo_id"
+            "tag_id"
           ],
           "columnsTo": [
             "id"
@@ -525,31 +694,24 @@
         }
       },
       "compositePrimaryKeys": {
-        "favorite_item_selection_id_photo_id_pk": {
+        "contact_tag_contact_id_tag_id_pk": {
           "columns": [
-            "selection_id",
-            "photo_id"
+            "contact_id",
+            "tag_id"
           ],
-          "name": "favorite_item_selection_id_photo_id_pk"
+          "name": "contact_tag_contact_id_tag_id_pk"
         }
       },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "favorite_list": {
-      "name": "favorite_list",
+    "household": {
+      "name": "household",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "gallery_id": {
-          "name": "gallery_id",
-          "type": "text",
-          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -560,44 +722,23 @@
           "notNull": true,
           "autoincrement": false
         },
-        "max_count": {
-          "name": "max_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sort": {
-          "name": "sort",
+        "created_at": {
+          "name": "created_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 0
+          "default": "(unixepoch('subsec') * 1000)"
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "favorite_list_gallery_id_gallery_id_fk": {
-          "name": "favorite_list_gallery_id_gallery_id_fk",
-          "tableFrom": "favorite_list",
-          "tableTo": "gallery",
-          "columnsFrom": [
-            "gallery_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "favorite_selection": {
-      "name": "favorite_selection",
+    "note": {
+      "name": "note",
       "columns": {
         "id": {
           "name": "id",
@@ -606,23 +747,37 @@
           "notNull": true,
           "autoincrement": false
         },
-        "list_id": {
-          "name": "list_id",
+        "contact_id": {
+          "name": "contact_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "client_email": {
-          "name": "client_email",
+        "lead_id": {
+          "name": "lead_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "shoot_id": {
+          "name": "shoot_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "body": {
+          "name": "body",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "submitted_at": {
-          "name": "submitted_at",
-          "type": "integer",
+        "author_id": {
+          "name": "author_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -637,22 +792,448 @@
         }
       },
       "indexes": {
-        "favorite_selection_idx": {
-          "name": "favorite_selection_idx",
+        "note_contact_idx": {
+          "name": "note_contact_idx",
           "columns": [
-            "list_id",
-            "client_email"
+            "contact_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "note_contact_id_contact_id_fk": {
+          "name": "note_contact_id_contact_id_fk",
+          "tableFrom": "note",
+          "tableTo": "contact",
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "note_author_id_user_id_fk": {
+          "name": "note_author_id_user_id_fk",
+          "tableFrom": "note",
+          "tableTo": "user",
+          "columnsFrom": [
+            "author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "tag": {
+      "name": "tag",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "tag_name_unique": {
+          "name": "tag_name_unique",
+          "columns": [
+            "name"
           ],
           "isUnique": true
         }
       },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "lead": {
+      "name": "lead",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stage_id": {
+          "name": "stage_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "shoot_type_id": {
+          "name": "shoot_type_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "event_date": {
+          "name": "event_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lost_reason": {
+          "name": "lost_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "converted_shoot_id": {
+          "name": "converted_shoot_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch('subsec') * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch('subsec') * 1000)"
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "lead_stage_idx": {
+          "name": "lead_stage_idx",
+          "columns": [
+            "stage_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "lead_contact_idx": {
+          "name": "lead_contact_idx",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
-        "favorite_selection_list_id_favorite_list_id_fk": {
-          "name": "favorite_selection_list_id_favorite_list_id_fk",
-          "tableFrom": "favorite_selection",
-          "tableTo": "favorite_list",
+        "lead_contact_id_contact_id_fk": {
+          "name": "lead_contact_id_contact_id_fk",
+          "tableFrom": "lead",
+          "tableTo": "contact",
           "columnsFrom": [
-            "list_id"
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "lead_stage_id_lead_stage_id_fk": {
+          "name": "lead_stage_id_lead_stage_id_fk",
+          "tableFrom": "lead",
+          "tableTo": "lead_stage",
+          "columnsFrom": [
+            "stage_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "lead_shoot_type_id_shoot_type_id_fk": {
+          "name": "lead_shoot_type_id_shoot_type_id_fk",
+          "tableFrom": "lead",
+          "tableTo": "shoot_type",
+          "columnsFrom": [
+            "shoot_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "lead_stage": {
+      "name": "lead_stage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "shoot": {
+      "name": "shoot",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "shoot_type_id": {
+          "name": "shoot_type_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'booked'"
+        },
+        "primary_contact_id": {
+          "name": "primary_contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lead_id": {
+          "name": "lead_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "folder_path": {
+          "name": "folder_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch('subsec') * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch('subsec') * 1000)"
+        }
+      },
+      "indexes": {
+        "shoot_status_idx": {
+          "name": "shoot_status_idx",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        },
+        "shoot_contact_idx": {
+          "name": "shoot_contact_idx",
+          "columns": [
+            "primary_contact_id"
+          ],
+          "isUnique": false
+        },
+        "shoot_folder_idx": {
+          "name": "shoot_folder_idx",
+          "columns": [
+            "folder_path"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "shoot_shoot_type_id_shoot_type_id_fk": {
+          "name": "shoot_shoot_type_id_shoot_type_id_fk",
+          "tableFrom": "shoot",
+          "tableTo": "shoot_type",
+          "columnsFrom": [
+            "shoot_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "shoot_primary_contact_id_contact_id_fk": {
+          "name": "shoot_primary_contact_id_contact_id_fk",
+          "tableFrom": "shoot",
+          "tableTo": "contact",
+          "columnsFrom": [
+            "primary_contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "shoot_contact": {
+      "name": "shoot_contact",
+      "columns": {
+        "shoot_id": {
+          "name": "shoot_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "shoot_contact_shoot_id_shoot_id_fk": {
+          "name": "shoot_contact_shoot_id_shoot_id_fk",
+          "tableFrom": "shoot_contact",
+          "tableTo": "shoot",
+          "columnsFrom": [
+            "shoot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "shoot_contact_contact_id_contact_id_fk": {
+          "name": "shoot_contact_contact_id_contact_id_fk",
+          "tableFrom": "shoot_contact",
+          "tableTo": "contact",
+          "columnsFrom": [
+            "contact_id"
           ],
           "columnsTo": [
             "id"
@@ -661,12 +1242,20 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "shoot_contact_shoot_id_contact_id_pk": {
+          "columns": [
+            "shoot_id",
+            "contact_id"
+          ],
+          "name": "shoot_contact_shoot_id_contact_id_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "gallery": {
-      "name": "gallery",
+    "shoot_event": {
+      "name": "shoot_event",
       "columns": {
         "id": {
           "name": "id",
@@ -679,13 +1268,6 @@
           "name": "shoot_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "slug": {
-          "name": "slug",
-          "type": "text",
-          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -694,172 +1276,81 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "shoot_folder": {
-          "name": "shoot_folder",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "folder_path": {
-          "name": "folder_path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
           "autoincrement": false,
-          "default": "'draft'"
+          "default": "''"
         },
-        "source_missing": {
-          "name": "source_missing",
+        "starts_at": {
+          "name": "starts_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "all_day": {
+          "name": "all_day",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
           "default": false
         },
-        "cover_photo_id": {
-          "name": "cover_photo_id",
+        "location": {
+          "name": "location",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "cover_focal_x": {
-          "name": "cover_focal_x",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 50
-        },
-        "cover_focal_y": {
-          "name": "cover_focal_y",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 50
-        },
-        "design": {
-          "name": "design",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "access_mode": {
-          "name": "access_mode",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'link'"
-        },
-        "password_hash": {
-          "name": "password_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "download_size": {
-          "name": "download_size",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'full'"
-        },
-        "download_lock": {
-          "name": "download_lock",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'none'"
-        },
-        "unlocked_at": {
-          "name": "unlocked_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "published_at": {
-          "name": "published_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch('subsec') * 1000)"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch('subsec') * 1000)"
         }
       },
       "indexes": {
-        "gallery_slug_idx": {
-          "name": "gallery_slug_idx",
+        "shoot_event_start_idx": {
+          "name": "shoot_event_start_idx",
           "columns": [
-            "slug"
+            "starts_at"
           ],
-          "isUnique": true
+          "isUnique": false
         },
-        "gallery_folder_idx": {
-          "name": "gallery_folder_idx",
+        "shoot_event_shoot_idx": {
+          "name": "shoot_event_shoot_idx",
           "columns": [
-            "shoot_folder"
+            "shoot_id"
           ],
-          "isUnique": true
+          "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "shoot_event_shoot_id_shoot_id_fk": {
+          "name": "shoot_event_shoot_id_shoot_id_fk",
+          "tableFrom": "shoot_event",
+          "tableTo": "shoot",
+          "columnsFrom": [
+            "shoot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "gallery_set": {
-      "name": "gallery_set",
+    "shoot_type": {
+      "name": "shoot_type",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "gallery_id": {
-          "name": "gallery_id",
-          "type": "text",
-          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -870,471 +1361,38 @@
           "notNull": true,
           "autoincrement": false
         },
-        "folder_name": {
-          "name": "folder_name",
+        "folder_label": {
+          "name": "folder_label",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "sort": {
-          "name": "sort",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "hidden": {
-          "name": "hidden",
+        "auto_publish": {
+          "name": "auto_publish",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
           "default": false
         },
-        "early_download": {
-          "name": "early_download",
+        "position": {
+          "name": "position",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
-        "cover_photo_id": {
-          "name": "cover_photo_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
-        "cover_focal_x": {
-          "name": "cover_focal_x",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 50
-        },
-        "cover_focal_y": {
-          "name": "cover_focal_y",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 50
-        }
-      },
-      "indexes": {
-        "gallery_set_folder_idx": {
-          "name": "gallery_set_folder_idx",
-          "columns": [
-            "gallery_id",
-            "folder_name"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "gallery_set_gallery_id_gallery_id_fk": {
-          "name": "gallery_set_gallery_id_gallery_id_fk",
-          "tableFrom": "gallery_set",
-          "tableTo": "gallery",
-          "columnsFrom": [
-            "gallery_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "gallery_view": {
-      "name": "gallery_view",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "gallery_id": {
-          "name": "gallery_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "client_email": {
-          "name": "client_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "ip_hash": {
-          "name": "ip_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch('subsec') * 1000)"
-        }
-      },
-      "indexes": {
-        "gallery_view_idx": {
-          "name": "gallery_view_idx",
-          "columns": [
-            "gallery_id",
-            "created_at"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "gallery_view_gallery_id_gallery_id_fk": {
-          "name": "gallery_view_gallery_id_gallery_id_fk",
-          "tableFrom": "gallery_view",
-          "tableTo": "gallery",
-          "columnsFrom": [
-            "gallery_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "ingest_folder": {
-      "name": "ingest_folder",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "rel_path": {
-          "name": "rel_path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'unmatched'"
-        },
-        "file_count": {
-          "name": "file_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "taken_from": {
-          "name": "taken_from",
+        "archived_at": {
+          "name": "archived_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "taken_to": {
-          "name": "taken_to",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sample_files": {
-          "name": "sample_files",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
-        "stable": {
-          "name": "stable",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
-        "first_seen_at": {
-          "name": "first_seen_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch('subsec') * 1000)"
-        },
-        "last_change_at": {
-          "name": "last_change_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch('subsec') * 1000)"
-        },
-        "gallery_id": {
-          "name": "gallery_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
-      "indexes": {
-        "ingest_folder_path_idx": {
-          "name": "ingest_folder_path_idx",
-          "columns": [
-            "rel_path"
-          ],
-          "isUnique": true
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "photo": {
-      "name": "photo",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "gallery_id": {
-          "name": "gallery_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "set_id": {
-          "name": "set_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "rel_path": {
-          "name": "rel_path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "content_hash": {
-          "name": "content_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "mtime_ms": {
-          "name": "mtime_ms",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "width": {
-          "name": "width",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "height": {
-          "name": "height",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "taken_at": {
-          "name": "taken_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "exif": {
-          "name": "exif",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "placeholder": {
-          "name": "placeholder",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'pending'"
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "missing_since": {
-          "name": "missing_since",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 1
-        },
-        "sort": {
-          "name": "sort",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "hidden": {
-          "name": "hidden",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch('subsec') * 1000)"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch('subsec') * 1000)"
-        }
-      },
-      "indexes": {
-        "photo_path_idx": {
-          "name": "photo_path_idx",
-          "columns": [
-            "rel_path"
-          ],
-          "isUnique": true
-        },
-        "photo_gallery_idx": {
-          "name": "photo_gallery_idx",
-          "columns": [
-            "gallery_id",
-            "set_id",
-            "sort"
-          ],
-          "isUnique": false
-        },
-        "photo_hash_idx": {
-          "name": "photo_hash_idx",
-          "columns": [
-            "gallery_id",
-            "content_hash"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "photo_gallery_id_gallery_id_fk": {
-          "name": "photo_gallery_id_gallery_id_fk",
-          "tableFrom": "photo",
-          "tableTo": "gallery",
-          "columnsFrom": [
-            "gallery_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "photo_set_id_gallery_set_id_fk": {
-          "name": "photo_set_id_gallery_set_id_fk",
-          "tableFrom": "photo",
-          "tableTo": "gallery_set",
-          "columnsFrom": [
-            "set_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

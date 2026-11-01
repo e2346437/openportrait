@@ -506,3 +506,48 @@ describe("gallery emails", () => {
     }
   });
 });
+
+describe("incoming", () => {
+  it("groups camera files by folder, suggests the shoot for that day, and moves RAWs safely", async () => {
+    const incoming = app.ctx.config.incomingDir;
+    const day = Date.UTC(2026, 10, 14, 18, 0);
+    const contact = (await studio("POST", "/contacts", { firstName: "Jane", lastName: "Smith" })).json().id;
+    const type = (await studio("GET", "/shoot-types")).json().types[0].id;
+    const made = (await studio("POST", "/shoots", { primaryContactId: contact, shootTypeId: type, events: [{ startsAt: day, endsAt: day + 3_600_000 }] })).json().shoot;
+    expect(made.folderPath).toBeTruthy();
+
+    fs.mkdirSync(path.join(incoming, "Z9/2026-11-14"), { recursive: true });
+    const old = new Date(Date.now() - 60_000);
+    for (const n of ["DSC_0001.jpg", "DSC_0002.jpg"]) {
+      const f = path.join(incoming, "Z9/2026-11-14", n);
+      await jpeg(f, red);
+      fs.utimesSync(f, old, old);
+    }
+    fs.writeFileSync(path.join(incoming, "Z9/2026-11-14/notes.txt"), "ignore me");
+    const fresh = path.join(incoming, "Z9/2026-11-14/DSC_0003.jpg");
+    await jpeg(fresh, red);
+    fs.utimesSync(fresh, new Date(), new Date());
+
+    const list = (await studio("GET", "/incoming")).json();
+    expect(list.total).toBe(3);
+    expect(list.groups).toHaveLength(1);
+    expect(list.groups[0]).toMatchObject({ key: "Z9/2026-11-14", date: "2026-11-14", suggestions: [{ id: made.id }] });
+    expect(list.groups[0].files.map((f: { ready: boolean }) => f.ready)).toEqual([true, true, false]);
+
+    // A file that's still arriving, a path outside Incoming, and a missing shoot are all refused politely.
+    const res = (await studio("POST", "/incoming/move", { shootId: made.id, paths: ["Z9/2026-11-14/DSC_0001.jpg", "Z9/2026-11-14/DSC_0003.jpg", "../escape.jpg"] })).json();
+    expect(res.moved).toBe(1);
+    expect(res.skipped.map((s: { path: string }) => s.path).sort()).toEqual(["../escape.jpg", "Z9/2026-11-14/DSC_0003.jpg"]);
+    const raw = path.join(share, made.folderPath, "Originals/RAW");
+    expect(fs.readdirSync(raw)).toEqual(["DSC_0001.jpg"]);
+    expect(fs.existsSync(path.join(incoming, "Z9/2026-11-14/DSC_0001.jpg"))).toBe(false);
+    expect((await studio("POST", "/incoming/move", { shootId: "nope", paths: ["x.jpg"] })).statusCode).toBe(404);
+
+    // The same name is never overwritten, and the emptied day folder is tidied away.
+    await jpeg(path.join(incoming, "again/DSC_0001.jpg"), red);
+    fs.utimesSync(path.join(incoming, "again/DSC_0001.jpg"), old, old);
+    await studio("POST", "/incoming/move", { shootId: made.id, paths: ["again/DSC_0001.jpg"] });
+    expect(fs.readdirSync(raw).sort()).toEqual(["DSC_0001 (2).jpg", "DSC_0001.jpg"]);
+    expect(fs.existsSync(path.join(incoming, "again"))).toBe(false);
+  });
+});

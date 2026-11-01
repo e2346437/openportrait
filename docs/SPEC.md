@@ -148,6 +148,8 @@ Cloudflare Tunnel only carries web traffic for free. Raw FTP or SFTP from a came
 
 **Documentation:** `docs/camera-upload-sftp.md` and `docs/camera-upload-wireguard.md` include step-by-step Nikon Z9 menus (other cameras with FTP/SFTP follow the same values), plus troubleshooting for timeouts, authentication failures, and hotspot NAT.
 
+**Tethering live view:** a full-screen page that shows each photo the moment its upload finishes, with an upload progress bar, a choice of set, and a black, white or custom-colour background. See [tethering.md](tethering.md).
+
 **Sorting incoming photos**
 
 The **Incoming** screen shows thumbnails of new camera files, using the JPEG preview embedded in each RAW file (NEF, CR3, ARW, and so on), grouped by camera and capture time.

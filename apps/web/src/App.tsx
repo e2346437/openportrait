@@ -34,6 +34,9 @@ import { GallerySettingsPage } from "./pages/settings/Galleries.js";
 import { ClientGalleryPage } from "./pages/client/ClientGallery.js";
 import "./pages/client/client.css";
 import "./pages/galleries/galleries.css";
+import { IncomingPage } from "./pages/incoming/Incoming.js";
+import { TetherSetupPage } from "./pages/tether/TetherSetup.js";
+import { TetherLivePage } from "./pages/tether/TetherLive.js";
 
 function Boot() {
   return (
@@ -71,6 +74,7 @@ export function App() {
               </Route>
               <Route element={<Gate need="user" />}>
                 <Route path="connect/consent" element={<ConsentAIPage />} />
+                <Route path="tether/:source" element={<TetherLivePage />} />
                 <Route element={<Shell />}>
                   <Route index element={<DashboardPage />} />
                   <Route path="leads" element={<LeadsPage />} />
@@ -84,7 +88,8 @@ export function App() {
                   <Route path="orders" element={<ComingSoonPage area="orders" />} />
                   <Route path="galleries" element={<GalleriesListPage />} />
                   <Route path="galleries/:id" element={<GalleryDetailPage />} />
-                  <Route path="incoming" element={<ComingSoonPage area="incoming" />} />
+                  <Route path="incoming" element={<IncomingPage />} />
+                  <Route path="tether" element={<TetherSetupPage />} />
                   <Route path="approvals" element={<ApprovalsPage />} />
                   <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<Navigate to="studio" replace />} />

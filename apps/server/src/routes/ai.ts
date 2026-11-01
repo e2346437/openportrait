@@ -4,8 +4,8 @@ import { z } from "zod";
 import { tables } from "@openportrait/db";
 import { AREAS, allTools } from "../ai/registry.js";
 import { createConnection, listConnections, revokeConnection } from "../ai/connections.js";
-import "../ai/tools.js";
-import "../ai/crm-tools.js";
+import "../ai/tools/index.js";
+import { decide, listApprovals, pendingCount } from "../ai/approvals.js";
 import { lanAddresses } from "../app.js";
 import { requireOwner } from "../auth.js";
 import { parse } from "../validate.js";
@@ -68,4 +68,23 @@ export async function aiRoutes(app: FastifyInstance) {
       items: rows.map((r) => ({ id: r.id, at: r.at.getTime(), connection: labels.get(r.connectionId ?? "") ?? "Removed connection", action: r.action.replace(/^mcp\./, ""), ok: (r.detail as { ok?: boolean } | null)?.ok !== false })),
     };
   });
+
+  app.get("/approvals", { preHandler: requireOwner }, async (req) => {
+    const status = (req.query as { status?: string }).status;
+    return { items: listApprovals(app.ctx, status === "pending" ? "pending" : undefined) };
+  });
+
+  // The sidebar badge asks this every so often, so keep it cheap.
+  app.get("/approvals/summary", { preHandler: requireOwner }, async () => ({ enabled: settings.get("ai.enabled") ?? false, pending: pendingCount(app.ctx) }));
+
+  for (const [path, approve] of [["approve", true], ["decline", false]] as const) {
+    app.post<{ Params: { id: string } }>(`/approvals/:id/${path}`, { preHandler: requireOwner }, async (req, reply) => {
+      try {
+        return await decide(app.ctx, req.params.id, req.user!.id, approve);
+      } catch (err) {
+        const e = err as Error & { statusCode?: number };
+        return reply.code(e.statusCode ?? 500).send({ error: "approval", message: e.message });
+      }
+    });
+  }
 }

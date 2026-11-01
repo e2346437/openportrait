@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { Button, Icon, Mark, type IconName } from "@openportrait/ui";
+import { useApprovalSummary } from "./lib/useApprovals.js";
 import { useSession } from "./lib/session.js";
 
 interface NavItem {
@@ -34,6 +35,8 @@ const groups: Array<{ label?: string; items: NavItem[] }> = [
   { label: "Studio", items: [{ to: "/studio/settings", label: "Settings", icon: "gear" }] },
 ];
 
+const approvalsItem: NavItem = { to: "/studio/approvals", label: "Approvals", icon: "shield" };
+
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "")).toUpperCase() || "?";
@@ -52,6 +55,10 @@ export function Shell() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
+
+  const approvals = useApprovalSummary(me?.user?.role === "owner");
+  const showApprovals = approvals.enabled || approvals.pending > 0;
+  const navGroups = groups.map((g) => (g.label === "Studio" && showApprovals ? { ...g, items: [approvalsItem, ...g.items] } : g));
 
   const studioName = me?.studio.name || "Your studio";
   const user = me?.user;
@@ -76,7 +83,7 @@ export function Shell() {
       <aside className="sidebar" id="sidebar" aria-label="Main">
         {brand}
         <nav className="nav">
-          {groups.map((g, i) => (
+          {navGroups.map((g, i) => (
             <div key={g.label ?? i} className="nav">
               {g.label ? <div className="nav-label">{g.label}</div> : null}
               {g.items.map((item) => (
@@ -84,6 +91,7 @@ export function Shell() {
                   <Icon name={item.icon} />
                   {item.label}
                   {item.soon ? <span className="soon">Soon</span> : null}
+                  {item === approvalsItem && approvals.pending > 0 ? <span className="count-badge" aria-label={`${approvals.pending} waiting`}>{approvals.pending}</span> : null}
                 </NavLink>
               ))}
             </div>

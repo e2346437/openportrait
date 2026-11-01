@@ -65,6 +65,7 @@ export function authenticate(db: Db, token: string): Caller | null {
   if (!token.startsWith(TOKEN_PREFIX)) return null;
   const r = db.select().from(tables.aiConnection).where(and(eq(tables.aiConnection.tokenHash, sha256(token)), isNull(tables.aiConnection.revokedAt))).get();
   if (!r || (r.expiresAt && r.expiresAt.getTime() <= Date.now())) return null;
+  if (r.accessExpiresAt && r.accessExpiresAt.getTime() <= Date.now()) return null; // OAuth access tokens are short-lived
   if (!r.lastUsedAt || Date.now() - r.lastUsedAt.getTime() > 10_000) {
     db.update(tables.aiConnection).set({ lastUsedAt: new Date() }).where(eq(tables.aiConnection.id, r.id)).run();
   }

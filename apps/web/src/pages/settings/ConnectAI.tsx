@@ -3,26 +3,7 @@ import { Link } from "react-router";
 import { Button, Callout, CopyValue, EmptyState, Field, Icon, Panel, StatusChip, Switch, TextInput, useToast, type IconName } from "@openportrait/ui";
 import { api, type AiActivityItem, type AiConnection, type AiLevel, type AiStatus } from "../../lib/api.js";
 import { useSubmit } from "../../lib/useForm.js";
-
-const LEVELS: Array<{ id: AiLevel; title: string; text: string }> = [
-  { id: "read", title: "Look only", text: "Can read and search. Can't change anything." },
-  { id: "assist", title: "Assist", text: "Can also add notes, tasks and drafts. Anything that reaches a client waits for your OK." },
-  { id: "full", title: "Full", text: "Same as Assist for now. Sending and payments will always ask you first." },
-];
-
-const AREA_LABELS: Record<string, string> = {
-  studio: "Studio info",
-  contacts: "Contacts",
-  leads: "Leads",
-  shoots: "Shoots",
-  calendar: "Calendar",
-  quotes: "Quotes",
-  orders: "Orders",
-  galleries: "Galleries",
-  email: "Email",
-};
-/** Areas that have tools today. The rest light up as those parts of OpenPortrait are built. */
-const LIVE_AREAS = new Set(["studio"]);
+import { AREA_LABELS, AccessPicker, LEVELS } from "../../components/AccessPicker.js";
 
 const ago = (ms: number | null) => {
   if (!ms) return "never";
@@ -85,7 +66,7 @@ function Hero({ s, onToggle, onPause, busy }: { s: AiStatus; onToggle: (v: boole
     chip = { tone: "ok", label: "Connected" };
   } else if (s.enabled) {
     headline = "Ready for an assistant";
-    sub = "Create a connection below, then add it to your assistant. This turns green when it connects.";
+    sub = "Add the address to Claude or ChatGPT, or create a token for another app. This turns green when it connects.";
     chip = { tone: "info", label: "Waiting", pulse: true };
   }
   return (
@@ -206,7 +187,18 @@ export function ConnectAISettingsPage() {
             ) : null}
           </Panel>
 
-          <Panel title="2 · Create a connection" description="Each assistant or app gets its own connection, so you can see what it did and cut it off on its own.">
+          <Panel title="2 · Add it to Claude or ChatGPT" description="No token needed. You sign in here when your assistant asks.">
+            <ol className="plain-steps">
+              <li>
+                In Claude, open <b>Settings → Connectors → Add custom connector</b>. In ChatGPT, open <b>Settings → Connectors</b>, turn on developer mode, then <b>Create</b>.
+              </li>
+              <li>Paste the address above and give it a name.</li>
+              <li>An OpenPortrait sign-in opens. Choose what the assistant may do and approve.</li>
+            </ol>
+            {s.urls.public ? null : <p className="hint">Claude and ChatGPT connect from the internet, so they need your public address (step 1).</p>}
+          </Panel>
+
+          <Panel title="3 · Other apps (access token)" description="For Claude Code, Cursor and scripts. Each app gets its own connection, so you can see what it did and cut it off on its own.">
             {fresh ? (
               <NewToken token={fresh} url={url} onDone={() => setFresh(null)} />
             ) : (
@@ -214,34 +206,7 @@ export function ConnectAISettingsPage() {
                 <Field label="Name" error={create.fieldErrors.label ?? create.error} hint="Something you'll recognise, like “Claude Code on my laptop”.">
                   {(p) => <TextInput {...p} value={label} maxLength={80} onChange={(e) => setLabel(e.target.value)} autoComplete="off" />}
                 </Field>
-                <fieldset className="choice-set">
-                  <legend>What can it do?</legend>
-                  <div className="choice-grid">
-                    {LEVELS.map((l) => (
-                      <label key={l.id} className={`choice ${level === l.id ? "on" : ""}`}>
-                        <input type="radio" name="level" checked={level === l.id} onChange={() => setLevel(l.id)} />
-                        <b>{l.title}</b>
-                        <span>{l.text}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-                <fieldset className="choice-set">
-                  <legend>Which parts of the studio?</legend>
-                  <div className="area-grid">
-                    {s.areas.map((a) => {
-                      const live = LIVE_AREAS.has(a);
-                      return (
-                        <label key={a} className={`area ${live ? "" : "soon"}`}>
-                          <input type="checkbox" checked={areas.includes(a)} onChange={(e) => setAreas(e.target.checked ? [...areas, a] : areas.filter((x) => x !== a))} />
-                          <span>{AREA_LABELS[a] ?? a}</span>
-                          {live ? null : <small>Soon</small>}
-                        </label>
-                      );
-                    })}
-                  </div>
-                  {create.fieldErrors.areas ? <span className="error-text"><Icon name="alert" width={16} height={16} />{create.fieldErrors.areas}</span> : null}
-                </fieldset>
+                <AccessPicker level={level} onLevel={setLevel} areas={areas} onAreas={setAreas} allAreas={s.areas} areaError={create.fieldErrors.areas} />
                 <Field label="Expires">
                   {(p) => (
                     <select {...p} className="input" value={expires} onChange={(e) => setExpires(e.target.value)}>
@@ -259,7 +224,6 @@ export function ConnectAISettingsPage() {
                 </div>
               </form>
             )}
-            <p className="hint">Claude and ChatGPT's “add a connector” screens use one-click sign-in, which is coming next. Until then, use a token with Claude Code, Cursor or any MCP app.</p>
           </Panel>
 
           <Panel title="Connections">
@@ -272,7 +236,7 @@ export function ConnectAISettingsPage() {
                     <div>
                       <b>{c.label}</b>
                       <span>
-                        {LEVELS.find((l) => l.id === c.level)?.title} · {c.areas.map((a) => AREA_LABELS[a] ?? a).join(", ")} · …{c.tokenHint}
+                        {c.kind === "oauth" ? "Signed in" : `Token …${c.tokenHint}`} · {LEVELS.find((l) => l.id === c.level)?.title} · {c.areas.map((a) => AREA_LABELS[a] ?? a).join(", ")}
                       </span>
                       <span>
                         Last used {ago(c.lastUsedAt)}

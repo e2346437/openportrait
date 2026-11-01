@@ -7,8 +7,8 @@ import { loadConfig } from "@openportrait/config";
 import { defineTool } from "../src/ai/registry.js";
 import { buildApp } from "../src/app.js";
 
-defineTool({ name: "contacts_test_read", title: "t", description: "t", area: "contacts", tier: "read", input: {}, handler: () => "ok" });
-defineTool({ name: "contacts_test_draft", title: "t", description: "t", area: "contacts", tier: "draft", input: {}, handler: () => "ok" });
+defineTool({ name: "galleries_test_read", title: "t", description: "t", area: "galleries", tier: "read", input: {}, handler: () => "ok" });
+defineTool({ name: "galleries_test_draft", title: "t", description: "t", area: "galleries", tier: "draft", input: {}, handler: () => "ok" });
 
 let app: FastifyInstance;
 let cookie: string;
@@ -75,20 +75,15 @@ describe("MCP endpoint", () => {
       const res = await rpc(await connect(level, areas), { jsonrpc: "2.0", id: 1, method: "tools/list" });
       return res.json().result.tools.map((t: { name: string }) => t.name).sort();
     };
-    expect(await names("read", ["studio"])).toEqual(["studio_get_summary", "studio_whoami"]);
-    const readContacts = await names("read", ["studio", "contacts"]);
-    expect(readContacts).toContain("contacts_test_read");
-    expect(readContacts).not.toContain("contacts_test_draft");
-    expect(readContacts).toContain("studio_get_summary");
-    const assistContacts = await names("assist", ["contacts"]);
-    expect(assistContacts).toContain("contacts_test_draft");
-    expect(assistContacts).not.toContain("studio_get_summary");
+    expect(await names("read", ["studio"])).toEqual(["approvals_get", "studio_get_catalog", "studio_get_summary", "studio_whoami"]);
+    expect(await names("read", ["studio", "galleries"])).toEqual(["approvals_get", "galleries_test_read", "studio_get_catalog", "studio_get_summary", "studio_whoami"]);
+    expect(await names("assist", ["galleries"])).toEqual(["galleries_test_draft", "galleries_test_read"]);
   });
 
   it("will not run a tool the connection can't see", async () => {
     await api("PUT", "/", { enabled: true });
     const token = await connect("read", ["studio"]);
-    const res = await call(token, "contacts_test_draft");
+    const res = await call(token, "galleries_test_draft");
     expect(JSON.stringify(res.json())).toMatch(/not found|disabled|Unknown|error/i);
     expect(res.json().result?.content?.[0]?.text ?? "").not.toBe("ok");
   });

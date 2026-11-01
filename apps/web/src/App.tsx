@@ -28,6 +28,8 @@ import { BookCancelPage } from "./pages/public/BookCancel.js";
 import { ApprovalsPage } from "./pages/Approvals.js";
 import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { NotFoundPage } from "./pages/NotFound.js";
+import { TetherSetupPage } from "./pages/tether/TetherSetup.js";
+import { TetherLivePage } from "./pages/tether/TetherLive.js";
 
 function Boot() {
   return (
@@ -65,6 +67,7 @@ export function App() {
               </Route>
               <Route element={<Gate need="user" />}>
                 <Route path="connect/consent" element={<ConsentAIPage />} />
+                <Route path="tether/:source" element={<TetherLivePage />} />
                 <Route element={<Shell />}>
                   <Route index element={<DashboardPage />} />
                   <Route path="leads" element={<LeadsPage />} />
@@ -78,6 +81,7 @@ export function App() {
                   <Route path="orders" element={<ComingSoonPage area="orders" />} />
                   <Route path="galleries" element={<ComingSoonPage area="galleries" />} />
                   <Route path="incoming" element={<ComingSoonPage area="incoming" />} />
+                  <Route path="tether" element={<TetherSetupPage />} />
                   <Route path="approvals" element={<ApprovalsPage />} />
                   <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<Navigate to="studio" replace />} />

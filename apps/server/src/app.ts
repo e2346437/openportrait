@@ -31,6 +31,7 @@ import { crmRoutes } from "./routes/crm.js";
 import { internetRoutes } from "./routes/internet.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { setupRoutes } from "./routes/setup.js";
+import { tetherRoutes } from "./routes/tether.js";
 
 const PACKAGE_VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version as string;
 /** The image tag when running the published image (set at build time), otherwise the package version. */
@@ -136,6 +137,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(internetRoutes, { prefix: "/api/studio/internet" });
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });
+  await app.register(tetherRoutes, { prefix: "/api/studio/tether" });
   await app.register(calendarRoutes, { prefix: "/api/studio" });
   await app.register(googleRoutes, { prefix: "/api/studio/google" });
   await app.register(bookingRoutes, { prefix: "/api/studio" });

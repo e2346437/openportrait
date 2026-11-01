@@ -23,7 +23,7 @@ It is built first for ERW Photography and released as open source, so everything
 
 ## 2. Feature scope
 
-All of these are in scope for 1.0. The milestones in section 10 set the build order.
+All of these are in scope for 1.0. The milestones in section 11 set the build order.
 
 | Area | What it covers |
 |---|---|

@@ -3,8 +3,9 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { FastifyInstance } from "fastify";
 import { tables } from "@openportrait/db";
 import { authenticate } from "./connections.js";
-import { toolsFor, type Caller } from "./registry.js";
-import "./tools.js";
+import { queueApproval } from "./approvals.js";
+import { needsApproval, toolsFor, type Caller } from "./registry.js";
+import "./tools/index.js";
 
 const LIMIT_PER_MINUTE = 120;
 const hits = new Map<string, { windowStart: number; count: number }>();
@@ -31,7 +32,7 @@ export async function mcpRoutes(app: FastifyInstance) {
       server.registerTool(t.name, { title: t.title, description: t.description, inputSchema: t.input }, async (args: Record<string, unknown>) => {
         let ok = true;
         try {
-          const result = await t.handler(ctx, args as never, caller);
+          const result = needsApproval(t) ? queueApproval(ctx, caller, t, args) : await t.handler(ctx, args as never, caller);
           return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
         } catch (err) {
           ok = false;
@@ -44,15 +45,18 @@ export async function mcpRoutes(app: FastifyInstance) {
     return server;
   };
 
-  const unauthorized = (reply: import("fastify").FastifyReply, message: string) =>
-    reply.code(401).header("WWW-Authenticate", 'Bearer realm="OpenPortrait"').send({ error: "unauthorized", message });
+  // resource_metadata tells OAuth-capable clients (Claude, ChatGPT) where to start signing in.
+  const unauthorized = (req: import("fastify").FastifyRequest, reply: import("fastify").FastifyReply, message: string) => {
+    const b = ctx.publicUrl() || `${(req.headers["x-forwarded-proto"] as string) ?? "http"}://${req.headers.host}`;
+    return reply.code(401).header("WWW-Authenticate", `Bearer realm="OpenPortrait", resource_metadata="${b}/.well-known/oauth-protected-resource"`).send({ error: "unauthorized", message });
+  };
 
   app.post("/mcp", async (req, reply) => {
     if (!ctx.settings.get("ai.enabled")) return reply.code(404).send({ error: "not_found" });
     if (ctx.settings.get("ai.paused")) return reply.code(503).send({ error: "paused", message: "AI access is paused by the studio owner." });
     const header = req.headers.authorization ?? "";
     const caller = header.startsWith("Bearer ") ? authenticate(ctx.db, header.slice(7).trim()) : null;
-    if (!caller) return unauthorized(reply, "Missing or invalid access token.");
+    if (!caller) return unauthorized(req, reply, "Missing or invalid access token.");
     if (overLimit(caller.connectionId)) return reply.code(429).send({ error: "rate_limited", message: "Too many requests. Slow down." });
 
     const server = buildServer(caller, ctx.ip(req));

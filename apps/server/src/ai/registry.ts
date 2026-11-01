@@ -23,6 +23,10 @@ export interface ToolDef<S extends z.ZodRawShape = z.ZodRawShape> {
   description: string;
   area: Area;
   tier: Tier;
+  /** Which switchable group this tool belongs to. Groups can be turned off as a whole (see setCapabilityEnabled). */
+  capability?: string;
+  /** Outward and money tools must say in plain words what they will do, shown to the owner for approval. */
+  summarize?(args: z.infer<z.ZodObject<S>>): string;
   input: S;
   handler(ctx: AppContext, args: z.infer<z.ZodObject<S>>, caller: Caller): unknown | Promise<unknown>;
 }
@@ -41,11 +45,23 @@ export function allTools(): ToolDef[] {
 }
 
 /**
- * Which tiers a level may call directly. Outward and money tools wait for the owner's approval
- * (the approval queue arrives in step 3), so until then they are not offered to any connection.
+ * Which tiers a level may ask for. Read-only connections see only read tools. Everything that reaches a
+ * client or touches money is queued for the owner's approval.
  */
-const TIERS: Record<Level, Tier[]> = { read: ["read"], assist: ["read", "draft"], full: ["read", "draft"] };
+const TIERS: Record<Level, Tier[]> = { read: ["read"], assist: ["read", "draft", "outward", "money"], full: ["read", "draft", "outward", "money"] };
+
+/** Outward and money tools never run straight away: they are queued for the owner's approval. */
+export const needsApproval = (t: Pick<ToolDef, "tier">) => t.tier === "outward" || t.tier === "money";
+
+const disabledCapabilities = new Set<string>();
+/** Switches a whole group of tools off (or back on). Tools without a capability are always available. */
+export function setCapabilityEnabled(id: string, enabled: boolean): void {
+  if (enabled) disabledCapabilities.delete(id);
+  else disabledCapabilities.add(id);
+}
 
 export function toolsFor(caller: Pick<Caller, "level" | "areas">): ToolDef[] {
-  return allTools().filter((t) => TIERS[caller.level].includes(t.tier) && caller.areas.includes(t.area));
+  return allTools().filter((t) => TIERS[caller.level].includes(t.tier) && caller.areas.includes(t.area) && !(t.capability && disabledCapabilities.has(t.capability)));
 }
+
+export const findTool = (name: string) => tools.get(name);

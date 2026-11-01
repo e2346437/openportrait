@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "pnpm -r --parallel --filter ./apps/* dev",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm --filter \"./packages/*\" build && pnpm -r typecheck",
     "test": "pnpm -r test",
     "db:generate": "pnpm --filter @openportrait/db generate"
   },

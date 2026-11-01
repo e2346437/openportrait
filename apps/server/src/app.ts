@@ -28,6 +28,12 @@ import { authRoutes } from "./routes/auth.js";
 import { brandingRoutes } from "./routes/branding.js";
 import { uploadRoutes } from "./routes/uploads.js";
 import { catalogRoutes } from "./routes/catalog.js";
+import { calendarRoutes } from "./routes/calendar.js";
+import { googleRoutes } from "./routes/google.js";
+import { bookingRoutes } from "./routes/booking.js";
+import { publicRoutes } from "./routes/public.js";
+import { registerEmailJob } from "./domain/email.js";
+import { registerGoogleSyncJob } from "./google/job.js";
 import { crmRoutes } from "./routes/crm.js";
 import { internetRoutes } from "./routes/internet.js";
 import { settingsRoutes } from "./routes/settings.js";
@@ -98,6 +104,15 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   };
   app.decorate("ctx", ctx);
 
+  registerEmailJob(() => settings);
+  const requestSync = registerGoogleSyncJob({ config: () => config, settings: () => settings });
+
+  // A change to a shoot or the calendar reaches Google within seconds. The timer below is the backstop.
+  app.addHook("onResponse", async (req, reply) => {
+    if (req.method === "GET" || reply.statusCode >= 300) return;
+    if (/^\/api\/studio\/(shoots|calendar|leads)/.test(req.url)) requestSync(db);
+  });
+
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
 
@@ -139,6 +154,11 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(uploadRoutes, { prefix: "/api/studio/uploads" });
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });
+  await app.register(calendarRoutes, { prefix: "/api/studio" });
+  await app.register(googleRoutes, { prefix: "/api/studio/google" });
+  await app.register(bookingRoutes, { prefix: "/api/studio" });
+  // Clients reach these without signing in, so they sit outside /api/studio and its access rule.
+  await app.register(publicRoutes, { prefix: "/api/public" });
 
   await app.register(aiRoutes, { prefix: "/api/studio/ai" });
   // Public path with its own bearer-token auth, so it sits outside the Cloudflare Access rule for /studio.
@@ -176,8 +196,11 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     const hourly = setInterval(() => scheduleBackup(db), 3_600_000);
     fs.mkdirSync(config.galleriesDir, { recursive: true });
     const stopWatcher = startGalleryWatcher({ dir: config.galleriesDir, ingest: galleries, rescanMinutes: config.watchRescanMinutes, settleSeconds: config.ingestSettleSeconds, logger: app.log });
+    const googleTimer = setInterval(() => requestSync(db, 0), 5 * 60_000);
+    setTimeout(() => requestSync(db, 0), 10_000).unref();
     app.addHook("onClose", async () => {
       clearInterval(hourly);
+      clearInterval(googleTimer);
       await stopWatcher();
       await jobs.stop();
       await tunnel.shutdown();

@@ -9,10 +9,16 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, init: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
+type Init = { method?: string; body?: unknown; signal?: AbortSignal };
+
+export const api = <T>(path: string, init: Init = {}): Promise<T> => request<T>("/api/studio", path, init);
+/** Pages clients use without signing in. */
+export const publicApi = <T>(path: string, init: Init = {}): Promise<T> => request<T>("/api/public", path, init);
+
+async function request<T>(base: string, path: string, init: Init): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`/api/studio${path}`, {
+    res = await fetch(`${base}${path}`, {
       method: init.method ?? (init.body === undefined ? "GET" : "POST"),
       headers: init.body === undefined ? undefined : { "content-type": "application/json" },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),

@@ -19,7 +19,8 @@ const groups: Array<{ label?: string; items: NavItem[] }> = [
     items: [
       { to: "/studio/leads", label: "Leads", icon: "lead" },
       { to: "/studio/shoots", label: "Shoots", icon: "camera" },
-      { to: "/studio/calendar", label: "Calendar", icon: "calendar", soon: true },
+      { to: "/studio/calendar", label: "Calendar", icon: "calendar" },
+      { to: "/studio/booking", label: "Booking", icon: "clock" },
       { to: "/studio/clients", label: "Clients", icon: "users" },
       { to: "/studio/orders", label: "Orders", icon: "receipt", soon: true },
     ],

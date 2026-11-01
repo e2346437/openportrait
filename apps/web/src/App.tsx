@@ -18,6 +18,13 @@ import { LeadsPage } from "./pages/leads/Leads.js";
 import { LeadDetailPage } from "./pages/leads/LeadDetail.js";
 import { ShootsPage } from "./pages/shoots/Shoots.js";
 import { ShootDetailPage } from "./pages/shoots/ShootDetail.js";
+import { CalendarPage } from "./pages/calendar/Calendar.js";
+import { CalendarSettingsPage } from "./pages/settings/Calendar.js";
+import { EmailSettingsPage } from "./pages/settings/Email.js";
+import { BookingPage } from "./pages/booking/Booking.js";
+import { InquirePage } from "./pages/public/Inquire.js";
+import { BookPage } from "./pages/public/Book.js";
+import { BookCancelPage } from "./pages/public/BookCancel.js";
 import { ApprovalsPage } from "./pages/Approvals.js";
 import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { NotFoundPage } from "./pages/NotFound.js";
@@ -70,7 +77,8 @@ export function App() {
                   <Route path="leads/:id" element={<LeadDetailPage />} />
                   <Route path="shoots" element={<ShootsPage />} />
                   <Route path="shoots/:id" element={<ShootDetailPage />} />
-                  <Route path="calendar" element={<ComingSoonPage area="calendar" />} />
+                  <Route path="calendar" element={<CalendarPage />} />
+                  <Route path="booking" element={<BookingPage />} />
                   <Route path="clients" element={<ClientsPage />} />
                   <Route path="clients/:id" element={<ContactDetailPage />} />
                   <Route path="orders" element={<ComingSoonPage area="orders" />} />
@@ -83,6 +91,8 @@ export function App() {
                     <Route path="studio" element={<StudioSettingsPage />} />
                     <Route path="galleries" element={<GallerySettingsPage />} />
                     <Route path="shoots" element={<ShootSettingsPage />} />
+                    <Route path="calendar" element={<CalendarSettingsPage />} />
+                    <Route path="email" element={<EmailSettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />
                     <Route path="ai" element={<ConnectAISettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />
@@ -92,6 +102,9 @@ export function App() {
               </Route>
             </Route>
             <Route path="/g/:slug" element={<ClientGalleryPage />} />
+            <Route path="/inquire" element={<InquirePage />} />
+            <Route path="/book/cancel/:token" element={<BookCancelPage />} />
+            <Route path="/book/:slug" element={<BookPage />} />
             <Route path="*" element={<NotFoundPage standalone />} />
           </Routes>
         </BrowserRouter>

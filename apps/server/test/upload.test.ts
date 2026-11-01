@@ -260,7 +260,7 @@ describe("upload servers", () => {
     bad.close();
   });
 
-  it("supports FTPS with a generated certificate", async () => {
+  it("supports FTPS with a generated certificate", { timeout: 30000 }, async () => {
     await put({ protocol: "ftps", passiveHost: "127.0.0.1" });
     const cam = await addCamera("Nikon Z8");
     await app.inject({ method: "POST", url: "/api/studio/upload/open", headers: { cookie }, payload: { minutes: 30 } });

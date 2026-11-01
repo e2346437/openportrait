@@ -76,8 +76,13 @@ describe("MCP endpoint", () => {
       return res.json().result.tools.map((t: { name: string }) => t.name).sort();
     };
     expect(await names("read", ["studio"])).toEqual(["studio_get_summary", "studio_whoami"]);
-    expect(await names("read", ["studio", "contacts"])).toEqual(["contacts_test_read", "studio_get_summary", "studio_whoami"]);
-    expect(await names("assist", ["contacts"])).toEqual(["contacts_test_draft", "contacts_test_read"]);
+    const readContacts = await names("read", ["studio", "contacts"]);
+    expect(readContacts).toContain("contacts_test_read");
+    expect(readContacts).not.toContain("contacts_test_draft");
+    expect(readContacts).toContain("studio_get_summary");
+    const assistContacts = await names("assist", ["contacts"]);
+    expect(assistContacts).toContain("contacts_test_draft");
+    expect(assistContacts).not.toContain("studio_get_summary");
   });
 
   it("will not run a tool the connection can't see", async () => {

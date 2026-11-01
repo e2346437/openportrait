@@ -5,6 +5,7 @@ import { tables } from "@openportrait/db";
 import { AREAS, allTools } from "../ai/registry.js";
 import { createConnection, listConnections, revokeConnection } from "../ai/connections.js";
 import "../ai/tools.js";
+import "../ai/crm-tools.js";
 import { lanAddresses } from "../app.js";
 import { requireOwner } from "../auth.js";
 import { parse } from "../validate.js";

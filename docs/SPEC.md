@@ -192,7 +192,17 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 - **Secrets:** a session key is generated on first run and stored in `/config`. PayPal and Google secrets are encrypted at rest with that key.
 - **Backups:** a nightly SQLite snapshot in `/config/backups` with retention, plus a one-click export.
 
-## 8. Unraid packaging
+## 8. Packaging: Docker and Unraid
+
+There is one image, `ghcr.io/e2346437/openportrait` (mirrored to Docker Hub as `openportrait/openportrait` if that name is available), for amd64 and arm64. Unraid and plain Docker run exactly the same container, and the Unraid template is just a friendly front end for it.
+
+- **Plain Docker:** the repo ships a `docker-compose.yml` and a `docker run` example in `docs/install-docker.md`, with the same volumes (`/config`, `/galleries`, `/incoming`, `/cache`), ports, and variables. `PUID`/`PGID` default to `1000` outside Unraid. This works on Synology, TrueNAS, a Linux server, or Docker Desktop.
+- **Unraid:** the Community Applications template described below, with Unraid's defaults (`99`/`100`, `/mnt/user/...` paths).
+- **Platform-specific features:** the app detects Unraid and adjusts its guides. The WireGuard camera-upload wizard uses Unraid's VPN Manager on Unraid. On other systems it walks through WireGuard on the router or a `wg-easy` container instead. Everything else is identical.
+- CI tests the image with both the compose file and the Unraid template's settings before each release.
+
+### Unraid template
+
 
 - The template lives in this repo at `unraid/openportrait.xml`. It is later submitted to Community Applications through a templates repo and an Unraid forum support thread.
 - Icon: `docs/brand/openportrait-icon-512.png` (served from the raw GitHub URL).

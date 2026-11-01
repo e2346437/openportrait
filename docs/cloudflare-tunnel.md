@@ -51,7 +51,7 @@ Back in **Settings > Internet access**, click **Run the test**. OpenPortrait ask
 OpenPortrait already requires its own login, so this step is optional. You can skip it and still finish setup. If you want it, Cloudflare Access can put a sign-in in front of the studio pages, on top of your OpenPortrait password. Client pages need to stay public either way. Check Cloudflare's pricing page for the current user limit.
 
 1. In Zero Trust, open **Access controls**, then **Applications**. Click **Create new application** and choose **Self-hosted and private**.
-2. Click **Add public hostname** and choose your domain. Add your hostname with two paths: `studio` and `api/studio` (for example `studio.yourdomain.com/studio`).
+2. Click **Add public hostname** and choose your domain. Add your hostname with **one** path: `studio` (for example `studio.yourdomain.com/studio`). **Don't** add `api/studio` or `mcp`. Covering them breaks OpenPortrait's own requests (see the troubleshooting table) and blocks Claude's connector.
 3. Under **Access policies**, add a policy that allows only your email address (and your staff's).
 4. Set a session duration, then click **Create**.
 
@@ -81,6 +81,7 @@ Leave the token empty in OpenPortrait. Point a public hostname in your existing 
 | Cloudflare error **502** or **Bad gateway** | The tunnel is up but the public hostname points at the wrong place. The URL must be `localhost:8080` (with the built-in tunnel). |
 | The test says another server answered | The hostname belongs to a different tunnel or server. Check which tunnel the hostname is attached to. |
 | Redirect loop | Set SSL/TLS mode to Full. |
+| OpenPortrait shows **"Can't reach OpenPortrait"** after you turn on Cloudflare Access | Access is covering `api/studio` or `mcp`, so OpenPortrait's own requests get redirected to a Cloudflare sign-in. In the Access application, remove the `api/studio` and `mcp` paths and keep only `studio`. If it still fails, delete the Access application. OpenPortrait's own login keeps the studio protected. |
 | Uploads fail partway | A Cloudflare WAF or upload rule may be blocking large requests. Check **Security > Events** for blocked requests to your hostname. |
 
 ## When the tunnel is down

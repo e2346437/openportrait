@@ -285,15 +285,15 @@ export function InternetSettingsPage() {
           <li>
             In Zero Trust, open <b>Access controls</b>, then <b>Applications</b>. Click <b>Create new application</b> and choose <b>Self-hosted and private</b>.
           </li>
-          <li>Add your public hostname with these two paths. Client pages like galleries and booking stay public.</li>
+          <li>Add your public hostname with this one path. Client pages like galleries and booking stay public.</li>
         </ol>
         <div className="values">
           <span>Path</span>
           <CopyValue value="studio" label="studio path" />
-          <span>Path</span>
-          <CopyValue value="api/studio" label="API path" />
         </div>
-        <p className="hint">Then add a policy that allows only your email address (and your staff's).</p>
+        <p className="hint">
+          Don't add <span className="mono">api/studio</span> or <span className="mono">mcp</span>. Covering them makes OpenPortrait show "Can't reach OpenPortrait", and it blocks Claude's connector. Then add a policy that allows only your email address (and your staff's).
+        </p>
       </Panel>
 
       <details className="more panel" style={{ padding: "var(--s4) var(--s5)" }}>

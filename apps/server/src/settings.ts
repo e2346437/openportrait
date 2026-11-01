@@ -12,6 +12,12 @@ export interface SettingTypes {
   "internet.trustCloudflare": boolean;
   "tunnel.token": string; // secret
   "backup.lastAt": number;
+  /** Delivery folder inside each shoot folder; its subfolders are gallery sets. */
+  "galleries.deliveryFolder": string;
+  /** Other shoot subfolders the gallery watcher never reads (camera originals). */
+  "galleries.privateFolders": string[];
+  /** Download lock the publish dialog starts on (docs/GALLERIES.md section 6.4). */
+  "galleries.defaultDownloadLock": "until_paid" | "highlights_early" | "none";
 }
 
 const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token"]);

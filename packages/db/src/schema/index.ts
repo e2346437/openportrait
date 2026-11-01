@@ -2,3 +2,4 @@
 // milestone 4 adds galleries.ts.
 export * from "./system.js";
 export * from "./jobs.js";
+export * from "./galleries.js";

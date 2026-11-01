@@ -14,7 +14,12 @@ import { clientIp } from "./client-ip.js";
 import { Secrets } from "./secrets.js";
 import { Settings } from "./settings.js";
 import { TunnelManager } from "./tunnel.js";
+import { registerDerivativesJob } from "./galleries/derivatives.js";
+import { GalleryIngest } from "./galleries/ingest.js";
+import { startGalleryWatcher } from "./galleries/watcher.js";
 import { authRoutes } from "./routes/auth.js";
+import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
+import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
 import { internetRoutes } from "./routes/internet.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { setupRoutes } from "./routes/setup.js";
@@ -30,6 +35,7 @@ export interface AppContext {
   settings: Settings;
   tunnel: TunnelManager;
   jobs: JobRunner;
+  galleries: GalleryIngest;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
   publicUrl(): string;
   ip(req: import("fastify").FastifyRequest): string;
@@ -61,6 +67,8 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   const settings = new Settings(db, secrets);
   const tunnel = new TunnelManager(app.log);
   const jobs = new JobRunner(db, { logger: app.log });
+  const galleries = new GalleryIngest({ db, settings, galleriesDir: config.galleriesDir, settleSeconds: config.ingestSettleSeconds, logger: app.log });
+  registerDerivativesJob(config);
 
   const ctx: AppContext = {
     config,
@@ -69,6 +77,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     settings,
     tunnel,
     jobs,
+    galleries,
     publicUrl() {
       const host = tunnel.getStatus().hostnames[0];
       return settings.get("internet.publicUrl") || config.appUrl || (host ? `https://${host}` : "");
@@ -110,6 +119,11 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(authRoutes, { prefix: "/api/studio/auth" });
   await app.register(settingsRoutes, { prefix: "/api/studio/settings" });
   await app.register(internetRoutes, { prefix: "/api/studio/internet" });
+  await app.register(galleryRoutes, { prefix: "/api/studio/galleries" });
+  await app.register(ingestRoutes, { prefix: "/api/studio/ingest" });
+  // Client pages and their media are public; the private link (and signed media URLs) are the key.
+  await app.register(clientGalleryRoutes, { prefix: "/api/g" });
+  await app.register(mediaRoutes);
 
   app.all("/api/*", async (_req, reply) => reply.code(404).send({ error: "not_found", message: "No such endpoint." }));
 
@@ -139,13 +153,17 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     jobs.start();
     scheduleBackup(db);
     const hourly = setInterval(() => scheduleBackup(db), 3_600_000);
+    fs.mkdirSync(config.galleriesDir, { recursive: true });
+    const stopWatcher = startGalleryWatcher({ dir: config.galleriesDir, ingest: galleries, rescanMinutes: config.watchRescanMinutes, settleSeconds: config.ingestSettleSeconds, logger: app.log });
     app.addHook("onClose", async () => {
       clearInterval(hourly);
+      await stopWatcher();
       await jobs.stop();
       await tunnel.shutdown();
     });
   }
   app.addHook("onClose", async () => {
+    galleries.close();
     db.$client.close();
   });
 

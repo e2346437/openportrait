@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1f52a402-1ae0-4332-b831-0049abe0f19b",
+  "id": "7f0f7a51-4457-4dc8-bcb4-b201b5b91279",
   "prevId": "9f8b0c5b-d07d-43cc-ae80-3cbe9e7fbebb",
   "tables": {
     "ai_connection": {
@@ -1885,6 +1885,20 @@
           "notNull": false,
           "autoincrement": false
         },
+        "shoot_id": {
+          "name": "shoot_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "gallery_id": {
+          "name": "gallery_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -1928,6 +1942,13 @@
           "name": "email_log_contact_idx",
           "columns": [
             "contact_id"
+          ],
+          "isUnique": false
+        },
+        "email_log_gallery_idx": {
+          "name": "email_log_gallery_idx",
+          "columns": [
+            "gallery_id"
           ],
           "isUnique": false
         }

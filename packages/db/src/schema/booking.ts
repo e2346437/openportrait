@@ -19,12 +19,15 @@ export const emailLog = sqliteTable(
     /** What it was for, such as "inquiry.thanks" or "booking.confirmed". */
     kind: text().notNull().default("other"),
     contactId: text().references(() => contact.id, { onDelete: "set null" }),
+    /** Set by features that email about a shoot or gallery, so each can show what was sent. */
+    shootId: text(),
+    galleryId: text(),
     status: text({ enum: ["queued", "sent", "failed"] }).notNull().default("queued"),
     error: text(),
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
     sentAt: integer({ mode: "timestamp_ms" }),
   },
-  (t) => [index("email_log_created_idx").on(t.createdAt), index("email_log_contact_idx").on(t.contactId)],
+  (t) => [index("email_log_created_idx").on(t.createdAt), index("email_log_contact_idx").on(t.contactId), index("email_log_gallery_idx").on(t.galleryId)],
 );
 
 /** A bookable appointment type with its own public page, such as "15-minute intro call" or "Mini session". */

@@ -22,6 +22,7 @@ import { ShootDetailPage } from "./pages/shoots/ShootDetail.js";
 import { CalendarPage } from "./pages/calendar/Calendar.js";
 import { CalendarSettingsPage } from "./pages/settings/Calendar.js";
 import { EmailSettingsPage } from "./pages/settings/Email.js";
+import { CameraUploadSettingsPage } from "./pages/settings/CameraUpload.js";
 import { BookingPage } from "./pages/booking/Booking.js";
 import { InquirePage } from "./pages/public/Inquire.js";
 import { BookPage } from "./pages/public/Book.js";
@@ -90,6 +91,7 @@ export function App() {
                     <Route path="shoots" element={<ShootSettingsPage />} />
                     <Route path="calendar" element={<CalendarSettingsPage />} />
                     <Route path="email" element={<EmailSettingsPage />} />
+                    <Route path="camera-upload" element={<CameraUploadSettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />
                     <Route path="automation" element={<AutomationSettingsPage />} />
                     <Route path="ai" element={<ConnectAISettingsPage />} />

@@ -1,0 +1,27 @@
+{
+  "name": "@openportrait/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "echo 'web: covered by e2e checks'"
+  },
+  "dependencies": {
+    "@fontsource/hanken-grotesk": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@openportrait/ui": "workspace:*",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router": "^7.18.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.5"
+  }
+}

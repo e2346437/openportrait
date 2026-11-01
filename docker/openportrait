@@ -1,0 +1,6 @@
+#!/bin/sh
+# Admin commands, for example:  docker exec -it openportrait openportrait reset-password you@example.com
+if [ "$(id -u)" = "0" ]; then
+  exec gosu "${PUID:-1000}:${PGID:-1000}" node /app/apps/server/dist/cli.js "$@"
+fi
+exec node /app/apps/server/dist/cli.js "$@"

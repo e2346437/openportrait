@@ -1,0 +1,48 @@
+import { useState, type FormEvent } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { Button, Callout, Field, TextInput } from "@openportrait/ui";
+import { api } from "../lib/api.js";
+import { useSession } from "../lib/session.js";
+import { useSubmit } from "../lib/useForm.js";
+import { AuthLayout } from "./AuthLayout.js";
+
+export function LoginPage() {
+  const { refresh, me } = useSession();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { busy, error, fieldErrors, submit } = useSubmit(() => api("/auth/login", { body: { email, password } }));
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if ((await submit()) === undefined) return;
+    await refresh();
+    const from = (location.state as { from?: string } | null)?.from;
+    navigate(from && from.startsWith("/studio") ? from : "/studio", { replace: true });
+  };
+
+  return (
+    <AuthLayout headline={me?.studio.name ? `Welcome back to ${me.studio.name}` : "Welcome back"}>
+      <div>
+        <h2>Sign in</h2>
+        <p className="lede">Use the email and password for your studio account.</p>
+      </div>
+      <form onSubmit={onSubmit} noValidate>
+        {error ? <Callout tone="bad">{error}</Callout> : null}
+        <Field label="Email" error={fieldErrors.email}>
+          {(p) => <TextInput {...p} type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />}
+        </Field>
+        <Field label="Password" error={fieldErrors.password}>
+          {(p) => <TextInput {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
+        </Field>
+        <Button type="submit" variant="primary" size="lg" block loading={busy} disabled={!email || !password}>
+          Sign in
+        </Button>
+      </form>
+      <p className="hint">
+        Forgot your password? Run <code className="mono">docker exec openportrait openportrait reset-password you@example.com</code> on the server to get a temporary one.
+      </p>
+    </AuthLayout>
+  );
+}

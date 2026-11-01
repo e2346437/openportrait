@@ -59,7 +59,7 @@ All of these are in scope for 1.0. The milestones in section 10 set the build or
    (db, settings, keys)     originals, read-mostly       thumbnails, previews, zips
 ```
 
-### Stack (proposed)
+### Stack
 
 - **Language:** TypeScript end to end, so contributors work in one language.
 - **Server:** Node.js 22 LTS with Fastify (HTTP API, auth, uploads).
@@ -69,6 +69,16 @@ All of these are in scope for 1.0. The milestones in section 10 set the build or
 - **Images:** sharp (libvips) for previews and watermarks, and exifr for metadata and capture dates. Derivatives are WebP and AVIF at a few fixed sizes in `/cache`.
 - **Uploads:** the tus resumable upload protocol (tus server plus Uppy in the browser). Uploads survive dropped connections and get past proxy request-size limits; the Cloudflare free plan caps a request at 100 MB, so chunking is required.
 - **Packaging:** one multi-arch image (amd64 and arm64) built by GitHub Actions and published to `ghcr.io/e2346437/openportrait`.
+
+### Routes
+
+- Staff pages live under `/studio/*` and the staff API under `/api/studio/*`. One Cloudflare Access application on those two paths protects the whole back office.
+- Client pages (`/g`, `/book`, `/portal`, `/sign`) and `/api/health` stay public. `/` redirects to `/studio` until client pages exist.
+- `/api/health` returns the version and an instance id (an HMAC of the instance's secret key), which the tunnel test uses to confirm the public hostname reaches this server.
+
+### Repository layout
+
+A pnpm monorepo: `apps/server` (Fastify API, job runner, cloudflared supervisor, `openportrait` maintenance CLI), `apps/web` (React), `packages/db` (Drizzle schema in `src/schema/<area>.ts`, SQL migrations in `migrations/`), `packages/jobs` (`defineJob`, `enqueue`, `JobRunner`), `packages/config` (environment and folder paths), and `packages/ui` (tokens, base styles, components).
 
 ### Why one container
 
@@ -200,13 +210,16 @@ There is one image, `ghcr.io/e2346437/openportrait` (mirrored to Docker Hub as `
 - **Unraid:** the Community Applications template described below, with Unraid's defaults (`99`/`100`, `/mnt/user/...` paths).
 - **Platform-specific features:** the app detects Unraid and adjusts its guides. The WireGuard camera-upload wizard uses Unraid's VPN Manager on Unraid. On other systems it walks through WireGuard on the router or a `wg-easy` container instead. Everything else is identical.
 - CI tests the image with both the compose file and the Unraid template's settings before each release.
+- **Image contents:** `node:22-bookworm-slim` plus three static release binaries: `cloudflared`, `tini` (PID 1) and `gosu`. The entrypoint creates a user for `PUID`/`PGID`, applies `UMASK`, takes ownership of `/config` and `/cache`, fixes only the top level of `/galleries` and `/incoming` (never walking a photo library), and drops privileges. better-sqlite3 and argon2 use their bundled prebuilt binaries, so no compiler is needed for amd64 or arm64.
+- **Tags:** until 1.0, `latest` and `edge` follow `main`; release tags `vX.Y.Z` publish `X.Y.Z` and `X.Y`. At 1.0, `latest` moves to releases only.
+- **Maintenance CLI:** `docker exec -it openportrait openportrait reset-password <email>` sets a temporary password and signs the account out everywhere; `openportrait backup` writes a snapshot to `/config/backups` (nightly snapshots are automatic, 14 kept).
 
 ### Unraid template
 
 
 - The template lives in this repo at `unraid/openportrait.xml`. It is later submitted to Community Applications through a templates repo and an Unraid forum support thread.
 - Icon: `docs/brand/openportrait-icon-512.png` (served from the raw GitHub URL).
-- WebUI: `http://[IP]:[PORT:8080]/`. Category: Productivity and Media Servers: Photos.
+- WebUI: `http://[IP]:[PORT:8080]/studio`. Category: Productivity and Media Servers: Photos.
 - Template settings (infrastructure only; everything else is in the app's Settings page):
 
 | Setting | Type | Default | Notes |
@@ -231,7 +244,7 @@ Every install is assumed to be reached from the internet through a Cloudflare Tu
 
 ### Built-in cloudflared
 
-- The image bundles `cloudflared` and runs it under the same supervisor as the app, but only when a tunnel token is set. Without a token, nothing extra runs.
+- The image bundles `cloudflared`, and the app runs it as a child process (with restart backoff) only when a tunnel token is set. Without a token, nothing extra runs. Pasting any of the install commands Cloudflare shows works; the app finds the token in it. Common cloudflared failures (bad token, no DNS, port 7844 blocked) are shown in plain language.
 - It uses a remotely managed tunnel. The photographer creates the tunnel in the Cloudflare dashboard, adds a public hostname pointing to `http://localhost:8080`, and pastes the token. No config files and no second container.
 - The token can come from the Unraid template (`CLOUDFLARE_TUNNEL_TOKEN`) or from **Settings > Internet access**. It is stored encrypted, and changing it restarts the tunnel without restarting the app.
 - Anyone who already runs cloudflared in its own container can leave the token empty and point their existing tunnel at port 8080. The app detects Cloudflare traffic either way.

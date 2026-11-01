@@ -48,7 +48,7 @@ Back in **Settings > Internet access**, click **Run the test**. OpenPortrait ask
 
 ## Protect your back office (optional)
 
-OpenPortrait already requires its own login, so this step is optional. You can skip it and still finish setup. If you want it, Cloudflare Access can put a sign-in in front of the studio pages, on top of your OpenPortrait password. Client pages need to stay public either way. Check Cloudflare's pricing page for the current user limit.
+OpenPortrait already requires its own login, so this step is optional. You can skip it and still finish setup. If you want it, Cloudflare Access can put a sign-in in front of the studio pages, on top of your OpenPortrait password. Client pages need to stay public either way. Access is separate from the tunnel. **Cloudflare asks for a credit or debit card before Access opens.** It's charged $0 for up to 50 users. Once the card is on file, you can use Access.
 
 1. In Zero Trust, open **Access controls**, then **Applications**. Click **Create new application** and choose **Self-hosted and private**.
 2. Click **Add public hostname** and choose your domain. Add your hostname with **one** path: `studio` (for example `studio.yourdomain.com/studio`). **Don't** add `api/studio` or `mcp`. Covering them breaks OpenPortrait's own requests (see the troubleshooting table) and blocks Claude's connector.

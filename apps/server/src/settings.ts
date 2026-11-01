@@ -14,6 +14,11 @@ export interface SettingTypes {
   "backup.lastAt": number;
   "ai.enabled": boolean;
   "ai.paused": boolean;
+  "automation.mode": "built-in" | "ai";
+  /** Per-automation owner, keyed by automation id. Missing means "follow the mode". */
+  "automation.overrides": Record<string, "built-in" | "ai" | "off">;
+  "automation.aiCheckinWindowHours": number;
+  "automation.lastAiCheckinAt": number;
   /** Folder naming for new shoots (see domain/folders.ts). */
   "folders.pattern": string;
   "folders.rawSubdir": string;

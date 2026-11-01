@@ -25,6 +25,11 @@ export function SettingsLayout() {
             <Icon name="sparkle" /> Connect your AI
           </NavLink>
         ) : null}
+        {owner ? (
+          <NavLink to="automation">
+            <Icon name="refresh" /> Automation
+          </NavLink>
+        ) : null}
         <NavLink to="account">
           <Icon name="user" /> Your account
         </NavLink>

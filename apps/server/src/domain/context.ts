@@ -12,6 +12,14 @@ export interface ServiceContext {
   settings: Settings;
   config: AppConfig;
   actorId: string | null;
+  /** The public address of this install, for links in emails. Routes and jobs provide it when they know it. */
+  publicUrl?: () => string;
+}
+
+/** An absolute link into the app, or just the path when no public address is set up. */
+export function linkTo(ctx: Pick<ServiceContext, "publicUrl">, path: string): string {
+  const base = (ctx.publicUrl?.() ?? "").replace(/\/+$/, "");
+  return `${base}${path}`;
 }
 
 /** A refusal with a message that is safe to show to the person using the app. */

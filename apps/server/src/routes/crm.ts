@@ -11,7 +11,7 @@ import { parse } from "../validate.js";
 /** Builds the service context for a request from the signed-in staff user. */
 export function serviceContext(app: FastifyInstance, req: FastifyRequest): ServiceContext {
   const { db, settings, config } = app.ctx;
-  return { db, settings, config, actorId: req.user?.id ?? null };
+  return { db, settings, config, actorId: req.user?.id ?? null, publicUrl: app.ctx.publicUrl };
 }
 
 const text = (max: number) => z.string().trim().max(max);

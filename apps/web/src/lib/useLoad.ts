@@ -5,7 +5,8 @@ import { api } from "./api.js";
  * Loads a GET endpoint and reloads when the path changes. Keeps the previous data on screen while
  * reloading, so searching and filtering don't flash the page empty.
  */
-export function useLoad<T>(path: string | null) {
+export function useLoad<T>(path: string | null, opts: { api?: typeof api } = {}) {
+  const fetcher = opts.api ?? api;
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(path !== null);
@@ -16,7 +17,7 @@ export function useLoad<T>(path: string | null) {
     const mine = ++seq.current;
     setLoading(true);
     try {
-      const next = await api<T>(path);
+      const next = await fetcher<T>(path);
       if (mine !== seq.current) return;
       setData(next);
       setError(null);
@@ -26,7 +27,7 @@ export function useLoad<T>(path: string | null) {
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [path]);
+  }, [path, fetcher]);
 
   useEffect(() => {
     void load();

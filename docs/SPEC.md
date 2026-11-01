@@ -45,7 +45,7 @@ All of these are in scope for 1.0. The milestones in section 11 set the build or
 ```
                Internet (clients)                    LAN (editing workstation)
                      │                                        │
-     Cloudflare edge (HTTPS, Access)                   SMB export from Lightroom
+     Cloudflare edge (HTTPS)                   SMB export from Lightroom
                      │                                 or Aftershoot
 ┌────────────────────┼────────────────────────────────────────┼──────────────┐
 │ openportrait container + cloudflared (outbound only)        │              │
@@ -72,7 +72,7 @@ All of these are in scope for 1.0. The milestones in section 11 set the build or
 
 ### Routes
 
-- Staff pages live under `/studio/*` and the staff API under `/api/studio/*`. One Cloudflare Access application on those two paths protects the whole back office.
+- Staff pages live under `/studio/*` and the staff API under `/api/studio/*`. Staff sign in with OpenPortrait's own login. Cloudflare Access is not used.
 - Client pages (`/g`, `/book`, `/portal`, `/sign`) and `/api/health` stay public. The AI endpoints (`/mcp`, `/oauth/*`, `/.well-known/oauth-*`) are public paths with their own authentication (section 10). `/` redirects to `/studio` until client pages exist.
 - `/api/health` returns the version and an instance id (an HMAC of the instance's secret key), which the tunnel test uses to confirm the public hostname reaches this server.
 
@@ -126,9 +126,10 @@ Gallery folders are named from the shoot's **subject name**, **shoot date**, and
 Cameras such as the Nikon Z9 can send each photo over the network as it is taken. OpenPortrait includes a built-in upload server for this.
 
 **Server**
-- A built-in server for **SFTP** (recommended, one port, encrypted), plus **FTPS** and plain **FTP** for cameras that need them. Each protocol is off until it's turned on in Settings > Camera upload.
-- Each camera gets its own login, created in Settings with a generated password and a printable setup card listing the exact values to enter on the camera (host, port, protocol, user, password, folder). Logins can upload only, cannot delete or overwrite, and are limited to their own folder.
-- Files land in an **Incoming** area, a separate Unraid share (for example `/mnt/user/incoming` mapped to `/incoming`), in one folder per camera and day: `/incoming/Z9/2026-11-14/`. It's visible on the network, so Lightroom or Aftershoot can import straight from it.
+- A built-in server for **SFTP** (the default, encrypted, one port), **FTPS** (FTP with explicit TLS and a generated certificate) and plain **FTP** for cameras that only speak it. One protocol is active at a time, chosen in Settings > Camera upload. Choosing plain FTP shows a warning that it is unencrypted and belongs on the home network or WireGuard.
+- **When the server is open** is a setting, so a port isn't left listening when nobody is shooting: **Only when needed** (the default; opened by hand or by a live view starting, and closed after a configurable quiet period), **On a schedule** (weekly windows in the studio's time zone, which can run past midnight), or **Always open** (labelled not recommended and needs a confirmation). The settings screen shows the live state, when it will next open or close, and has Open now and Close now buttons. Every open, close, failed sign-in and block is written to the audit log. A photo that is still arriving is never cut off by a schedule or idle close.
+- Each camera gets its own login with a generated password that is easy to type on a camera (shown once). Logins are limited to their own folder inside Incoming and can send files, make folders and list, but cannot download or delete. SFTP logins can also use an SSH public key. Files arrive under a hidden temporary name and are renamed when complete, so nothing downstream sees a half-written photo, and a dropped connection leaves nothing behind.
+- Files land in an **Incoming** area, a separate Unraid share (for example `/mnt/user/incoming` mapped to `/incoming`), in one folder per camera and, optionally, per day: `/incoming/Z9/2026-11-14/`. It's visible on the network, so Lightroom or Aftershoot can import straight from it.
 - Brute-force protection: failed logins are rate-limited and repeat offenders are blocked for a while, and the activity log shows every connection.
 
 **Getting from the camera to the server**
@@ -146,7 +147,7 @@ Cloudflare Tunnel only carries web traffic for free. Raw FTP or SFTP from a came
 - **At home:** the same camera login works directly on the LAN with no extra setup. The setup card lists both the LAN address and the remote address.
 - Each wizard ends with a live **Send a test photo** check that waits for the camera's first file and confirms it arrived in Incoming.
 
-**Documentation:** `docs/camera-upload-sftp.md` and `docs/camera-upload-wireguard.md` include step-by-step Nikon Z9 menus (other cameras with FTP/SFTP follow the same values), plus troubleshooting for timeouts, authentication failures, and hotspot NAT.
+**Documentation:** [camera-upload.md](camera-upload.md) covers the server, protocols and camera setup. `docs/camera-upload-sftp.md` and `docs/camera-upload-wireguard.md` include step-by-step Nikon Z9 menus (other cameras with FTP/SFTP follow the same values), plus troubleshooting for timeouts, authentication failures, and hotspot NAT.
 
 **Tethering live view:** a full-screen page that shows each photo the moment its upload finishes, with an upload progress bar, a choice of set, and a black, white or custom-colour background. See [tethering.md](tethering.md).
 
@@ -233,8 +234,9 @@ There is one image, `ghcr.io/e2346437/openportrait` (mirrored to Docker Hub as `
 | App data | Path | `/mnt/user/appdata/openportrait` → `/config` | Database, keys, backups |
 | Galleries | Path | `/mnt/user/galleries` → `/galleries` | Gallery originals share |
 | Incoming | Path | `/mnt/user/incoming` → `/incoming` | Camera uploads (SFTP/FTP) before sorting |
-| SFTP port | Port | `2222` | In-camera upload over SFTP (off until turned on in Settings) |
-| FTP ports | Port (advanced) | `2121`, passive `30000-30009` | Only needed for cameras without SFTP |
+| SFTP port | Port | `2222` | In-camera upload over SFTP (closed until opened in Settings > Camera upload) |
+| FTP ports | Port | `2121`, passive `30000-30009` | FTP and FTPS, for cameras without SFTP. The passive range is configurable (`FTP_PASSIVE_MIN`, `FTP_PASSIVE_MAX`) |
+| Upload protocol / access | Variables (advanced) | `UPLOAD_PROTOCOL`, `UPLOAD_ACCESS_MODE` | First-run defaults for the Camera upload settings |
 | Cache | Path | `/mnt/user/appdata/openportrait/cache` → `/cache` | Previews; can live on a cache pool |
 | `PUID` / `PGID` / `UMASK` | Variable | `99` / `100` / `022` | Unraid's nobody:users |
 | `TZ` | Variable | from Unraid | |
@@ -259,10 +261,9 @@ Every install is assumed to be reached from the internet through a Cloudflare Tu
 A guided screen with numbered steps, short screenshots, and live checks:
 
 1. **Domain on Cloudflare:** explains what this means, with a link to add a site in Cloudflare.
-2. **Create the tunnel:** a deep link to Zero Trust > Networks > Tunnels, the exact values to enter (service type HTTP, URL `localhost:8080`), and a field to suggest a subdomain such as `studio`.
+2. **Create the tunnel:** a deep link to Networks > Tunnels, the exact values to enter (service type HTTP, URL `localhost:8080`), and a field to suggest a subdomain such as `studio`.
 3. **Paste the token:** a masked field that validates the token format and starts the tunnel.
 4. **Live status:** connector state (from cloudflared's local metrics endpoint), the public hostname, and an end-to-end test where the app fetches its own public URL. Each failure shows a plain-language fix.
-5. **Protect the admin (recommended):** step-by-step Cloudflare Access setup for the admin paths only. Client pages (`/g`, `/book`, `/portal`, `/sign`) stay public.
 
 The first-run setup wizard links to this screen, and the dashboard shows a banner until the tunnel is healthy.
 
@@ -273,14 +274,13 @@ The first-run setup wizard links to this screen, and the dashboard shows a banne
 | Tunnel token | empty | Starts the built-in cloudflared. |
 | Public URL | from the tunnel hostname | Used in emails, booking links, gallery links, and PayPal and Google callback URLs. |
 | Trust Cloudflare headers | on when traffic arrives through Cloudflare | Uses `CF-Connecting-IP` for real client IPs in contract audit trails, download logs, and rate limits. Requests that didn't come through Cloudflare (LAN) use the socket address. |
-| Cloudflare Access protection | off | When on, admin routes require a valid `Cf-Access-Jwt-Assertion` (team domain and AUD tag set here) in addition to the OpenPortrait login. LAN access can be exempted. |
 | Upload chunk size | 50 MB | Kept under Cloudflare's 100 MB request limit on the free plan. |
 | Image caching | on | Sends long-lived, immutable cache headers on signed preview URLs so Cloudflare's edge caches gallery previews. Full-res downloads bypass the cache. |
 | LAN address | detected | Shown on the guide so the photographer can always reach the admin locally if the tunnel is down. |
 
 ### Documentation
 
-`docs/cloudflare-tunnel.md`, also linked from the in-app guide, covers: prerequisites, the step-by-step setup with screenshots, using an existing cloudflared container instead, Cloudflare Access for the admin, recommended Cloudflare settings (SSL mode Full, caching rules, and turning off Rocket Loader for the app), troubleshooting (error 1033, 502s, redirect loops, uploads failing), and what to do when the tunnel is down.
+`docs/cloudflare-tunnel.md`, also linked from the in-app guide, covers: prerequisites, the step-by-step setup with screenshots, using an existing cloudflared container instead, recommended Cloudflare settings (SSL mode Full, caching rules, and turning off Rocket Loader for the app), troubleshooting (error 1033, 502s, redirect loops, uploads failing), and what to do when the tunnel is down.
 
 ## 10. AI access (MCP) and automation
 
@@ -296,7 +296,7 @@ OpenPortrait ships a built-in MCP (Model Context Protocol) server so the owner c
 ### Server and transport
 
 - **Streamable HTTP** MCP endpoint at `/mcp` (stateless, using the official TypeScript SDK). No stdio and no extra process. It works through the Cloudflare Tunnel like any other route, and on the LAN at `http://[IP]:8080/mcp`.
-- **Routes.** `/mcp`, `/oauth/*`, and `/.well-known/oauth-*` are public paths that carry their own authentication, so they stay outside the Cloudflare Access application that protects `/studio/*`. (AI clients cannot pass an Access login.) The Access guide in section 9 says so.
+- **Routes.** `/mcp`, `/oauth/*`, and `/.well-known/oauth-*` are public paths that carry their own authentication, so AI clients can connect without a second sign-in.
 - **Off until enabled.** `/mcp` returns 404 until the owner turns on **Settings > Connect your AI**. It also requires a healthy public URL for remote clients.
 
 ### Authentication
@@ -373,14 +373,14 @@ Delivered as its own milestone after the skeleton, and extended as each module l
 1. **Foundation:** `/mcp` endpoint, tool registry (`defineTool`), access tokens, the Connect your AI screen (turn on, copy URL, token tab, connection list, pause), audit trail, and a first read-only tool set over what exists (studio summary, settings that are safe to read).
 2. **OAuth:** dynamic registration, consent page, refresh rotation, verified against Claude and ChatGPT custom connectors.
 3. **Write tools and approvals:** access levels, the Approvals inbox, limits, undo, and the Draft/Outward/Money tiers, enabled per module as the business core ships.
-4. **Automation mode:** the automation registry, Settings > Automation, the work queue, schedule prompts, webhook ping, and the failsafe.
+4. **Automation mode:** the automation registry, Settings > Automation, the work queue, schedule prompts, and the failsafe. Built: the work queue is computed from live data when the assistant asks (no cached table), and the failsafe only warns. Webhook ping and per-automation fallback to built-in are not built yet.
 
 Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Draft tool; a blocked action does not exist), approval flow, and an end-to-end run with the MCP SDK client against the real server.
 
 ### Email, inquiry and booking (step 3c)
 
 - Outgoing email uses the studio's own SMTP account (Settings > Email), queued as a retrying job, with a log of recent sends. If email isn't configured, nothing fails; the client just isn't emailed.
-- Public pages live under `/inquire`, `/book/:slug` and `/book/cancel/:token`, backed by `/api/public/*`, which is outside the Cloudflare Access paths and rate limited. `?embed=1` drops the page frame for use in an iframe.
+- Public pages live under `/inquire`, `/book/:slug` and `/book/cancel/:token`, backed by `/api/public/*`, which is rate limited. `?embed=1` drops the page frame for use in an iframe.
 - A booking page ("scheduler") has weekly hours, length, buffers, minimum notice and a horizon. Slots are computed from the weekly hours minus calendar busy time and re-checked when booked. Requests hold a "Pending" calendar entry until confirmed or declined. Details: [`booking.md`](booking.md).
 - Booking pages that include packages, contracts or deposits arrive with quotes and contracts (steps 3d and 3e).
 

@@ -24,6 +24,11 @@ export interface SettingTypes {
   "galleries.defaultDownloadLock": "until_paid" | "highlights_early" | "none";
   "ai.enabled": boolean;
   "ai.paused": boolean;
+  "automation.mode": "built-in" | "ai";
+  /** Per-automation owner, keyed by automation id. Missing means "follow the mode". */
+  "automation.overrides": Record<string, "built-in" | "ai" | "off">;
+  "automation.aiCheckinWindowHours": number;
+  "automation.lastAiCheckinAt": number;
   /** Folder naming for new shoots (see domain/folders.ts). */
   "folders.pattern": string;
   "folders.rawSubdir": string;
@@ -52,6 +57,16 @@ export interface SettingTypes {
   "inquiry.intro": string;
   "inquiry.thanks": string;
   "inquiry.notify": boolean;
+  /** Camera upload server (see upload/). The ports come from the environment; these are the studio's choices. */
+  "upload.protocol": "sftp" | "ftp" | "ftps";
+  "upload.mode": "on_demand" | "scheduled" | "always_on";
+  /** On-demand mode closes after this many minutes with no camera or live-view activity. */
+  "upload.idleMinutes": number;
+  "upload.schedule": import("./upload/schedule.js").ScheduleWindow[];
+  /** Files sent to a camera's top-level folder are filed into a dated subfolder. */
+  "upload.sortByDay": boolean;
+  /** The address FTP cameras connect back to for data, normally the server's LAN address. */
+  "upload.passiveHost": string;
 }
 
 const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token", "google.clientSecret", "google.refreshToken", "email.password"]);

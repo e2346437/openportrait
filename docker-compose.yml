@@ -8,6 +8,11 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+      # Camera upload (see docs/camera-upload.md). Nothing listens until you open the upload server in
+      # Settings > Camera upload. Publish only what you use; plain FTP belongs on your home network only.
+      - "2222:2222"                  # SFTP
+      - "2121:2121"                  # FTP / FTPS
+      - "30000-30009:30000-30009"    # FTP / FTPS passive data ports
     environment:
       # Run as your own user so files on your shares get the right owner (`id -u`, `id -g`).
       PUID: "1000"

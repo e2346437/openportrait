@@ -7,3 +7,4 @@ export * from "./people.js";
 export * from "./pipeline.js";
 export * from "./calendar.js";
 export * from "./booking.js";
+export * from "./upload.js";

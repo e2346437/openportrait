@@ -75,7 +75,7 @@ ENV NODE_ENV=production \
 
 RUN mkdir -p /config /galleries /incoming /cache
 VOLUME ["/config", "/galleries", "/incoming", "/cache"]
-EXPOSE 8080
+EXPOSE 8080 2222 2121 30000-30009
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

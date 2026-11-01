@@ -29,6 +29,11 @@ export function SettingsLayout() {
           </NavLink>
         ) : null}
         {owner ? (
+          <NavLink to="camera-upload">
+            <Icon name="camera" /> Camera upload
+          </NavLink>
+        ) : null}
+        {owner ? (
           <NavLink to="internet">
             <Icon name="globe" /> Internet access
           </NavLink>
@@ -36,6 +41,11 @@ export function SettingsLayout() {
         {owner ? (
           <NavLink to="ai">
             <Icon name="sparkle" /> Connect your AI
+          </NavLink>
+        ) : null}
+        {owner ? (
+          <NavLink to="automation">
+            <Icon name="refresh" /> Automation
           </NavLink>
         ) : null}
         <NavLink to="account">

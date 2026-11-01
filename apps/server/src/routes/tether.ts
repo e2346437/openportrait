@@ -88,8 +88,11 @@ export async function tetherRoutes(app: FastifyInstance) {
       onRemoved: (latest, total) => send("removed", { latest, total }),
     });
     // A comment line every 15 seconds keeps proxies from closing a quiet connection.
+    // A live view open means cameras should be able to upload: keep an on-demand upload server open while it is.
+    app.ctx.uploads.demand();
     const beat = setInterval(() => {
       if (!res.writableEnded) res.write(`: keep-alive\n\n`);
+      app.ctx.uploads.demand();
     }, 15_000);
     const folderWatch = setInterval(() => send("folder", { folderReady: tracker.folderExists() }), 5_000);
     const done = () => {

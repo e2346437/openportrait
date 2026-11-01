@@ -22,11 +22,12 @@ import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
 import { mcpRoutes } from "./ai/mcp.js";
 import { oauthRoutes, oauthStudioRoutes } from "./ai/oauth.js";
 import { aiRoutes } from "./routes/ai.js";
+import { automationRoutes } from "./routes/automation.js";
 import { ensureDefaults } from "./domain/defaults.js";
 import { DomainError } from "./domain/context.js";
 import { authRoutes } from "./routes/auth.js";
 import { brandingRoutes } from "./routes/branding.js";
-import { uploadRoutes } from "./routes/uploads.js";
+import { uploadRoutes as photoUploadRoutes } from "./routes/uploads.js";
 import { catalogRoutes } from "./routes/catalog.js";
 import { calendarRoutes } from "./routes/calendar.js";
 import { googleRoutes } from "./routes/google.js";
@@ -40,6 +41,8 @@ import { settingsRoutes } from "./routes/settings.js";
 import { setupRoutes } from "./routes/setup.js";
 import { tetherRoutes } from "./routes/tether.js";
 import { incomingRoutes } from "./routes/incoming.js";
+import { uploadRoutes } from "./routes/upload.js";
+import { UploadManager } from "./upload/manager.js";
 
 const PACKAGE_VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version as string;
 /** The image tag when running the published image (set at build time), otherwise the package version. */
@@ -51,6 +54,7 @@ export interface AppContext {
   secrets: Secrets;
   settings: Settings;
   tunnel: TunnelManager;
+  uploads: UploadManager;
   jobs: JobRunner;
   galleries: GalleryIngest;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
@@ -87,6 +91,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   const jobs = new JobRunner(db, { logger: app.log });
   const galleries = new GalleryIngest({ db, settings, galleriesDir: config.galleriesDir, settleSeconds: config.ingestSettleSeconds, logger: app.log });
   registerDerivativesJob(config);
+  const uploads = new UploadManager({ config, db, settings, log: app.log, lanAddresses });
 
   const ctx: AppContext = {
     config,
@@ -94,6 +99,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     secrets,
     settings,
     tunnel,
+    uploads,
     jobs,
     galleries,
     publicUrl() {
@@ -141,8 +147,8 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   // The container health check calls this every 30 seconds, so keep it out of the info log.
   app.get("/api/health", { logLevel: "warn" }, async () => ({ ok: true, version: VERSION, instanceId: secrets.instanceId() }));
 
-  // Staff-only API lives under /api/studio and the staff UI under /studio, so one Cloudflare
-  // Access rule on those two paths protects the whole back office while client pages stay public.
+  // Staff-only API lives under /api/studio and the staff UI under /studio. Staff sign in with the
+  // OpenPortrait login; client pages stay public.
   await app.register(setupRoutes, { prefix: "/api/studio/setup" });
   await app.register(authRoutes, { prefix: "/api/studio/auth" });
   await app.register(settingsRoutes, { prefix: "/api/studio/settings" });
@@ -153,11 +159,12 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(clientGalleryRoutes, { prefix: "/api/g" });
   await app.register(mediaRoutes);
   await app.register(brandingRoutes);
-  await app.register(uploadRoutes, { prefix: "/api/studio/uploads" });
+  await app.register(photoUploadRoutes, { prefix: "/api/studio/uploads" });
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });
   await app.register(tetherRoutes, { prefix: "/api/studio/tether" });
   await app.register(incomingRoutes, { prefix: "/api/studio/incoming" });
+  await app.register(uploadRoutes, { prefix: "/api/studio/upload" });
   await app.register(calendarRoutes, { prefix: "/api/studio" });
   await app.register(googleRoutes, { prefix: "/api/studio/google" });
   await app.register(bookingRoutes, { prefix: "/api/studio" });
@@ -165,7 +172,8 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(publicRoutes, { prefix: "/api/public" });
 
   await app.register(aiRoutes, { prefix: "/api/studio/ai" });
-  // Public path with its own bearer-token auth, so it sits outside the Cloudflare Access rule for /studio.
+  await app.register(automationRoutes, { prefix: "/api/studio/automation" });
+  // Public path with its own bearer-token auth, so AI clients connect without a second sign-in.
   await app.register(mcpRoutes);
   await app.register(oauthRoutes);
   await app.register(oauthStudioRoutes, { prefix: "/api/studio/oauth" });
@@ -196,6 +204,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   if (startBackground) {
     tunnel.setToken(settings.get("tunnel.token") || config.tunnelToken);
     jobs.start();
+    uploads.start();
     scheduleBackup(db);
     const hourly = setInterval(() => scheduleBackup(db), 3_600_000);
     fs.mkdirSync(config.galleriesDir, { recursive: true });
@@ -206,6 +215,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
       clearInterval(hourly);
       clearInterval(googleTimer);
       await stopWatcher();
+      await uploads.stop();
       await jobs.stop();
       await tunnel.shutdown();
     });

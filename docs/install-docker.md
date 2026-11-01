@@ -58,6 +58,9 @@ The first visit opens a two-step setup: your studio's name and time zone, then t
 | `CLOUDFLARE_TUNNEL_TOKEN` | empty | Starts the built-in Cloudflare Tunnel. Can be set in the app instead. |
 | `APP_URL` | empty | Public address such as `https://studio.example.com`. Taken from the tunnel when empty. |
 | `PORT` | `8080` | Port inside the container. |
+| `SFTP_PORT`, `FTP_PORT` | `2222`, `2121` | Camera upload ports inside the container. See [camera-upload.md](camera-upload.md). |
+| `FTP_PASSIVE_MIN`, `FTP_PASSIVE_MAX` | `30000`, `30009` | FTP/FTPS passive data ports. Publish the same range. |
+| `UPLOAD_PROTOCOL`, `UPLOAD_ACCESS_MODE` | `sftp`, `on_demand` | First-run defaults for Settings > Camera upload. |
 | `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug` or `trace`. |
 | `WATCH_RESCAN_MINUTES` | `5` | Backstop rescan of the galleries folder. |
 

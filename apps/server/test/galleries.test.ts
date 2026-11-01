@@ -575,3 +575,32 @@ describe("deleting a disliked photo", () => {
     expect(after.gallery.coverPhotoId).toBe(after.photos[0].id);
   });
 });
+
+describe("activity", () => {
+  it("lists visits, downloads, sent favorites and registrations, newest first", async () => {
+    await jpeg(path.join(share, "Nair/Gallery/a.jpg"), red);
+    const { id, slug, detail } = await galleryFromShare();
+    await studio("PATCH", `/galleries/${id}`, { registration: "email_name" });
+    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
+    await studio("PATCH", `/galleries/${id}`, { downloadSize: "full" });
+    expect((await app.inject({ url: `/api/studio/galleries/${id}/activity` })).statusCode).toBe(401);
+
+    const who = await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "Ann@Example.com", name: "Ann Nair" } });
+    const cookie = `op_client=${who.cookies.find((c) => c.name === "op_client")!.value}`;
+    await app.inject({ url: `/api/g/${slug}`, headers: { cookie } });
+    const photoId = detail.photos[0].id;
+    await app.inject({ url: `/api/g/${slug}/photos/${photoId}/download`, headers: { cookie } });
+    const listId = (await studio("GET", `/galleries/${id}`)).json().lists[0].id;
+    await app.inject({ method: "PUT", url: `/api/g/${slug}/lists/${listId}/photos/${photoId}`, headers: { cookie }, payload: {} });
+    await app.inject({ method: "POST", url: `/api/g/${slug}/lists/${listId}/submit`, headers: { cookie } });
+
+    const a = (await studio("GET", `/galleries/${id}/activity`)).json();
+    expect(a.summary).toMatchObject({ views: 1, downloads: 1, favoritesSent: 1, registered: 1, people: 1 });
+    const kinds = a.events.map((e: { kind: string }) => e.kind);
+    expect(kinds).toEqual(expect.arrayContaining(["view", "download", "favorites", "registered", "shared"]));
+    expect(a.events.find((e: { kind: string }) => e.kind === "download")).toMatchObject({ who: "ann@example.com", text: "Downloaded a.jpg" });
+    expect(a.events.find((e: { kind: string }) => e.kind === "favorites").text).toBe('Sent 1 photo from "Favorites"');
+    const times = a.events.map((e: { at: number }) => e.at);
+    expect([...times].sort((x, y) => y - x)).toEqual(times);
+  });
+});

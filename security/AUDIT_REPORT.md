@@ -10,8 +10,7 @@ SEC-001, SEC-002, SEC-003, SEC-005 and SEC-008 were fixed on the same branch and
 passed, 5 expected-fail for the findings still open), the live suite against hardened containers (26 checks: 19 pass,
 6 open, 1 info, 0 failed) and the isolation checks. Each fix flipped its test from an open finding to a control. The
 sections below keep the original evidence; the status column shows the current state. Still open: SEC-004, 006, 007,
-009 to 012, 014 to 016. SEC-014 is only partly fixed (npm, corepack and yarn are gone from the runtime image; the Go
-dependencies inside `cloudflared` and `gosu` need upstream releases), so the release gate still blocks on it.
+009 to 012, 014 to 016. SEC-014 is mostly fixed: npm, corepack and yarn are gone from the runtime image and `cloudflared` is bumped to 2026.10.7, which cleared its vulnerabilities. `gosu` still carries an older Go standard library (excepted, with an expiry, because it only drops privileges and opens no sockets). The release gate passes with that exception.
 
 ## 1. Verdict
 

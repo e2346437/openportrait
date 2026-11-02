@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { DomainError, type ServiceContext } from "../domain/context.js";
 import * as inquiry from "../domain/inquiry.js";
+import * as orders from "../domain/orders.js";
 import * as sched from "../domain/scheduler.js";
 import { parse } from "../validate.js";
 
@@ -78,4 +79,18 @@ export async function publicRoutes(app: FastifyInstance) {
   const token = (req: FastifyRequest) => (req.params as { token: string }).token;
   app.get("/book-cancel/:token", { config: limit(30) }, async (req) => sched.bookingByToken(ctx(req), token(req)));
   app.post("/book-cancel/:token", { config: limit(10) }, async (req) => sched.cancelByToken(ctx(req), token(req)));
+
+  // Quotes and invoices: the private link is the key, so these are rate limited and never cached.
+  const orderToken = token;
+  app.get("/order/:token", { config: limit(60) }, async (req) => orders.publicView(ctx(req), orderToken(req)));
+  app.post("/order/:token/accept", { config: limit(10) }, async (req, reply) => {
+    const body = parse(z.object({ name: z.string().max(120) }), req.body, reply);
+    if (!body) return;
+    return orders.acceptQuote(ctx(req), orderToken(req), { name: body.name, ip: app.ctx.ip(req) });
+  });
+  app.post("/order/:token/decline", { config: limit(10) }, async (req, reply) => {
+    const body = parse(z.object({ reason: z.string().max(500).optional() }), req.body ?? {}, reply);
+    if (!body) return;
+    return orders.declineQuote(ctx(req), orderToken(req), body.reason);
+  });
 }

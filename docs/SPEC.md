@@ -384,6 +384,13 @@ Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Dr
 - A booking page ("scheduler") has weekly hours, length, buffers, minimum notice and a horizon. Slots are computed from the weekly hours minus calendar busy time and re-checked when booked. Requests hold a "Pending" calendar entry until confirmed or declined. Details: [`booking.md`](booking.md).
 - Booking pages that include packages, contracts or deposits arrive with quotes and contracts (steps 3d and 3e).
 
+### Quotes, invoices and payments (step 3d, first part)
+
+- One `order` row is a quote and then, when the client accepts it, the same row becomes the invoice, so history and the client link stay in one place. Quote and invoice numbers count up from 1001 and are never reused.
+- Money is whole cents in a single studio currency. Each line copies the name and price from the catalog. Tax is a single studio rate fixed on the document when it is saved.
+- A payment schedule (deposit, balance) says when money is due; recorded payments are applied to it in order. Refunds are negative payments. Manual payment methods work with no processor set up.
+- Client pages are `/o/:token`, backed by `/api/public/order/:token`. Details: [`orders.md`](orders.md). PayPal checkout, client credit and coupons follow in the next parts, behind the same `payment` ledger and the `PaymentProvider` interface.
+
 ## 11. Milestones
 
 1. **Spec** (this document).

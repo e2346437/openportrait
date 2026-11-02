@@ -1,6 +1,6 @@
 # OpenPortrait: product spec and architecture
 
-Status: draft for review (step 1 of the project plan). Open questions are listed at the end.
+Status: living document. Milestones 2 to 5 are built and shipping; sections describe what OpenPortrait does, with planned items marked as such. Decisions are in section 12.
 
 ## 1. What OpenPortrait is
 
@@ -422,4 +422,4 @@ Decided by Eric on 2026-11-01:
 
 9. **AI access:** proposed in section 10. Eric chose on 2026-11-01 that outward and money actions need approval by default. The rest of the design, the failsafe default, and the first clients to verify are awaiting confirmation.
 
-Still needed: sample CSV exports from the studio's current system (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.
+The importer (section 3, [`import.md`](import.md)) reads generic CSV and JSON exports.

@@ -30,6 +30,7 @@ import { BookCancelPage } from "./pages/public/BookCancel.js";
 import { ApprovalsPage } from "./pages/Approvals.js";
 import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { OrdersPage } from "./pages/orders/Orders.js";
+import { TasksPage } from "./pages/tasks/Tasks.js";
 import { ContractsPage } from "./pages/contracts/Contracts.js";
 import { ContractPage } from "./pages/contracts/Contract.js";
 import { ContractTemplatesPage } from "./pages/settings/ContractTemplates.js";
@@ -103,6 +104,7 @@ export function App() {
                   <Route path="clients" element={<ClientsPage />} />
                   <Route path="clients/:id" element={<ContactDetailPage />} />
                   <Route path="contracts" element={<ContractsPage />} />
+                  <Route path="tasks" element={<TasksPage />} />
                   <Route path="contracts/:id" element={<ContractPage />} />
                   <Route path="orders" element={<OrdersPage />} />
                   <Route path="orders/new" element={<OrderPage />} />

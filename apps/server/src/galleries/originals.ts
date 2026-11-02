@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { and, eq, isNull, lt } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { tables, type Db } from "@openportrait/db";
 import { resolveInside } from "./files.js";
 
@@ -27,6 +27,15 @@ export class OriginalUnavailableError extends Error {
   constructor() {
     super("This photo's original is in remote storage, which is not available right now.");
   }
+}
+
+export interface RemoteOriginal {
+  id: string;
+  remoteKey: string;
+  /** Where the file belongs when it comes back to the galleries folder. */
+  file: string;
+  sizeBytes: number;
+  mtimeMs: number;
 }
 
 export interface PendingOriginal {
@@ -138,5 +147,35 @@ export class Originals {
     this.deps.db.update(photo).set({ remoteKey: key, updatedAt: new Date() }).where(eq(photo.id, p.id)).run();
     if (file) fs.rmSync(file, { force: true });
     return true;
+  }
+
+  /** Photos whose original is in the store, for bringing them back to the galleries folder. */
+  remote(limit: number): RemoteOriginal[] {
+    return this.deps.db
+      .select()
+      .from(photo)
+      .where(isNotNull(photo.remoteKey))
+      .limit(limit)
+      .all()
+      .map((p) => ({ id: p.id, remoteKey: p.remoteKey!, file: resolveInside(this.deps.galleriesDir, p.relPath), sizeBytes: p.sizeBytes, mtimeMs: p.mtimeMs }));
+  }
+
+  /** The original is back in the galleries folder (the extension wrote and checked it): stop pointing at the store. */
+  markLocal(photoId: string): boolean {
+    const p = this.deps.db.select().from(photo).where(eq(photo.id, photoId)).get();
+    if (!p) return false;
+    const file = this.localPath(p);
+    if (!file || fs.statSync(file).size !== p.sizeBytes) return false;
+    this.deps.db.update(photo).set({ remoteKey: null, updatedAt: new Date() }).where(eq(photo.id, p.id)).run();
+    return true;
+  }
+
+  /** How many originals are local and how many are in the store. */
+  counts(): { local: number; remote: number } {
+    const row = this.deps.db
+      .select({ remote: sql<number>`coalesce(sum(case when ${photo.remoteKey} is not null then 1 else 0 end), 0)`, total: sql<number>`count(*)` })
+      .from(photo)
+      .get();
+    return { local: (row?.total ?? 0) - (row?.remote ?? 0), remote: row?.remote ?? 0 };
   }
 }

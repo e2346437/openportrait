@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import { Button, Callout, Field, Icon, Spinner, TextArea, TextInput } from "@openportrait/ui";
 import { publicApi } from "../../lib/api.js";
 import { addDays, addMonths, formatDay, monthWeeks, startOfMonth, ymdOf, type Ymd } from "../../lib/calendar.js";
+import { formatMoney } from "../../lib/money.js";
 import { formatTime } from "../../lib/time.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
@@ -17,11 +18,59 @@ interface Page {
   studioName: string;
   timezone: string;
   maxDaysAhead: number;
+  price: Price | null;
+}
+interface Price {
+  currency: string;
+  priceCents: number;
+  couponCode: string | null;
+  couponCents: number;
+  taxCents: number;
+  totalCents: number;
+  depositCents: number;
+  balanceCents: number;
 }
 type Slots = Record<string, Array<{ startsAt: number; endsAt: number }>>;
 interface Made {
   status: "pending" | "confirmed";
   when: string;
+  invoice: { token: string; totalCents: number; depositCents: number; currency: string } | null;
+}
+interface OrderPay {
+  pay: { name: string; dueCents: number } | null;
+}
+
+/** Right after a paid booking: pay the deposit (or the whole amount) through the studio's online checkout, or see how else to pay. */
+function DepositStep({ made }: { made: NonNullable<Made["invoice"]> }) {
+  const order = useLoad<OrderPay>(`/order/${encodeURIComponent(made.token)}`, { api: publicApi });
+  const go = useSubmit(async () => {
+    const r = await publicApi<{ approveUrl: string }>(`/order/${encodeURIComponent(made.token)}/pay`, { body: { amount: "due" } });
+    window.location.assign(r.approveUrl);
+    return r;
+  });
+  const m = (c: number) => formatMoney(c, made.currency);
+  const split = made.depositCents > 0 && made.depositCents < made.totalCents;
+  const due = order.data?.pay?.dueCents ?? (split ? made.depositCents : made.totalCents);
+  return (
+    <section className="doc-section pay-box" aria-label="Payment">
+      <h2>{split ? "Pay your deposit" : "Pay for your session"}</h2>
+      {go.error ? <Callout tone="bad">{go.error}</Callout> : null}
+      <p className="muted">
+        {split ? `A ${m(made.depositCents)} deposit holds your time. The remaining ${m(made.totalCents - made.depositCents)} is due on the day.` : `The total is ${m(made.totalCents)}.`}
+      </p>
+      <div className="form-actions">
+        {order.loading ? (
+          <Spinner label="Checking payment options" />
+        ) : order.data?.pay ? (
+          <Button variant="primary" size="lg" loading={go.busy} onClick={() => go.submit()}>
+            Pay {m(due)} with {order.data.pay.name}
+          </Button>
+        ) : null}
+        <a className="btn lg" href={`/o/${made.token}`}>{order.data?.pay ? "View invoice" : "View invoice and how to pay"}</a>
+      </div>
+      {order.data?.pay ? <p className="muted">You'll finish on {order.data.pay.name}'s secure page, then come straight back to your invoice.</p> : null}
+    </section>
+  );
 }
 
 const tzName = (tz: string) => new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "long" }).formatToParts(new Date()).find((p) => p.type === "timeZoneName")?.value ?? tz;
@@ -56,7 +105,17 @@ export function BookPage() {
     }
   }, [slots.data, day]);
 
-  const book = useSubmit(() => publicApi<Made>(`/book/${encodeURIComponent(slug)}`, { body: { ...f, startsAt: slot } }));
+  const [code, setCode] = useState("");
+  const [priced, setPriced] = useState<Price | null>(null);
+  const [couponNote, setCouponNote] = useState<string | null>(null);
+  const check = useSubmit(async () => {
+    const r = await publicApi<{ price: Price }>(`/book/${encodeURIComponent(slug)}/price`, { body: { couponCode: code } });
+    setPriced(r.price);
+    setCouponNote(r.price.couponCode ? `${r.price.couponCode} applied.` : null);
+    return r;
+  });
+  const price = priced ?? page?.price ?? null;
+  const book = useSubmit(() => publicApi<Made>(`/book/${encodeURIComponent(slug)}`, { body: { ...f, startsAt: slot, couponCode: priced?.couponCode ?? undefined } }));
   const taken = book.error && /just taken/i.test(book.error);
   useEffect(() => {
     if (taken) {
@@ -76,6 +135,7 @@ export function BookPage() {
         <p className="pub-lead" role="status">
           {made.status === "confirmed" ? `${page.name} is confirmed for ${made.when}.` : `You asked for ${page.name} on ${made.when}. The time is held for you, and you'll get an email as soon as it's confirmed.`}
         </p>
+        {made.invoice ? <DepositStep made={made.invoice} /> : null}
         <p className="muted">A copy is on its way to {f.email}, with a link if you need to cancel.</p>
       </PublicShell>
     );
@@ -101,6 +161,12 @@ export function BookPage() {
             {page.location ? (
               <li>
                 <Icon name="pin" width={16} height={16} /> {page.location}
+              </li>
+            ) : null}
+            {page.price ? (
+              <li>
+                <Icon name="receipt" width={16} height={16} /> {formatMoney(page.price.totalCents, page.price.currency)}
+                {page.price.depositCents > 0 && page.price.depositCents < page.price.totalCents ? `, ${formatMoney(page.price.depositCents, page.price.currency)} deposit` : ""}
               </li>
             ) : null}
           </ul>
@@ -179,6 +245,33 @@ export function BookPage() {
               <Field className="span-2" label="Anything I should know?" hint="Optional.">
                 {(p) => <TextArea {...p} rows={3} maxLength={2000} value={f.message} onChange={set("message")} />}
               </Field>
+              {price ? (
+                <div className="span-2 book-price">
+                  <dl className="totals">
+                    <div><dt>{page.name}</dt><dd>{formatMoney(price.priceCents, price.currency)}</dd></div>
+                    {price.couponCents ? <div><dt>Coupon {price.couponCode}</dt><dd>−{formatMoney(price.couponCents, price.currency)}</dd></div> : null}
+                    {price.taxCents ? <div><dt>Tax</dt><dd>{formatMoney(price.taxCents, price.currency)}</dd></div> : null}
+                    <div className="grand"><dt>Total</dt><dd>{formatMoney(price.totalCents, price.currency)}</dd></div>
+                    {price.depositCents > 0 && price.depositCents < price.totalCents ? <div><dt>Deposit, due after booking</dt><dd>{formatMoney(price.depositCents, price.currency)}</dd></div> : null}
+                  </dl>
+                  <div className="coupon-row">
+                    <Field label="Have a coupon?" error={check.error ?? undefined} hint={couponNote ?? undefined}>
+                      {(p) => (
+                        <TextInput
+                          {...p}
+                          autoCapitalize="characters"
+                          spellCheck={false}
+                          autoComplete="off"
+                          value={code}
+                          onChange={(e) => { setCode(e.target.value); if (priced?.couponCode) { setPriced(null); setCouponNote(null); } }}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (code.trim()) void check.submit(); } }}
+                        />
+                      )}
+                    </Field>
+                    <Button type="button" loading={check.busy} disabled={!code.trim()} onClick={() => check.submit()}>Apply</Button>
+                  </div>
+                </div>
+              ) : null}
               <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
                 <label>
                   Website
@@ -187,7 +280,7 @@ export function BookPage() {
               </div>
               <div className="span-2">
                 <Button variant="primary" type="submit" size="lg" block loading={book.busy}>
-                  {page.approval === "auto" ? "Book it" : "Request this time"}
+                  {price ? (page.approval === "auto" ? "Book it and continue to payment" : "Request this time and continue to payment") : page.approval === "auto" ? "Book it" : "Request this time"}
                 </Button>
               </div>
             </form>

@@ -3,6 +3,7 @@ import { Button, Callout, Dialog, Field, Icon, TextArea, TextInput } from "@open
 import { api } from "../../lib/api.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { moneyInput, parseMoney } from "../../lib/money.js";
 import { SwitchRow } from "../../components/SwitchRow.js";
 
 export type Windows = Record<string, Array<{ start: string; end: string }>>;
@@ -20,6 +21,9 @@ export interface Scheduler {
   location: string | null;
   shootTypeId: string | null;
   approval: "manual" | "auto";
+  priceCents: number;
+  depositType: "none" | "percent" | "fixed";
+  depositValue: number;
   availability: Windows;
   active: boolean;
 }
@@ -42,6 +46,9 @@ const blank = (): Scheduler => ({
   location: "",
   shootTypeId: null,
   approval: "manual",
+  priceCents: 0,
+  depositType: "none",
+  depositValue: 0,
   availability: Object.fromEntries(WEEKDAYS.map((d) => [d, [{ start: "09:00", end: "17:00" }]])),
   active: true,
 });
@@ -49,9 +56,16 @@ const blank = (): Scheduler => ({
 /** Create or edit a booking page, including the weekly hours it offers. */
 export function SchedulerDialog({ target, onClose, onSaved }: { target: Scheduler | "new" | null; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = useState<Scheduler>(blank());
+  // Prices are typed in dollars; the server wants cents. Kept as text so half-typed values aren't mangled.
+  const [price, setPrice] = useState("");
+  const [deposit, setDeposit] = useState("");
   const types = useLoad<{ types: Array<{ id: string; name: string }> }>(target ? "/shoot-types" : null);
   useEffect(() => {
-    if (target) setF(target === "new" ? blank() : { ...target, description: target.description ?? "", location: target.location ?? "" });
+    if (!target) return;
+    const t = target === "new" ? blank() : { ...target, description: target.description ?? "", location: target.location ?? "" };
+    setF(t);
+    setPrice(t.priceCents ? moneyInput(t.priceCents) : "");
+    setDeposit(t.depositType === "percent" ? String(t.depositValue / 100) : t.depositType === "fixed" ? moneyInput(t.depositValue) : "");
   }, [target]);
   const num = (k: keyof Scheduler) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value === "" ? 0 : Number(e.target.value) }));
   const txt = (k: keyof Scheduler) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
@@ -59,7 +73,20 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
   const editing = target && target !== "new" ? target : null;
   const { busy, error, fieldErrors, submit } = useSubmit(() => {
     const { id: _id, active: _a, ...rest } = f;
-    const body = { ...rest, active: f.active, description: f.description || null, location: f.location || null, shootTypeId: f.shootTypeId || null, slug: f.slug || undefined };
+    const priceCents = price.trim() ? parseMoney(price) : 0;
+    if (priceCents === null || priceCents < 0) throw new Error("Enter the price like 150.00, or leave it empty for a free page.");
+    let depositValue = 0;
+    if (priceCents > 0 && f.depositType !== "none") {
+      const n = f.depositType === "percent" ? Number(deposit) : parseMoney(deposit);
+      if (n === null || !Number.isFinite(n) || n <= 0) throw new Error(f.depositType === "percent" ? "Enter the deposit percentage, like 25." : "Enter the deposit amount, like 50.00.");
+      depositValue = f.depositType === "percent" ? Math.round(n * 100) : n;
+    }
+    const body = {
+      ...rest,
+      priceCents,
+      depositType: priceCents > 0 ? f.depositType : "none",
+      depositValue,
+      active: f.active, description: f.description || null, location: f.location || null, shootTypeId: f.shootTypeId || null, slug: f.slug || undefined };
     return editing ? api(`/schedulers/${editing.id}`, { method: "PATCH", body }) : api("/schedulers", { body });
   });
   const remove = async () => {
@@ -154,6 +181,28 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
             </select>
           )}
         </Field>
+        <fieldset className="span-2 pay-edit">
+          <legend>Price and deposit</legend>
+          <Field label="Price" hint="Leave empty if the page is free to book.">
+            {(p) => <TextInput {...p} inputMode="decimal" placeholder="0.00" value={price} onChange={(e) => setPrice(e.target.value)} />}
+          </Field>
+          {parseMoney(price || "0") ? (
+            <>
+              <div className="seg" role="radiogroup" aria-label="Deposit">
+                {([["none", "No deposit"], ["percent", "Percent"], ["fixed", "Fixed amount"]] as const).map(([k, label]) => (
+                  <button key={k} type="button" role="radio" aria-checked={f.depositType === k} className={f.depositType === k ? "on" : ""} onClick={() => setF((x) => ({ ...x, depositType: k }))}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {f.depositType !== "none" ? (
+                <Field label={f.depositType === "percent" ? "Deposit (% of the total)" : "Deposit amount"} hint="Clients pay it right after booking. The balance is due on the day.">
+                  {(p) => <TextInput {...p} inputMode="decimal" placeholder={f.depositType === "percent" ? "25" : "50.00"} value={deposit} onChange={(e) => setDeposit(e.target.value)} />}
+                </Field>
+              ) : null}
+            </>
+          ) : null}
+        </fieldset>
         <div className="span-2">
           <SwitchRow checked={f.approval === "auto"} onChange={(v) => setF((x) => ({ ...x, approval: v ? "auto" : "manual" }))} label="Book instantly" hint="Clients get a confirmed time right away. Otherwise you approve each request." />
         </div>

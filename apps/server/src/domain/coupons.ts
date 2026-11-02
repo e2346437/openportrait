@@ -4,7 +4,7 @@ import { DomainError, newId, notFound, type ServiceContext } from "./context.js"
 import { formatMoney } from "./money.js";
 import { isYmd, ymdIn } from "./time.js";
 
-const { coupon, order, catalogItem } = tables;
+const { coupon, order, catalogItem, scheduler } = tables;
 
 export type CouponRow = typeof coupon.$inferSelect;
 
@@ -15,6 +15,8 @@ export interface CouponInput {
   /** Percent: basis points (1000 = 10%). Fixed: cents. */
   value: number;
   itemId?: string | null;
+  /** Limit the coupon to one booking page. */
+  schedulerId?: string | null;
   expiresOn?: string | null;
   maxUses?: number | null;
   active?: boolean;
@@ -33,12 +35,15 @@ function describe(ctx: ServiceContext, c: CouponRow) {
   const cur = ctx.settings.get("money.currency") || "USD";
   const what = c.kind === "percent" ? `${c.value / 100}% off` : `${formatMoney(c.value, cur)} off`;
   const item = c.itemId ? ctx.db.select({ name: catalogItem.name }).from(catalogItem).where(eq(catalogItem.id, c.itemId)).get()?.name : null;
-  return item ? `${what} ${item}` : what;
+  const page = c.schedulerId ? schedulerName(ctx, c.schedulerId) : null;
+  return [item ? `${what} ${item}` : what, page ? `on ${page}` : null].filter(Boolean).join(" ");
 }
+
+const schedulerName = (ctx: ServiceContext, id: string) => ctx.db.select({ name: scheduler.name }).from(scheduler).where(eq(scheduler.id, id)).get()?.name ?? null;
 
 function present(ctx: ServiceContext, c: CouponRow) {
   const uses = usesOf(ctx, c.id);
-  return { ...c, uses, summary: describe(ctx, c), itemName: c.itemId ? ctx.db.select({ name: catalogItem.name }).from(catalogItem).where(eq(catalogItem.id, c.itemId)).get()?.name ?? null : null };
+  return { ...c, uses, summary: describe(ctx, c), schedulerName: c.schedulerId ? schedulerName(ctx, c.schedulerId) : null, itemName: c.itemId ? ctx.db.select({ name: catalogItem.name }).from(catalogItem).where(eq(catalogItem.id, c.itemId)).get()?.name ?? null : null };
 }
 
 export function listCoupons(ctx: ServiceContext) {
@@ -53,7 +58,8 @@ function validate(ctx: ServiceContext, input: CouponInput) {
   if (input.expiresOn && !isYmd(input.expiresOn)) throw new DomainError("invalid", "Enter the expiry date as year-month-day.");
   if (input.maxUses != null && (!Number.isInteger(input.maxUses) || input.maxUses < 1)) throw new DomainError("invalid", "The use limit must be a whole number of 1 or more, or left empty.");
   if (input.itemId && !ctx.db.select({ id: catalogItem.id }).from(catalogItem).where(eq(catalogItem.id, input.itemId)).get()) throw new DomainError("invalid", "That product isn't in your price list.");
-  return { code, description: input.description?.trim().slice(0, 300) || null, kind: input.kind, value: input.value, itemId: input.itemId || null, expiresOn: input.expiresOn || null, maxUses: input.maxUses ?? null, active: input.active ?? true };
+  if (input.schedulerId && !ctx.db.select({ id: scheduler.id }).from(scheduler).where(eq(scheduler.id, input.schedulerId)).get()) throw new DomainError("invalid", "That booking page doesn't exist.");
+  return { code, description: input.description?.trim().slice(0, 300) || null, kind: input.kind, value: input.value, itemId: input.itemId || null, schedulerId: input.schedulerId || null, expiresOn: input.expiresOn || null, maxUses: input.maxUses ?? null, active: input.active ?? true };
 }
 
 export function createCoupon(ctx: ServiceContext, input: CouponInput) {
@@ -100,13 +106,14 @@ export function evaluate(
   ctx: ServiceContext,
   rawCode: string,
   lines: Array<{ itemId: string | null; quantity: number; unitCents: number }>,
-  opts: { orderId?: string; keepCouponId?: string | null; manualDiscountCents: number },
+  opts: { orderId?: string; keepCouponId?: string | null; manualDiscountCents: number; schedulerId?: string | null },
 ): Applied {
   const code = normalizeCode(rawCode);
   const c = ctx.db.select().from(coupon).where(eq(coupon.code, code)).get();
   if (!c) throw new DomainError("invalid", `We don't have a coupon called ${code}. Check the spelling.`);
   const keeping = opts.keepCouponId === c.id;
   if (!keeping) {
+    if (c.schedulerId && c.schedulerId !== (opts.schedulerId ?? null)) throw new DomainError("invalid", `${c.code} only works on one booking page.`);
     if (!c.active) throw new DomainError("invalid", `${c.code} isn't active.`);
     if (c.expiresOn && c.expiresOn < ymdIn(Date.now(), ctx.settings.get("studio.timezone") ?? "UTC")) throw new DomainError("invalid", `${c.code} expired on ${c.expiresOn}.`);
     if (c.maxUses != null && usesOf(ctx, c.id, opts.orderId) >= c.maxUses) throw new DomainError("invalid", `${c.code} has been used the most times it can be.`);

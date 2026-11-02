@@ -21,7 +21,7 @@ export function lanAddresses(config?: Pick<AppConfig, "isUnraid">): string[] {
 }
 
 export interface LanInfo {
-  /** The address to use at home, such as http://192.168.4.5:8090. Null until it has been set. */
+  /** The address to use at home, such as http://192.168.1.20:8090. Null until it has been set. */
   url: string | null;
   source: "settings" | "template" | null;
   /** Just the host part of `url`, for FTP and SFTP settings. */

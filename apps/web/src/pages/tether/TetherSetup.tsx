@@ -26,7 +26,7 @@ const remember = (key: string, value: string) => {
   }
 };
 
-/** "192.168.4.5:8090" or "http://192.168.4.5:8090/" as "http://192.168.4.5:8090", or null when it isn't an address yet. */
+/** "192.168.1.20:8090" or "http://192.168.1.20:8090/" as "http://192.168.1.20:8090", or null when it isn't an address yet. */
 function normalizeLanUrl(input: string | null): string | null {
   const v = (input ?? "").trim();
   if (!v) return null;
@@ -151,7 +151,7 @@ export function TetherSetupPage() {
                 <Field label="Your server&rsquo;s address at home" hint="Use this link when the screen is on your home or studio network. It's the address you'd type to open OpenPortrait from home, with the port you mapped." error={saveLan.fieldErrors.url ?? saveLan.error}>
                   {(p) => (
                     <div className="input-row">
-                      <input {...p} className="input mono" value={lanDraft ?? data.lan.url ?? ""} placeholder="http://192.168.4.5:8090" readOnly={!isOwner} onChange={(e) => setLanDraft(e.target.value)} spellCheck={false} inputMode="url" />
+                      <input {...p} className="input mono" value={lanDraft ?? data.lan.url ?? ""} placeholder="http://192.168.1.20:8090" readOnly={!isOwner} onChange={(e) => setLanDraft(e.target.value)} spellCheck={false} inputMode="url" />
                       {isOwner ? (
                         <Button
                           type="button"

@@ -64,7 +64,9 @@ class CameraFs extends BaseFileSystem {
   }
   override rename(from: string, to: string) {
     this.checked(from);
-    this.checked(to);
+    const { clientPath } = this.checked(to);
+    // A rename never replaces a file that is already there (SEC-007).
+    if (fs.existsSync(jailPath(this.root, clientPath))) return Promise.reject(new ftpErrors.FileSystemError("A file with that name already exists."));
     return super.rename(from, to);
   }
   override read(): Promise<never> {

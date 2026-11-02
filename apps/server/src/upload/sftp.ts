@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ssh2, { type Connection, type Server as SshServer, type SFTPWrapper } from "ssh2";
 import type { CameraLogin } from "./accounts.js";
-import { IncomingFile, jailPath, landingVirtual } from "./files.js";
+import { IncomingFile, jailPath, landingVirtual, moveWithoutOverwrite } from "./files.js";
 import type { ProtocolServer, ServerHooks } from "./types.js";
 
 const { Server, utils } = ssh2;
@@ -246,7 +246,8 @@ export class SftpServer implements ProtocolServer {
       const a = resolve(from);
       const b = resolve(to);
       if (!a || !b || a === root || b === root) return denied(reqid);
-      fs.rename(a, b, (err) => (err ? errStatus(reqid, err) : sftp.status(reqid, STATUS_CODE.OK)));
+      // Never replaces a file that already exists (SEC-007).
+      moveWithoutOverwrite(a, b, (err) => (err ? errStatus(reqid, err) : sftp.status(reqid, STATUS_CODE.OK)));
     });
     // No deleting: a stolen camera password shouldn't be able to wipe the Incoming folder.
     sftp.on("REMOVE", (reqid: number) => denied(reqid));

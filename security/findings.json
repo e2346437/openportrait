@@ -107,7 +107,7 @@
       "id": "SEC-007",
       "title": "Camera upload logins can overwrite existing photos (rename or re-upload) despite the upload-only promise",
       "severity": "Low",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:N/VI:L/VA:L/SC:N/SI:N/SA:N",
       "tests": [
@@ -155,7 +155,7 @@
       "id": "SEC-010",
       "title": "OAuth and MCP discovery URLs are built from the Host header when no public address is set",
       "severity": "Low",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:A/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N",
       "tests": [
@@ -171,7 +171,7 @@
       "id": "SEC-011",
       "title": "MCP endpoint does not check Origin; anyone can register an OAuth client with any display name",
       "severity": "Low",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:A/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
       "tests": [
@@ -234,7 +234,7 @@
       "id": "SEC-015",
       "title": "Secret key sits next to the database and backups; decryption does not pin the auth-tag length",
       "severity": "Low",
-      "status": "open",
+      "status": "mitigated",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:L/AC:L/AT:P/PR:H/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N",
       "tests": [
@@ -243,7 +243,8 @@
       "needsApproval": "backup format",
       "deployments": [
         "all deployments"
-      ]
+      ],
+      "note": "GCM tag length is pinned to 16 bytes (a truncated tag is rejected). The key still sits beside the data in /config by default; documented trade-off, moving it is an operator choice."
     },
     {
       "id": "SEC-016",
@@ -262,7 +263,7 @@
       "id": "SEC-017",
       "title": "A private home-network address is used as the example in shipped UI text, the Unraid template and tests",
       "severity": "Informational",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "deployments": [
         "all deployments"

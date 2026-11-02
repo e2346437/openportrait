@@ -31,12 +31,6 @@
       "path": "apps/web/",
       "justification": "Code-quality hint, not a security issue.",
       "expires": "2026-12-31"
-    },
-    {
-      "id": "gcm-no-tag-length",
-      "path": "apps/server/src/secrets.ts",
-      "justification": "Real but low: decryption doesn't pin the 16-byte tag length, so a stored value with a truncated tag would still verify. Needs write access to the database file to exploit. Tracked as SEC-015; fix is one argument to createDecipheriv.",
-      "expires": "2026-12-31"
     }
   ]
 }

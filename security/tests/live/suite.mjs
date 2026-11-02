@@ -135,9 +135,16 @@ if (slug) {
 
   await control("GAL-1", "an anonymous visitor with the link sees the gallery; the same request for a made-up link is 404", async () => photo && (await pub.get("/api/g/not-a-real-link-0000")).status === 404);
   await control("GAL-2", "a media URL with a tampered or missing signature is refused", async () => {
-    const [p, s] = photo.thumb.split("?s=");
-    const tampered = `${p}?s=${s.slice(0, -2)}AA`;
-    return (await pub.get(p)).status === 404 && (await pub.get(tampered)).status === 404 && (await pub.get(`${p.replace(photo.id, "AAAAAAAAAAAA")}?s=${s}`)).status === 404;
+    const [p, q] = photo.thumb.split("?");
+    const s = new URLSearchParams(q).get("s");
+    const e = new URLSearchParams(q).get("e");
+    const ok = (await pub.get(photo.thumb)).status === 200;
+    const noSig = (await pub.get(`${p}?e=${e}`)).status === 404;
+    const tampered = (await pub.get(`${p}?e=${e}&s=${s.slice(0, -2)}AA`)).status === 404;
+    const otherPhoto = (await pub.get(`${p.replace(photo.id, "AAAAAAAAAAAA")}?e=${e}&s=${s}`)).status === 404;
+    const longerExpiry = (await pub.get(`${p}?e=${Number(e) + 86400 * 365}&s=${s}`)).status === 404;
+    const noExpiry = (await pub.get(`${p}?s=${s}`)).status === 404;
+    return ok && noSig && tampered && otherPhoto && longerExpiry && noExpiry;
   });
   await control("GAL-3", "a download needs an identified visitor (email) when downloads are on", async () => (await pub.get(`/api/g/${slug}/photos/${photo.id}/download`)).status === 401);
   await control("GAL-4", "filename traversal in a staff upload is flattened to a basename inside the gallery folder", async () => {
@@ -207,11 +214,11 @@ await control("MCP-L1", "no token is refused; a read token cannot call a write t
   const r = await (await rpc(tok, "tools/call", { name: "leads_create", arguments: { contact: { firstName: "x" } } })).json();
   return none.status === 401 && (r.result?.isError || r.error);
 });
-await openFinding("SEC-011", "the MCP endpoint rejects a foreign Origin header", async () => {
+await control("SEC-011", "the MCP endpoint rejects a foreign Origin header", async () => {
   const r = await fetch(`${A_URL}/mcp`, { method: "POST", headers: { authorization: `Bearer ${tok}`, origin: "https://evil.example", "content-type": "application/json", accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
   return r.status === 403;
 });
-await openFinding("SEC-010", "OAuth metadata is not built from the Host header", async () => {
+await control("SEC-010", "OAuth metadata is not built from the Host header", async () => {
   const r = await fetch(`${A_URL}/.well-known/oauth-authorization-server`, { headers: { host: "evil.example" } }).catch(() => null);
   // Node's fetch won't override Host; fall back to the raw socket.
   const net = await import("node:net");
@@ -270,7 +277,7 @@ if (SFTP_PORT) {
     walk(root);
     return stray.length === 0;
   });
-  await openFinding("SEC-007", "a camera login cannot replace a photo already in its folder (rename or re-upload)", async () => {
+  await control("SEC-007", "a camera login cannot replace a photo already in its folder (rename or re-upload)", async () => {
     await call(s.rename, "/d/junk.jpg", "/d/good.jpg");
     const again = await put("/d/good.jpg", "OVERWRITTEN");
     const root = process.env.OP_A_INCOMING;

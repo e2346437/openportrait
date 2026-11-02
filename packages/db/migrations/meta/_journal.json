@@ -131,8 +131,36 @@
     {
       "idx": 18,
       "version": "6",
-      "when": 1793636301100,
-      "tag": "0018_abandoned_rick_jones",
+      "when": 1793636032646,
+      "tag": "0018_thick_wolverine",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1793636766404,
+      "tag": "0019_abnormal_dust",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1793639044877,
+      "tag": "0020_freezing_leper_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1793640525307,
+      "tag": "0021_remarkable_cassandra_nova",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1793652180795,
+      "tag": "0022_spooky_king_bedlam",
       "breakpoints": true
     }
   ]

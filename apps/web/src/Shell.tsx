@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { Button, Icon, Mark, type IconName } from "@openportrait/ui";
 import { useApprovalSummary } from "./lib/useApprovals.js";
 import { useSession } from "./lib/session.js";
+import { useExtensionPages } from "./lib/extensionPages.js";
 
 interface NavItem {
   to: string;
@@ -10,6 +11,8 @@ interface NavItem {
   icon: IconName;
   soon?: boolean;
   end?: boolean;
+  /** Only the studio owner sees it. */
+  owner?: boolean;
 }
 
 const groups: Array<{ label?: string; items: NavItem[] }> = [
@@ -19,23 +22,29 @@ const groups: Array<{ label?: string; items: NavItem[] }> = [
     items: [
       { to: "/studio/leads", label: "Leads", icon: "lead" },
       { to: "/studio/shoots", label: "Shoots", icon: "camera" },
+      { to: "/studio/tasks", label: "Tasks", icon: "check" },
       { to: "/studio/calendar", label: "Calendar", icon: "calendar" },
       { to: "/studio/booking", label: "Booking", icon: "clock" },
       { to: "/studio/clients", label: "Clients", icon: "users" },
       { to: "/studio/orders", label: "Orders", icon: "receipt" },
       { to: "/studio/contracts", label: "Contracts", icon: "note" },
+      { to: "/studio/reports", label: "Reports", icon: "chart", owner: true },
     ],
   },
   {
     label: "Photos",
     items: [
       { to: "/studio/galleries", label: "Galleries", icon: "image" },
+      { to: "/studio/website", label: "Website", icon: "globe" },
       { to: "/studio/incoming", label: "Incoming", icon: "inbox" },
       { to: "/studio/tether", label: "Tethering", icon: "lan" },
     ],
   },
   { label: "Studio", items: [{ to: "/studio/settings", label: "Settings", icon: "gear" }] },
 ];
+
+/** Icons an extension page may ask for. Anything else gets a generic one. */
+const NAV_ICONS: Record<string, true> = Object.fromEntries(["receipt", "pin", "note", "tag", "calendar", "camera", "folder", "image", "users", "clock", "globe", "building", "key", "sparkle", "heart", "send", "mail", "phone", "grid", "gear", "home", "inbox", "lan", "cloud", "shield", "lead", "palette", "crosshair"].map((n) => [n, true]));
 
 const approvalsItem: NavItem = { to: "/studio/approvals", label: "Approvals", icon: "shield" };
 
@@ -60,13 +69,26 @@ export function Shell() {
 
   const approvals = useApprovalSummary(me?.user?.role === "owner");
   const showApprovals = approvals.enabled || approvals.pending > 0;
-  const navGroups = groups.map((g) => (g.label === "Studio" && showApprovals ? { ...g, items: [approvalsItem, ...g.items] } : g));
+  const { pages: extPages } = useExtensionPages();
+  const extGroups = [...new Set(extPages.map((p) => p.page.group ?? "More"))].map((label) => ({
+    label,
+    items: extPages.filter((p) => (p.page.group ?? "More") === label).map((p): NavItem => ({ to: `/studio/x/${p.extension}/${p.page.slug}`, label: p.page.title, icon: (p.page.icon && p.page.icon in NAV_ICONS ? p.page.icon : "grid") as IconName })),
+  }));
+  const base = groups.map((g) => (g.label === "Studio" && showApprovals ? { ...g, items: [approvalsItem, ...g.items] } : g));
+  // Extension pages sit just above the Studio group (Settings).
+  const allGroups = [...base.slice(0, -1), ...extGroups, ...base.slice(-1)];
+  // A login limited to its own shoots only sees the Shoots page.
+  const scoped = !!me?.user?.scoped;
+  const navGroups = scoped ? [{ items: [{ to: "/studio/shoots", label: "My shoots", icon: "camera" as IconName }] }] : allGroups;
+  useEffect(() => {
+    if (scoped && location.pathname === "/studio") navigate("/studio/shoots", { replace: true });
+  }, [scoped, location.pathname, navigate]);
 
   const studioName = me?.studio.name || "Your studio";
   const user = me?.user;
 
   const brand = (
-    <NavLink to="/studio" className="brand" aria-label={`${studioName} home`}>
+    <NavLink to="/studio" className="brand">
       <Mark />
       <span className="brand-text">
         OpenPortrait
@@ -77,6 +99,7 @@ export function Shell() {
 
   return (
     <div className={`shell${open ? " nav-open" : ""}`}>
+      <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); const m = document.getElementById("main"); m?.focus(); m?.scrollIntoView(); }}>Skip to content</a>
       <header className="topbar">
         <Button variant="ghost" className="icon" icon="menu" aria-label="Open menu" aria-expanded={open} aria-controls="sidebar" onClick={() => setOpen(true)} />
         {brand}
@@ -88,7 +111,7 @@ export function Shell() {
           {navGroups.map((g, i) => (
             <div key={g.label ?? i} className="nav">
               {g.label ? <div className="nav-label">{g.label}</div> : null}
-              {g.items.map((item) => (
+              {g.items.filter((item) => !item.owner || user?.role === "owner").map((item) => (
                 <NavLink key={item.to} to={item.to} end={item.end}>
                   <Icon name={item.icon} />
                   {item.label}
@@ -123,7 +146,7 @@ export function Shell() {
           </div>
         ) : null}
       </aside>
-      <main className="main" id="main">
+      <main className="main" id="main" tabIndex={-1}>
         <div className="main-in">
           <Outlet />
         </div>

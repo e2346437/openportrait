@@ -30,6 +30,7 @@ import { BookCancelPage } from "./pages/public/BookCancel.js";
 import { ApprovalsPage } from "./pages/Approvals.js";
 import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { OrdersPage } from "./pages/orders/Orders.js";
+import { TasksPage } from "./pages/tasks/Tasks.js";
 import { ContractsPage } from "./pages/contracts/Contracts.js";
 import { ContractPage } from "./pages/contracts/Contract.js";
 import { ContractTemplatesPage } from "./pages/settings/ContractTemplates.js";
@@ -39,6 +40,8 @@ import { QuestionnairesSettingsPage } from "./pages/settings/Questionnaires.js";
 import { QuestionnairePage } from "./pages/public/Questionnaire.js";
 import { ImportSettingsPage } from "./pages/settings/Import.js";
 import { PricesSettingsPage } from "./pages/settings/Prices.js";
+import { ReportsPage } from "./pages/reports/Reports.js";
+import { ExtensionPageView } from "./pages/extensions/ExtensionPage.js";
 import { ExtensionsSettingsPage } from "./pages/settings/Extensions.js";
 import { PaymentsSettingsPage } from "./pages/settings/Payments.js";
 import { OrderViewPage } from "./pages/public/Order.js";
@@ -49,6 +52,7 @@ import { GallerySettingsPage } from "./pages/settings/Galleries.js";
 import { ClientGalleryPage } from "./pages/client/ClientGallery.js";
 import "./pages/client/client.css";
 import "./pages/galleries/galleries.css";
+import { WebsitePage } from "./pages/website/Website.js";
 import { IncomingPage } from "./pages/incoming/Incoming.js";
 import { TetherSetupPage } from "./pages/tether/TetherSetup.js";
 import { TetherLivePage } from "./pages/tether/TetherLive.js";
@@ -101,15 +105,19 @@ export function App() {
                   <Route path="clients" element={<ClientsPage />} />
                   <Route path="clients/:id" element={<ContactDetailPage />} />
                   <Route path="contracts" element={<ContractsPage />} />
+                  <Route path="tasks" element={<TasksPage />} />
                   <Route path="contracts/:id" element={<ContractPage />} />
                   <Route path="orders" element={<OrdersPage />} />
                   <Route path="orders/new" element={<OrderPage />} />
                   <Route path="orders/:id" element={<OrderPage />} />
+                  <Route path="reports" element={<ReportsPage />} />
                   <Route path="galleries" element={<GalleriesListPage />} />
                   <Route path="galleries/:id" element={<GalleryDetailPage />} />
+                  <Route path="website" element={<WebsitePage />} />
                   <Route path="incoming" element={<IncomingPage />} />
                   <Route path="tether" element={<TetherSetupPage />} />
                   <Route path="approvals" element={<ApprovalsPage />} />
+                  <Route path="x/:extension/:slug" element={<ExtensionPageView />} />
                   <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<Navigate to="studio" replace />} />
                     <Route path="studio" element={<StudioSettingsPage />} />

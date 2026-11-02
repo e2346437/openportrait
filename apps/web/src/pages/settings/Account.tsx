@@ -3,6 +3,7 @@ import { Button, Callout, Field, Panel, TextInput, useToast } from "@openportrai
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
 import { useSubmit } from "../../lib/useForm.js";
+import { TwoStepPanel } from "./TwoStep.js";
 
 export function AccountSettingsPage() {
   const { me } = useSession();
@@ -61,6 +62,7 @@ export function AccountSettingsPage() {
           </div>
         </Panel>
       </form>
+      <TwoStepPanel />
     </>
   );
 }

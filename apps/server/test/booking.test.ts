@@ -250,3 +250,59 @@ describe("special dates and daily limits", () => {
     expect((await staff("POST", "/schedulers", { name: "X", durationMinutes: 30, availability: {}, maxPerDay: -1 })).status).toBe(400);
   });
 });
+
+describe("bookings that become shoots", () => {
+  const typeId = async () => (await staff("GET", "/shoot-types")).body.types[0].id as string;
+  const make = async (extra: object = {}) => (await staff("POST", "/schedulers", { name: "Mini session", durationMinutes: 60, stepMinutes: 60, minNoticeHours: 0, availability: mondayHours, shootTypeId: await typeId(), createShoot: true, ...extra })).body;
+  const shoots = async () => (await staff("GET", "/shoots")).body.items as Array<{ id: string; subject: string; status: string }>;
+  const who = { firstName: "Ana", lastName: "Ruiz", email: "ana@example.com" };
+
+  it("needs a shoot type", async () => {
+    const r = await staff("POST", "/schedulers", { name: "X", durationMinutes: 30, availability: {}, createShoot: true });
+    expect(r.status).toBe(400);
+    expect(r.body.message).toMatch(/shoot type/);
+  });
+
+  it("makes the shoot when an instant booking is taken, with the time on the shoot and not twice on the calendar", async () => {
+    const s = await make({ approval: "auto" });
+    const day = monday();
+    const at = atTime(day, "09:00", TZ);
+    const r = await pub("POST", `/book/${s.slug}`, { ...who, startsAt: at });
+    expect(r.status).toBe(201);
+    const list = await shoots();
+    expect(list.map((x) => x.subject)).toEqual(["Ana Ruiz"]);
+    const cal = (await staff("GET", `/calendar?from=${at - 1000}&to=${at + 3_600_000}`)).body.items;
+    expect(cal).toHaveLength(1);
+    expect(cal[0].shootId ?? cal[0].kind).toBeTruthy();
+    // Cancelling takes the shoot with it.
+    await pub("POST", `/book-cancel/${r.body.cancelToken}`);
+    expect((await shoots()).find((x) => x.subject === "Ana Ruiz")?.status).toBe("cancelled");
+  });
+
+  it("waits for approval, then makes the shoot when the request is confirmed", async () => {
+    const s = await make();
+    const day = monday();
+    const r = await pub("POST", `/book/${s.slug}`, { ...who, startsAt: atTime(day, "10:00", TZ) });
+    expect(await shoots()).toHaveLength(0);
+    await staff("POST", `/bookings/${r.body.id}/confirm`);
+    expect(await shoots()).toHaveLength(1);
+  });
+
+  it("sends the shoot type's form when the booking becomes a shoot", async () => {
+    const t = await staff("POST", "/questionnaire-templates", { name: "Session details", intro: "Tell us more", fields: [{ label: "Anything we should know?", type: "text" }] });
+    expect((await staff("PUT", `/shoot-types/${await typeId()}/questionnaire`, { templateId: t.body.id, sendMode: "on_booking" })).status).toBe(200);
+    const s = await make({ approval: "auto" });
+    expect((await pub("POST", `/book/${s.slug}`, { ...who, startsAt: atTime(monday(), "09:00", TZ) })).status).toBe(201);
+    await app.ctx.jobs.drain();
+    const shoot = (await shoots())[0];
+    const list = await staff("GET", `/shoots/${shoot.id}/questionnaires`);
+    expect(list.body.items).toHaveLength(1);
+    expect(list.body.items[0]).toMatchObject({ status: "sent", origin: "auto" });
+  });
+
+  it("leaves pages that don't ask for a shoot as they were", async () => {
+    const s = await make({ createShoot: false, approval: "auto" });
+    await pub("POST", `/book/${s.slug}`, { ...who, startsAt: atTime(monday(), "09:00", TZ) });
+    expect(await shoots()).toHaveLength(0);
+  });
+});

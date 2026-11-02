@@ -3,9 +3,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { tables } from "@openportrait/db";
 import { requireOwner } from "./auth.js";
+import { financialReport, resolveRange, type FinancialReport } from "./domain/reports.js";
 import { VERSION, type AppContext } from "./app.js";
-import { defineTool, grantCapability, revokeCapability } from "./ai/registry.js";
+import { hashPassword, generateLoginPassword } from "./auth.js";
+import { incomingSubfolderHooks, mailSenders, shootScopeHooks } from "./extension-hooks.js";
+import { defineTool, grantCapability, lockCapability, revokeCapability } from "./ai/registry.js";
+import { registerSiteExtension, registerSiteTemplate, unregisterSiteExtension, unregisterSiteTemplate, type SiteExtension, type SiteTemplate } from "./site/registry.js";
 
 /**
  * Extensions are optional modules that add tools, routes, or capabilities to OpenPortrait. They are plain
@@ -15,7 +22,8 @@ import { defineTool, grantCapability, revokeCapability } from "./ai/registry.js"
  */
 /**
  * A settings card an extension can show under Settings > Extensions. The app renders it, so extensions
- * need no UI code. `status.route` is a GET under the extension's routes; its JSON fills the card.
+ * need no UI code. `status.route` is a GET under the extension's routes; its JSON fills the card. An action route may
+ * answer `{ openUrl }` (an https or same-site address) to send the owner there, for connecting an outside service.
  */
 export interface SettingsCard {
   title: string;
@@ -27,6 +35,19 @@ export interface SettingsCard {
     rows?: Array<{ key: string; label: string; format?: "date" | "text" }>;
     /** A key whose string value is shown as a warning when present. */
     notice?: string;
+    /** Lists drawn from arrays in the status JSON, each row optionally removable. */
+    lists?: Array<{
+      key: string;
+      label: string;
+      empty?: string;
+      /** Keys of each item: its title, an optional second line, and its id. */
+      title: string;
+      subtitle?: string;
+      id?: string;
+      /** DELETE route; `{id}` is replaced with the item's id. */
+      removeRoute?: string;
+      removeConfirm?: string;
+    }>;
   };
   actions: Array<{
     label: string;
@@ -34,10 +55,100 @@ export interface SettingsCard {
     primary?: boolean;
     /** Only offered when status[key] === equals. */
     when?: { key: string; equals: string | boolean };
-    fields?: Array<{ name: string; label: string; hint?: string; secret?: boolean }>;
+    /** A field with `optionsKey` is a dropdown filled from an array of { value, label } in the status JSON. */
+    fields?: Array<{ name: string; label: string; hint?: string; secret?: boolean; optionsKey?: string; optional?: boolean }>;
     confirm?: string;
   }>;
 }
+
+/**
+ * A section an extension adds to the Reports page. The page calls `route` (a GET under the extension's routes) with
+ * `?from=YYYY-MM-DD&to=YYYY-MM-DD` and draws the answer, a {@link ReportData}, so extensions need no UI code.
+ */
+export interface ReportSection {
+  title: string;
+  description?: string;
+  route: string;
+}
+
+export interface ReportData {
+  stats?: Array<{ label: string; value: number | string; format?: "money" | "number" | "text"; tone?: "ok" | "warn" | "bad" | "neutral"; hint?: string }>;
+  /** Horizontal bars, such as income by category. Money values are cents. */
+  bars?: Array<{ title: string; format?: "money" | "number"; rows: Array<{ label: string; value: number }> }>;
+  tables?: Array<{
+    title?: string;
+    columns: Array<{ key: string; label: string; format?: "money" | "number" | "text"; align?: "start" | "end" }>;
+    rows: Array<Record<string, string | number | null>>;
+  }>;
+  /** Shown above the data, for a caveat such as "mileage uses the rate set in Settings". */
+  notice?: string;
+}
+
+/** Gets the file's path inside Incoming, such as "Z9/2026-11-14/DSC_1.NEF". Returns a folder name, or nothing. */
+export type IncomingSubfolderHook = (info: { shootId: string; path: string }) => string | undefined | null;
+/** An outside way to send the studio's email, such as a hosted mailbox. */
+export interface MailSender {
+  /** Shown in Settings > Email, for example "Microsoft 365". */
+  label: string;
+  /** True when it is connected and can send right now. */
+  ready(): boolean;
+  send(mail: { fromName: string; to: string; toName?: string | null; replyTo?: string; subject: string; text: string; html?: string }): Promise<void>;
+}
+/** One column in a page's table. `money` values are whole cents, `date` values are YYYY-MM-DD. */
+export interface PageColumn {
+  key: string;
+  label: string;
+  format?: "text" | "money" | "date" | "number";
+  /** Shown after a number, for example "mi". */
+  unit?: string;
+  /** Secondary text shown under the value, taken from another key of the row. */
+  sub?: string;
+}
+
+export interface PageField {
+  name: string;
+  label: string;
+  type: "text" | "textarea" | "number" | "money" | "date" | "select" | "checkbox";
+  hint?: string;
+  required?: boolean;
+  /** Prefilled when adding. `today` fills a date field with today's date. */
+  default?: string | number | boolean;
+  /** For `select`: fixed choices, or a GET route that returns `{ options: [{ value, label }] }`. */
+  options?: Array<{ value: string; label: string }>;
+  optionsRoute?: string;
+  /** Takes the whole row of the form instead of half of it. */
+  wide?: boolean;
+}
+
+/**
+ * A full page an extension adds to the sidebar: a list of records with totals, an add/edit form, and optional CSV
+ * export. The app draws it from this description, so extensions need no UI code. Every route is a GET/POST/PATCH/DELETE
+ * under the extension's routes. A route may answer 403 with `{ message, locked: true }` when the feature isn't
+ * available, and the page then shows that message instead of the records.
+ */
+export interface ExtensionPage {
+  /** The page's address: /studio/x/<extension id>/<slug>. */
+  slug: string;
+  title: string;
+  /** An icon name from the app's icon set; unknown names fall back to a generic one. */
+  icon?: string;
+  /** Sidebar group heading. Pages with the same group sit together. */
+  group?: string;
+  description?: string;
+  /** A year (or other period) picker. Its value is sent as `?<name>=` to every route of the page. */
+  filter?: { name: string; label: string; optionsRoute: string };
+  /** GET; returns numbers for the tiles, and optionally `notice` to show as a warning. */
+  summary?: { route: string; tiles: Array<{ key: string; label: string; format?: "text" | "money" | "number"; unit?: string }> };
+  /** GET; returns `{ rows: [{ id, ... }] }`. */
+  list: { route: string; columns: PageColumn[]; empty: { title: string; text: string } };
+  /** POST <create> adds a record; PATCH <item>/<id> and DELETE <item>/<id> change or remove one. Bodies are JSON. */
+  form?: { title: string; addLabel: string; create: string; item: string; fields: PageField[] };
+  /** GET; returns text/csv. */
+  export?: { label: string; route: string };
+}
+
+/** Returns the ids of the shoots this user may see, or null when the user isn't limited. */
+export type ShootScopeHook = (user: { id: string; role: string }) => string[] | null;
 
 export interface ExtensionApi {
   /** The module's id: its file name without the extension. */
@@ -46,6 +157,8 @@ export interface ExtensionApi {
   ctx: AppContext;
   log: FastifyInstance["log"];
   defineTool: typeof defineTool;
+  /** The app's copy of zod, so tool inputs and request bodies are validated with the same library the app uses. */
+  z: typeof z;
   /** Adds staff-only (owner) routes under /api/studio/extensions/<id>/. */
   routes(plugin: FastifyPluginAsync): void;
   /**
@@ -53,12 +166,42 @@ export interface ExtensionApi {
    * copies itself, then calls `originals.markRemote`. Attach a store only while the extension is licensed to.
    */
   originals: AppContext["originals"];
+  /** Hides a capability group's tools until `grantCapability` is called for it. Call it before defining the group's tools. */
+  lockCapability(id: string): void;
   grantCapability(id: string): void;
   revokeCapability(id: string): void;
   /** Shows a card under Settings > Extensions (owner only). */
   settingsCard(card: SettingsCard): void;
+  /** Adds a section to the Reports page (owner only). */
+  reportSection(section: ReportSection): void;
+  /** The studio's income figures for a date range (YYYY-MM-DD), the same ones the Reports page shows. Throws on a bad range. */
+  financialReport(from: string, to: string): FinancialReport;
+  /** Shows a card on every shoot's page (owner only). Routes may contain `{shootId}`. */
+  shootCard(card: SettingsCard): void;
+  /** Creates this extension's own tables. Each named step runs once. Tables must be named `ext_<id>_...`. */
+  migrate(name: string, sql: string): void;
+  /** Lets an extension pick a subfolder (inside the shoot's RAW folder) for files moved in from Incoming. */
+  incomingSubfolder(fn: IncomingSubfolderHook): void;
+  /** Offers an outside mailbox for sending. While it is ready, it replaces the SMTP settings for outgoing email. */
+  mailSender(sender: MailSender): void;
+  /** Adds a page to the sidebar (owner only). See ExtensionPage. */
+  page(page: ExtensionPage): void;
+  /**
+   * Limits some signed-in users to a list of shoots. A limited user can only sign in, change their password, and open
+   * the shoots on their list (read-only); every other studio route answers 403. Return null for users you don't limit.
+   */
+  limitUsersToShoots(fn: ShootScopeHook): void;
+  /** Creates a "staff" sign-in with a generated password, shown once to the owner. Rejects an email already in use. */
+  createStaffLogin(input: { email: string; name: string }): Promise<{ id: string; password: string }>;
   /** Runs when the app shuts down. */
   onClose(fn: () => void | Promise<void>): void;
+  /** Adds to the website builder: more templates, fields in its "More" tab, pages, CSS, and files. Can be undone when no longer allowed. */
+  site: {
+    registerTemplate(t: SiteTemplate): void;
+    unregisterTemplate(id: string): void;
+    registerExtension(e: Omit<SiteExtension, "id">): void;
+    unregisterExtension(): void;
+  };
 }
 
 export interface ExtensionInfo {
@@ -68,12 +211,34 @@ export interface ExtensionInfo {
   status: "loaded" | "failed";
   error?: string;
   cards: SettingsCard[];
+  reports: ReportSection[];
+  shootCards: SettingsCard[];
+  pages: ExtensionPage[];
 }
+
+const SLUG = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
 const ID = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
 export function extensionsDir(ctx: AppContext): string {
   return process.env.OPENPORTRAIT_EXTENSIONS_DIR || path.join(ctx.config.configDir, "extensions");
+}
+
+const TABLE = /\b(?:create\s+(?:unique\s+)?(?:table|index)(?:\s+if\s+not\s+exists)?|alter\s+table|drop\s+table|insert\s+into|update|delete\s+from)\s+(?:\w+\s+on\s+)?"?(\w+)"?/gi;
+
+/** Runs a named SQL step once. Extensions may only touch tables that start with `ext_<id>_`. */
+export function runExtensionMigration(ctx: AppContext, id: string, name: string, sql: string): void {
+  const prefix = `ext_${id.replace(/-/g, "_")}_`;
+  for (const m of sql.matchAll(TABLE)) {
+    if (!m[1]!.toLowerCase().startsWith(prefix)) throw new Error(`migration "${name}" touches "${m[1]}", but ${id} may only use tables named ${prefix}...`);
+  }
+  const client = ctx.db.$client;
+  client.exec("CREATE TABLE IF NOT EXISTS extension_migration (extension TEXT NOT NULL, name TEXT NOT NULL, ran_at INTEGER NOT NULL, PRIMARY KEY (extension, name))");
+  if (client.prepare("SELECT 1 FROM extension_migration WHERE extension = ? AND name = ?").get(id, name)) return;
+  client.transaction(() => {
+    client.exec(sql);
+    client.prepare("INSERT INTO extension_migration (extension, name, ran_at) VALUES (?, ?, ?)").run(id, name, Date.now());
+  })();
 }
 
 export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Promise<ExtensionInfo[]> {
@@ -88,7 +253,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
   for (const file of files) {
     const id = file.replace(/\.mjs$/, "");
     const full = path.join(dir, file);
-    const info: ExtensionInfo = { id, file, sha256: "", status: "failed", cards: [] };
+    const info: ExtensionInfo = { id, file, sha256: "", status: "failed", cards: [], reports: [], shootCards: [], pages: [] };
     infos.push(info);
     try {
       if (!ID.test(id)) throw new Error("file name must be lowercase letters, digits and dashes");
@@ -97,6 +262,9 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       if (typeof mod.register !== "function") throw new Error("module has no register() export");
       const routes: FastifyPluginAsync[] = [];
       const cards: SettingsCard[] = [];
+      const reports: ReportSection[] = [];
+      const shootCards: SettingsCard[] = [];
+      const pages: ExtensionPage[] = [];
       await mod.register({
         id,
         appVersion: VERSION,
@@ -104,10 +272,52 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         log: app.log,
         defineTool,
         originals: ctx.originals,
+        z,
         routes: (plugin) => void routes.push(plugin),
         settingsCard: (card) => void cards.push(card),
+        reportSection: (section) => void reports.push(section),
+        financialReport: (from, to) => {
+          const sctx = { db: ctx.db, settings: ctx.settings, config: ctx.config, actorId: null, publicUrl: ctx.publicUrl };
+          return financialReport(sctx, resolveRange(sctx, from, to));
+        },
+        shootCard: (card) => void shootCards.push(card),
+        migrate: (name, sql) => runExtensionMigration(ctx, id, name, sql),
+        incomingSubfolder: (fn) => {
+          incomingSubfolderHooks.push(fn);
+          app.addHook("onClose", async () => void incomingSubfolderHooks.splice(incomingSubfolderHooks.indexOf(fn), 1));
+        },
+        limitUsersToShoots: (fn) => {
+          shootScopeHooks.push(fn);
+          app.addHook("onClose", async () => void shootScopeHooks.splice(shootScopeHooks.indexOf(fn), 1));
+        },
+        createStaffLogin: async ({ email, name }) => {
+          const mail = email.trim().toLowerCase();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) throw new Error("Enter a valid email address.");
+          if (ctx.db.select({ id: tables.user.id }).from(tables.user).where(eq(tables.user.email, mail)).get()) throw new Error("Someone already signs in with that email.");
+          const password = generateLoginPassword();
+          const userId = crypto.randomUUID();
+          ctx.db.insert(tables.user).values({ id: userId, email: mail, name: name.trim().slice(0, 80) || mail, passwordHash: await hashPassword(password), role: "staff" }).run();
+          ctx.db.insert(tables.auditLog).values({ action: "auth.staff_created", detail: { userId, via: id } }).run();
+          return { id: userId, password };
+        },
+        mailSender: (sender) => {
+          mailSenders.push(sender);
+          app.addHook("onClose", async () => void mailSenders.splice(mailSenders.indexOf(sender), 1));
+        },
+        page: (page) => {
+          if (!SLUG.test(page.slug)) throw new Error(`page slug "${page.slug}" must be lowercase letters, digits and dashes`);
+          if (pages.some((p) => p.slug === page.slug)) throw new Error(`duplicate page slug "${page.slug}"`);
+          pages.push(page);
+        },
+        lockCapability,
         grantCapability,
         revokeCapability,
+        site: {
+          registerTemplate: (t) => registerSiteTemplate({ ...t, extra: true }),
+          unregisterTemplate: unregisterSiteTemplate,
+          registerExtension: (e) => registerSiteExtension({ ...e, id }),
+          unregisterExtension: () => unregisterSiteExtension(id),
+        },
         onClose: (fn) => void app.addHook("onClose", async () => void (await fn())),
       });
       for (const plugin of routes) {
@@ -120,6 +330,9 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         );
       }
       info.cards = cards;
+      info.reports = reports;
+      info.shootCards = shootCards;
+      info.pages = pages;
       info.status = "loaded";
       app.log.info({ extension: id, sha256: info.sha256 }, "extension loaded");
     } catch (err) {

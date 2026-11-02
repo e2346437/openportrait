@@ -1,6 +1,6 @@
 # OpenPortrait: product spec and architecture
 
-Status: draft for review (step 1 of the project plan). Open questions are listed at the end.
+Status: living document. Milestones 2 to 5 are built and shipping; sections describe what OpenPortrait does, with planned items marked as such. Decisions are in section 12.
 
 ## 1. What OpenPortrait is
 
@@ -38,6 +38,7 @@ All of these are in scope for 1.0. The milestones in section 11 set the build or
 | **Credits and coupons** | Client account credit (gift cards, package print credit) applied to orders. Coupon codes (percent or fixed, expiry, usage limits, scoped to products or booking pages). |
 | **Questionnaires** | A form builder (text, choice, date, file upload, and so on), templates attached to shoot types, sent automatically or by hand, and answers stored on the shoot. |
 | **Galleries** | Client galleries fed from the Unraid share or a web upload, with sets, cover images, multiple favorites lists (each with an optional cap, submitted by the client), downloads (full, web-size, or per photo), access by private link (default), password, or invited emails, expiry dates, and view and download tracking. Each gallery has a payment-lock mode chosen when it is published (lock all downloads until paid, Highlights early with the rest when paid, or no lock), and the studio default lives in Settings > Galleries. The watermark shows only while downloads are payment-locked and goes away automatically once the balance is paid; downloaded files are never watermarked. Each shoot type has an auto-publish switch (off by default) that sends the gallery live as soon as an export finishes. |
+| **Website** | A static studio website builder: three templates, editable colors, fonts, pages and sections, and photos the owner explicitly picks from galleries. Exports a zip of plain files for any static host (Cloudflare Pages recommended). See `docs/website.md`. |
 | **Email** | SMTP sending, branded templates with merge fields, a message log per contact. Automated workflows (for example "send questionnaire 14 days before the shoot") come after 1.0. |
 
 ## 3. Architecture
@@ -202,7 +203,7 @@ Google sync details (as built): shoot times are the source of truth, so one dele
 
 ## 7. Access and security
 
-- **Staff:** email and password with Argon2id hashing, optional TOTP 2FA, and the roles Owner, Staff, and Assistant.
+- **Staff:** email and password with Argon2id hashing, optional two-step sign-in with any authenticator app (TOTP, 10 single-use recovery codes, code reuse refused, five wrong codes lock the second step for 15 minutes; the secret is encrypted with the instance key), and the roles Owner, Staff, and Assistant. Passkeys and an idle timeout are not built yet.
 - **Clients:** no passwords. Magic-link email sign-in to a client portal (quotes, invoices, questionnaires, galleries). Galleries can also have an optional gallery password or a public link.
 - **Exposure:** OpenPortrait assumes it is published through a Cloudflare Tunnel (section 9). No router ports are opened. Port 8080 stays available on the LAN for local access. Other reverse proxies may work but aren't supported.
 - **Secrets:** a session key is generated on first run and stored in `/config`. PayPal and Google secrets are encrypted at rest with that key.
@@ -218,7 +219,7 @@ There is one image, `ghcr.io/e2346437/openportrait` (mirrored to Docker Hub as `
 - CI tests the image with both the compose file and the Unraid template's settings before each release.
 - **Image contents:** `node:22-bookworm-slim` plus three static release binaries: `cloudflared`, `tini` (PID 1) and `gosu`. The entrypoint creates a user for `PUID`/`PGID`, applies `UMASK`, takes ownership of `/config` and `/cache`, fixes only the top level of `/galleries` and `/incoming` (never walking a photo library), and drops privileges. better-sqlite3 and argon2 use their bundled prebuilt binaries, so no compiler is needed for amd64 or arm64.
 - **Tags:** until 1.0, `latest` and `edge` follow `main`; release tags `vX.Y.Z` publish `X.Y.Z` and `X.Y`. At 1.0, `latest` moves to releases only.
-- **Maintenance CLI:** `docker exec -it openportrait openportrait reset-password <email>` sets a temporary password and signs the account out everywhere; `openportrait backup` writes a snapshot to `/config/backups` (nightly snapshots are automatic, 14 kept).
+- **Maintenance CLI:** `docker exec -it openportrait openportrait reset-password <email>` sets a temporary password and signs the account out everywhere; `openportrait disable-mfa <email>` turns off two-step sign-in for an account; `openportrait backup` writes a snapshot to `/config/backups` (nightly snapshots are automatic, 14 kept).
 
 ### Unraid template
 
@@ -393,7 +394,7 @@ Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Dr
 
 ### Extensions
 
-OpenPortrait can load optional extension modules. An extension is an ES module (`name.mjs`) in the `extensions` folder of the config directory (or `OPENPORTRAIT_EXTENSIONS_DIR`) that exports `register(api)`. Through `api` it can define MCP tools (`defineTool`), mount owner-only routes under `/api/studio/extensions/<name>/`, switch capability groups on and off (`grantCapability`, `revokeCapability`), and run code on shutdown. Core can mark a capability group as provided by an extension (`lockCapability`); its tools stay hidden until an extension grants it. A module that fails to load is skipped and logged, and the app always boots. The loaded modules and their SHA-256 hashes are listed at `GET /api/studio/extensions`. Loading code from the folder has the same trust as the container itself, so keep it writable only by the app user.
+OpenPortrait can load optional extension modules. An extension is an ES module (`name.mjs`) in the `extensions` folder of the config directory (or `OPENPORTRAIT_EXTENSIONS_DIR`) that exports `register(api)`. Through `api` it can define MCP tools (`defineTool`), mount owner-only routes under `/api/studio/extensions/<name>/`, switch capability groups on and off (`lockCapability`, `grantCapability`, `revokeCapability`), show settings cards, add whole pages to the sidebar (`page`), and run code on shutdown. A page is a description, not UI code: a filter, summary tiles, a table, an add/edit form and an optional CSV export, all backed by the extension's own routes. The app draws it at `/studio/x/<extension>/<slug>`, and a route can answer `{ locked: "message" }` to show that message in place of the records. `api.z` is the app's own copy of zod for validating input. Core can mark a capability group as provided by an extension (`lockCapability`); its tools stay hidden until an extension grants it. A module that fails to load is skipped and logged, and the app always boots. The loaded modules and their SHA-256 hashes are listed at `GET /api/studio/extensions`. Loading code from the folder has the same trust as the container itself, so keep it writable only by the app user.
 
 **Original storage hook.** By default full-size originals live in the galleries folder. An extension can attach remote storage for them through `api.originals` (`apps/server/src/galleries/originals.ts`). It supplies a store with `get(key)` and `delete(key)`, uploads and checks copies itself, then calls `markRemote(photoId, key, { sizeBytes })`, which records the key on the photo (`photo.remote_key`) and frees the local file. Thumbnails and previews always stay on local disk, so galleries browse at full speed; the store is read only for full-resolution downloads, zips, and rebuilding previews after the cache is cleared. Every read goes through the gallery's normal checks (sign-in, gallery code, payment lock), never through a public link to the store. If the store is detached, remote photos answer "try again later" and nothing is deleted. A rescan leaves remote photos alone, and a new local file at the same path replaces the stored copy.
 
@@ -423,4 +424,4 @@ Decided by Eric on 2026-11-01:
 
 9. **AI access:** proposed in section 10. Eric chose on 2026-11-01 that outward and money actions need approval by default. The rest of the design, the failsafe default, and the first clients to verify are awaiting confirmation.
 
-Still needed: sample CSV exports from the studio's current system (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.
+The importer (section 3, [`import.md`](import.md)) reads generic CSV and JSON exports.

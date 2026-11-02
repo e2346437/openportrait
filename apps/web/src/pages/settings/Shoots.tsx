@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Button, Callout, Field, Icon, Panel, StatusChip, Switch, TextInput, useToast } from "@openportrait/ui";
+import { Button, Callout, Dialog, Field, Icon, Panel, StatusChip, Switch, TextInput, useToast } from "@openportrait/ui";
 import { api, ApiError } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
 import type { FolderSettings, LeadStage, ShootType } from "../../lib/types.js";
@@ -126,6 +126,7 @@ function TypesPanel() {
   const toast = useToast();
   const { data, error, reload, setData } = useLoad<{ types: ShootType[] }>("/shoot-types");
   const [name, setName] = useState("");
+  const [tasksFor, setTasksFor] = useState<ShootType | null>(null);
   const add = useSubmit(() => api("/shoot-types", { body: { name } }));
 
   const run = async (fn: () => Promise<unknown>, done?: string) => {
@@ -161,7 +162,7 @@ function TypesPanel() {
       {data === null && !error ? <div className="skeleton" style={{ height: 120 }} aria-busy="true" /> : null}
       <div>
         {types.map((t, i) => (
-          <TypeRow key={t.id} type={t} owner={owner} first={i === 0} last={i === types.length - 1} onMove={(d) => reorder(i, i + d)} onChange={(patch) => run(() => api(`/shoot-types/${t.id}`, { method: "PATCH", body: patch }))} onRemove={() => run(async () => { const r = await api<{ result: string }>(`/shoot-types/${t.id}`, { method: "DELETE" }); toast(r.result === "archived" ? `“${t.name}” is archived because shoots use it` : `“${t.name}” removed`); })} />
+          <TypeRow key={t.id} type={t} owner={owner} first={i === 0} last={i === types.length - 1} onMove={(d) => reorder(i, i + d)} onChange={(patch) => run(() => api(`/shoot-types/${t.id}`, { method: "PATCH", body: patch }))} onTasks={() => setTasksFor(t)} onRemove={() => run(async () => { const r = await api<{ result: string }>(`/shoot-types/${t.id}`, { method: "DELETE" }); toast(r.result === "archived" ? `“${t.name}” is archived because shoots use it` : `“${t.name}” removed`); })} />
         ))}
       </div>
       {owner ? (
@@ -173,11 +174,58 @@ function TypesPanel() {
         </form>
       ) : null}
       {add.error ? <Callout tone="bad">{add.error}</Callout> : null}
+      <StarterTasksDialog type={tasksFor} onClose={() => setTasksFor(null)} />
     </Panel>
   );
 }
 
-function TypeRow({ type, owner, first, last, onMove, onChange, onRemove }: { type: ShootType; owner: boolean; first: boolean; last: boolean; onMove: (delta: -1 | 1) => void; onChange: (patch: Record<string, unknown>) => void; onRemove: () => void }) {
+/** The checklist a new shoot of this type starts with. Days count from the shoot's first date: -14 is two weeks before, 7 a week after. */
+function StarterTasksDialog({ type, onClose }: { type: ShootType | null; onClose: () => void }) {
+  const toast = useToast();
+  const loaded = useLoad<{ items: Array<{ title: string; dueDays: number | null }> }>(type ? `/shoot-types/${type.id}/tasks` : null);
+  const [rows, setRows] = useState<Array<{ title: string; days: string }>>([]);
+  useEffect(() => {
+    if (loaded.data) setRows(loaded.data.items.map((i) => ({ title: i.title, days: i.dueDays === null ? "" : String(i.dueDays) })));
+  }, [loaded.data]);
+  const save = useSubmit(async () => {
+    const items = rows.filter((r) => r.title.trim()).map((r) => ({ title: r.title, dueDays: r.days.trim() === "" ? null : Number(r.days) }));
+    if (items.some((i) => i.dueDays !== null && !Number.isInteger(i.dueDays))) throw new Error("Days must be whole numbers, like -14 or 7.");
+    await api(`/shoot-types/${type!.id}/tasks`, { method: "PUT", body: { items } });
+    toast("Starter tasks saved");
+    onClose();
+  });
+  const set = (i: number, patch: Partial<{ title: string; days: string }>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  return (
+    <Dialog
+      open={!!type}
+      onClose={onClose}
+      title={type ? `Starter tasks for ${type.name}` : ""}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" loading={save.busy} onClick={() => save.submit()}>Save</Button>
+        </>
+      }
+    >
+      {save.error ? <Callout tone="bad">{save.error}</Callout> : null}
+      <p className="muted">Every new {type?.name.toLowerCase()} shoot starts with these. Days count from the shoot's first date: -14 is two weeks before, 7 is a week after. Leave it empty for no due date. Shoots you already have aren't changed.</p>
+      <div className="stack" style={{ gap: 8 }}>
+        {rows.map((r, i) => (
+          <div key={i} className="task-add" style={{ marginTop: 0 }}>
+            <TextInput aria-label={`Task ${i + 1}`} placeholder="Task" value={r.title} maxLength={200} onChange={(e) => set(i, { title: e.target.value })} />
+            <TextInput aria-label={`Days from the shoot for task ${i + 1}`} inputMode="numeric" placeholder="Days" style={{ maxWidth: 90 }} value={r.days} onChange={(e) => set(i, { days: e.target.value })} />
+            <Button size="sm" variant="ghost" className="icon danger" icon="trash" aria-label={`Remove task ${i + 1}`} onClick={() => setRows((x) => x.filter((_, j) => j !== i))} />
+          </div>
+        ))}
+        {rows.length < 40 ? (
+          <div><Button size="sm" variant="ghost" icon="plus" onClick={() => setRows((x) => [...x, { title: "", days: "" }])}>Add a task</Button></div>
+        ) : null}
+      </div>
+    </Dialog>
+  );
+}
+
+function TypeRow({ type, owner, first, last, onMove, onChange, onRemove, onTasks }: { type: ShootType; owner: boolean; first: boolean; last: boolean; onMove: (delta: -1 | 1) => void; onChange: (patch: Record<string, unknown>) => void; onRemove: () => void; onTasks: () => void }) {
   const [name, setName] = useState(type.name);
   const [label, setLabel] = useState(type.folderLabel);
   useEffect(() => {
@@ -207,6 +255,7 @@ function TypeRow({ type, owner, first, last, onMove, onChange, onRemove }: { typ
         </label>
         {owner ? (
           <>
+            <Button size="sm" variant="ghost" icon="check" onClick={onTasks}>Tasks</Button>
             <span className="reorder">
               <Button size="sm" variant="ghost" className="icon" icon="arrowUp" aria-label={`Move ${type.name} up`} disabled={first} onClick={() => onMove(-1)} />
               <Button size="sm" variant="ghost" className="icon" icon="arrowDown" aria-label={`Move ${type.name} down`} disabled={last} onClick={() => onMove(1)} />

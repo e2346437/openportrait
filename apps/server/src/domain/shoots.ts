@@ -1,10 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { and, asc, desc, eq, isNull, or, sql, count } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql, count } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import { displayName, logActivity } from "./contacts.js";
 import { DomainError, newId, notFound, type ServiceContext } from "./context.js";
 import { autoSendForShoot } from "./questionnaires.js";
+import { applyTypeTasks } from "./tasks.js";
 import {
   cleanSubdir,
   createShootFolder,
@@ -81,12 +82,15 @@ export interface ShootQuery {
   when?: "upcoming" | "past" | "all";
   limit?: number;
   offset?: number;
+  /** Only these shoots. An empty list matches nothing. */
+  ids?: string[];
 }
 
 export function listShoots(ctx: ServiceContext, query: ShootQuery = {}) {
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 200);
   const offset = Math.max(query.offset ?? 0, 0);
   const conditions = [];
+  if (query.ids) conditions.push(query.ids.length ? inArray(shoot.id, query.ids) : sql`0`);
   if (query.status === "active") conditions.push(sql`${shoot.status} not in ('complete', 'cancelled')`);
   else if (query.status) conditions.push(eq(shoot.status, query.status));
   const startOfToday = new Date();
@@ -188,6 +192,7 @@ export function createShoot(
   });
   logActivity(ctx, { contactId: primary.id, shootId: id, leadId: input.leadId ?? null, kind: "shoot.created", summary: `${type.name} shoot booked for ${subject}` });
   const folderError = ensureFolder(ctx, id);
+  applyTypeTasks(ctx, id);
   autoSendForShoot(ctx, id);
   return { shoot: getShoot(ctx, id), folderError };
 }

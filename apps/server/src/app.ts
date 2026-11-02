@@ -19,8 +19,11 @@ import { GalleryIngest } from "./galleries/ingest.js";
 import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
 import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
+import { siteRoutes } from "./routes/site.js";
+import { registerFreeTemplates } from "./site/templates.js";
 import { mcpRoutes } from "./ai/mcp.js";
 import { Originals } from "./galleries/originals.js";
+import { enforceShootScope, shootScopeFor } from "./scope.js";
 import { loadExtensions, extensionRoutes } from "./extensions.js";
 import { oauthRoutes, oauthStudioRoutes } from "./ai/oauth.js";
 import { aiRoutes } from "./routes/ai.js";
@@ -35,13 +38,17 @@ import { calendarRoutes } from "./routes/calendar.js";
 import { googleRoutes } from "./routes/google.js";
 import { bookingRoutes } from "./routes/booking.js";
 import { orderRoutes } from "./routes/orders.js";
+import { reportRoutes } from "./routes/reports.js";
 import { contractRoutes } from "./routes/contracts.js";
+import { householdRoutes } from "./routes/households.js";
+import { taskRoutes } from "./routes/tasks.js";
 import { publicRoutes } from "./routes/public.js";
 import { questionnaireRoutes } from "./routes/questionnaires.js";
 import { registerEmailJob } from "./domain/email.js";
 import { registerGoogleSyncJob } from "./google/job.js";
 import { crmRoutes } from "./routes/crm.js";
 import { importRoutes } from "./routes/import.js";
+import { exportRoutes } from "./routes/export.js";
 import { internetRoutes } from "./routes/internet.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { setupRoutes } from "./routes/setup.js";
@@ -196,7 +203,10 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   app.addHook("onRequest", async (req) => {
     const token = req.cookies[SESSION_COOKIE];
     req.user = token ? lookupSession(db, token) : null;
+    req.shootScope = shootScopeFor(req.user);
   });
+  app.decorateRequest("shootScope", null);
+  app.addHook("onRequest", enforceShootScope);
 
   app.addHook("onSend", async (req, reply, payload) => {
     reply.header("Content-Security-Policy", CSP);
@@ -228,6 +238,8 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(internetRoutes, { prefix: "/api/studio/internet" });
   await app.register(galleryRoutes, { prefix: "/api/studio/galleries" });
   await app.register(ingestRoutes, { prefix: "/api/studio/ingest" });
+  registerFreeTemplates();
+  await app.register(siteRoutes, { prefix: "/api/studio/site" });
   // Client pages and their media are public; the private link (and signed media URLs) are the key.
   await app.register(clientGalleryRoutes, { prefix: "/api/g" });
   await app.register(mediaRoutes);
@@ -236,6 +248,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });
   await app.register(importRoutes, { prefix: "/api/studio/import" });
+  await app.register(exportRoutes, { prefix: "/api/studio/export" });
   await app.register(tetherRoutes, { prefix: "/api/studio/tether" });
   await app.register(incomingRoutes, { prefix: "/api/studio/incoming" });
   await app.register(uploadRoutes, { prefix: "/api/studio/upload" });
@@ -243,7 +256,10 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(googleRoutes, { prefix: "/api/studio/google" });
   await app.register(bookingRoutes, { prefix: "/api/studio" });
   await app.register(orderRoutes, { prefix: "/api/studio" });
+  await app.register(reportRoutes, { prefix: "/api/studio" });
   await app.register(contractRoutes, { prefix: "/api/studio" });
+  await app.register(householdRoutes, { prefix: "/api/studio" });
+  await app.register(taskRoutes, { prefix: "/api/studio" });
   await app.register(questionnaireRoutes, { prefix: "/api/studio" });
   // Clients reach these without signing in, so they sit outside /api/studio and its access rule.
   await app.register(publicRoutes, { prefix: "/api/public" });

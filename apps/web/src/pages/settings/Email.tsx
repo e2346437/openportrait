@@ -7,6 +7,8 @@ import { useLoad } from "../../lib/useLoad.js";
 
 interface EmailState {
   configured: boolean;
+  /** Set when an extension's mailbox is sending the studio's email. */
+  outside?: string | null;
   host: string;
   port: number;
   security: "none" | "starttls" | "tls";
@@ -60,6 +62,9 @@ export function EmailSettingsPage() {
         description="OpenPortrait sends booking confirmations and inquiry replies through your own email account, so they come from you."
         actions={<StatusChip tone={data.configured ? "ok" : "warn"}>{data.configured ? "Ready" : "Not set up"}</StatusChip>}
       >
+        {data.outside ? (
+          <Callout tone="info">Email is going out through {data.outside}, so the server settings below aren't used while it is connected. Disconnect it in Settings &gt; Extensions to go back to them.</Callout>
+        ) : null}
         <form onSubmit={onSave} noValidate className="form-grid">
           {save.error ? (
             <div className="span-2">

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "64c88d26-1f16-47ba-88fc-963e7c02c041",
+  "id": "083f781b-35d0-4053-8e98-06d2fdb20706",
   "prevId": "13964e73-9bb7-423c-9dc9-41af4e7317a8",
   "tables": {
     "ai_approval": {
@@ -1736,13 +1736,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "remote_key": {
-          "name": "remote_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "version": {
           "name": "version",
           "type": "integer",
@@ -3434,6 +3427,14 @@
           "autoincrement": false,
           "default": 0
         },
+        "create_shoot": {
+          "name": "create_shoot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
         "max_per_day": {
           "name": "max_per_day",
           "type": "integer",
@@ -3557,6 +3558,13 @@
         },
         "order_id": {
           "name": "order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "shoot_id": {
+          "name": "shoot_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

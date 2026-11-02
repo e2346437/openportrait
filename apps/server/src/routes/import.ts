@@ -13,7 +13,7 @@ const Body = z.object({
   text: z.string().min(1, "Choose a file first.").max(15_000_000),
   /** Field key to the file's column name. Omit to let OpenPortrait guess from the column names. */
   mapping: z.record(z.string(), z.string()).optional(),
-  source: z.string().trim().min(1).max(60).default("Sprout Studio"),
+  source: z.string().trim().min(1).max(60).default("Previous system"),
   updateExisting: z.boolean().optional(),
 });
 

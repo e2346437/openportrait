@@ -41,7 +41,7 @@ export function ImportSettingsPage() {
   const toast = useToast();
   const fields = useLoad<{ fields: Record<Kind, FieldDef[]> }>("/import/fields").data?.fields;
   const [kind, setKind] = useState<Kind>("contacts");
-  const [source, setSource] = useState("Sprout Studio");
+  const [source, setSource] = useState("Previous system");
   const [fileName, setFileName] = useState("");
   const [text, setText] = useState("");
   const [mapping, setMapping] = useState<Record<string, string> | null>(null);
@@ -108,6 +108,14 @@ export function ImportSettingsPage() {
             </Field>
           </div>
           {kind === "contacts" ? <SwitchRow checked={update} onChange={(v) => { setUpdate(v); reset(); }} label="Update clients I already have" hint="Fills in blank details and adds tags and notes. Existing details are never overwritten." /> : null}
+        </div>
+      </Panel>
+
+      <Panel title="Export your data" description="Download your clients, shoots and invoices as CSV files for a spreadsheet, your accountant, or a backup. They can be imported again here.">
+        <div className="row-gap wrap">
+          {KINDS.map((k) => (
+            <a key={k.value} className="btn" href={`/api/studio/export/${k.value}.csv`} download>{k.label} (CSV)</a>
+          ))}
         </div>
       </Panel>
 

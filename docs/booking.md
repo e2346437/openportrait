@@ -39,3 +39,11 @@ Under **Booking > Booking pages > Edit**:
 
 - **Special dates** replace the weekly hours for one calendar day. Tick *Closed* for a holiday or trip, or give that date its own hours, for example a Saturday mini-session day. Dates that have passed are dropped when you save.
 - **Most bookings per day** stops a page from offering a day once it holds that many pending or confirmed bookings. Cancelling one frees the day again. Leave it at 0 for no limit.
+
+## Booking becomes a shoot
+
+If a booking page has a shoot type, switch on **Make a shoot when it's booked**. The moment a booking is confirmed (straight away on instant pages, or when you approve a request) it is turned into a shoot for that client with the booked time as its event, and the lead moves to Booked. The calendar shows the shoot's event instead of a separate appointment. If the booking is later cancelled or declined, the shoot is marked cancelled. Leave it off for calls and consults that should stay as leads.
+
+## Questionnaire at booking
+
+When a booking page makes a shoot, the shoot behaves like any other: if its shoot type has a questionnaire set to "Send when booked" (Settings > Questionnaires), the client gets the form by email as soon as the booking is confirmed. For a page that needs approval, that is when you confirm the request. With no email address or mail setup, the form waits as a draft on the shoot.

@@ -59,7 +59,7 @@ jobs:
       - run: pip install semgrep==1.* 
       - name: Scan
         run: security/scripts/scan.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: static-reports
@@ -94,7 +94,7 @@ jobs:
           if [ "${{ github.event_name }}" = "release" ] || [ "${{ inputs.enforce }}" = "true" ]; then ENFORCE="--enforce"; fi
           node security/scripts/gate.mjs $ENFORCE | tee -a "$GITHUB_STEP_SUMMARY"
           exit "${PIPESTATUS[0]}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: security-reports

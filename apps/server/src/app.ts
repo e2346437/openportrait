@@ -19,6 +19,7 @@ import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
 import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
 import { mcpRoutes } from "./ai/mcp.js";
+import { loadExtensions, extensionRoutes } from "./extensions.js";
 import { oauthRoutes, oauthStudioRoutes } from "./ai/oauth.js";
 import { aiRoutes } from "./routes/ai.js";
 import { automationRoutes } from "./routes/automation.js";
@@ -184,6 +185,10 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(mcpRoutes);
   await app.register(oauthRoutes);
   await app.register(oauthStudioRoutes, { prefix: "/api/studio/oauth" });
+
+  // Optional extension modules from /config/extensions. A broken one is skipped; core always boots.
+  const extensions = await loadExtensions(app, ctx);
+  await app.register(extensionRoutes(extensions), { prefix: "/api/studio/extensions" });
 
   app.all("/api/*", async (_req, reply) => reply.code(404).send({ error: "not_found", message: "No such endpoint." }));
 

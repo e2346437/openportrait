@@ -28,6 +28,7 @@ const Booking = z.object({
   email: z.string().trim().max(254),
   phone: z.string().trim().max(60).optional(),
   message: z.string().trim().max(2000).optional(),
+  couponCode: z.string().trim().max(40).optional(),
   website: z.string().max(500).optional(),
 });
 
@@ -66,7 +67,15 @@ export async function publicRoutes(app: FastifyInstance) {
       studioName: c.settings.get("studio.name") ?? "",
       timezone: c.settings.get("studio.timezone") ?? "UTC",
       maxDaysAhead: s.maxDaysAhead,
+      price: sched.priceFor(c, s),
+      deposit: s.priceCents > 0 && s.depositType !== "none" ? { type: s.depositType, value: s.depositValue } : null,
     };
+  });
+  // Lets a visitor check a coupon and see the new price and deposit before they book.
+  app.post("/book/:slug/price", { config: limit(20) }, async (req, reply) => {
+    const body = parse(z.object({ couponCode: z.string().trim().max(40).optional() }), req.body ?? {}, reply);
+    if (!body) return;
+    return { price: sched.priceFor(ctx(req), page(req), body.couponCode) };
   });
   app.get("/book/:slug/slots", { config: limit(60) }, async (req, reply) => {
     const q = parse(z.object({ from: z.string(), to: z.string() }), req.query, reply);
@@ -98,6 +107,12 @@ export async function publicRoutes(app: FastifyInstance) {
   app.post("/order/:token/credit", { config: limit(10) }, async (req) => {
     const o = orders.byToken(ctx(req), orderToken(req));
     credits.applyCredit(ctx(req), o.id);
+    return orderPage(req);
+  });
+  app.post("/order/:token/coupon", { config: limit(10) }, async (req, reply) => {
+    const body = parse(z.object({ code: z.string().trim().max(40) }), req.body, reply);
+    if (!body) return;
+    orders.applyQuoteCoupon(ctx(req), orderToken(req), body.code);
     return orderPage(req);
   });
   app.post("/order/:token/pay", { config: limit(10) }, async (req, reply) => {

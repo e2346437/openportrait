@@ -39,6 +39,7 @@ defineTool({
       phone: plain(c.phone),
       company: plain(c.company),
       tags: c.tags.map((t: string) => plain(t)),
+      household: c.household ? { name: plain(c.household.name), others: c.household.members.map((m) => ({ id: m.id, name: plain(m.name) })) } : null,
       leads: c.leads.map((l) => ({ id: l.id, stage: l.stage, shootType: l.shootType, eventDate: l.eventDate, convertedShootId: l.convertedShootId })),
       shoots: c.shoots.map((s) => ({ id: s.id, subject: plain(s.subject), status: s.status, shootType: s.shootType, startsAt: iso(s.startsAt) })),
       // Every timeline entry can contain text that came from outside (emails, form answers), so all of it is wrapped.

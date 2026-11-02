@@ -30,13 +30,14 @@ const caller = { level: "full" as const, areas: ["studio"] };
 describe("extensions", () => {
   it("loads a module, mounts owner-only routes, and lists it", async () => {
     const cookie = await boot({
-      "hello.mjs": `export function register(api) { api.routes(async (r) => { r.get("/ping", async () => ({ pong: api.id })); }); }`,
+      "hello.mjs": `export function register(api) { api.settingsCard({ title: "Hello", status: { route: "/ping" }, actions: [] }); api.routes(async (r) => { r.get("/ping", async () => ({ pong: api.id })); }); }`,
     });
     expect((await app!.inject({ method: "GET", url: "/api/studio/extensions/hello/ping" })).statusCode).toBe(401);
     const ok = await app!.inject({ method: "GET", url: "/api/studio/extensions/hello/ping", headers: { cookie } });
     expect(ok.json()).toEqual({ pong: "hello" });
     const list = await app!.inject({ method: "GET", url: "/api/studio/extensions", headers: { cookie } });
     expect(list.json().extensions[0]).toMatchObject({ id: "hello", status: "loaded" });
+    expect(list.json().extensions[0].cards[0].title).toBe("Hello");
     expect(list.json().extensions[0].sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 

@@ -12,6 +12,8 @@ import { verifyPassword } from "../auth.js";
 import { planZip, splitParts, streamZip, zipFilename, type Scope } from "../galleries/zip.js";
 import { email, parse } from "../validate.js";
 import { notifyFavorites } from "../galleries/mail.js";
+import { composeEmail, getEmailConfig, queueEmail } from "../domain/email.js";
+import crypto from "node:crypto";
 
 const { gallery, gallerySet, photo, favoriteList, favoriteSelection, favoriteItem, galleryView, galleryVisitor, downloadEvent } = tables;
 
@@ -187,21 +189,65 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     };
   });
 
+  // ---- who is the visitor? ----
+  // When the studio can send email, an address must be proven before a visitor acts as it: a six-digit code, good for
+  // 15 to 30 minutes, is emailed and typed back (SEC-012). Without email set up, the address is taken as typed, as before.
+  const CODE_MS = 15 * 60_000;
+  const codeFor = (g: Gallery, addr: string, bucket: number) =>
+    (parseInt(crypto.createHash("sha256").update(secrets.sign("visitor-code", `${g.id}:${addr.toLowerCase()}:${bucket}`)).digest("hex").slice(0, 8), 16) % 1_000_000).toString().padStart(6, "0");
+  const codeOk = (g: Gallery, addr: string, given: string) => {
+    const now = Math.floor(Date.now() / CODE_MS);
+    return [now, now - 1].some((bkt) => {
+      const want = Buffer.from(codeFor(g, addr, bkt));
+      const got = Buffer.from(given.replace(/\s/g, "").padStart(6, "0"));
+      return want.length === got.length && crypto.timingSafeEqual(want, got);
+    });
+  };
+  const wrong = new Map<string, { n: number; resetAt: number }>();
+  const grant = (req: FastifyRequest, reply: FastifyReply, g: Gallery, addr: string, name?: string) => {
+    if (name || g.registration !== "none") {
+      db.insert(galleryVisitor)
+        .values({ galleryId: g.id, email: addr, name: name || null })
+        .onConflictDoUpdate({ target: [galleryVisitor.galleryId, galleryVisitor.email], set: name ? { name } : { email: addr } })
+        .run();
+    }
+    const value = `${Buffer.from(addr).toString("base64url")}.${secrets.sign("client", addr)}`;
+    reply.setCookie(CLIENT_COOKIE, value, { path: "/", httpOnly: true, sameSite: "lax", secure: req.protocol === "https" || req.headers["x-forwarded-proto"] === "https", maxAge: CLIENT_COOKIE_DAYS * 86_400 });
+    return { me: me(g, addr) };
+  };
+
   app.post<{ Params: { slug: string } }>("/:slug/identify", { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (req, reply) => {
     const g = load(req, reply);
     if (!g) return;
     const body = parse(z.object({ email, name: z.string().trim().max(100).optional() }), req.body, reply);
     if (!body) return;
     if (g.registration === "email_name" && !body.name) return reply.code(400).send({ error: "invalid", field: "name", message: "Enter your name." });
-    if (body.name || g.registration !== "none") {
-      db.insert(galleryVisitor)
-        .values({ galleryId: g.id, email: body.email, name: body.name || null })
-        .onConflictDoUpdate({ target: [galleryVisitor.galleryId, galleryVisitor.email], set: body.name ? { name: body.name } : { email: body.email } })
-        .run();
+    if (!req.user && getEmailConfig(settings)) {
+      const studio = settings.get("studio.name") || "Your photographer";
+      const code = codeFor(g, body.email, Math.floor(Date.now() / CODE_MS));
+      const mail = composeEmail(studio, [`Your code for ${g.title} is ${code}.`, "Enter it on the gallery page to continue. It works for about 15 minutes. If you didn't ask for it, you can ignore this email."]);
+      queueEmail({ db, settings }, { to: body.email, subject: `${code} is your gallery code`, text: mail.text, html: mail.html, kind: "gallery_code", galleryId: g.id });
+      reply.code(202);
+      return { verify: true, email: body.email };
     }
-    const value = `${Buffer.from(body.email).toString("base64url")}.${secrets.sign("client", body.email)}`;
-    reply.setCookie(CLIENT_COOKIE, value, { path: "/", httpOnly: true, sameSite: "lax", secure: req.protocol === "https" || req.headers["x-forwarded-proto"] === "https", maxAge: CLIENT_COOKIE_DAYS * 86_400 });
-    return { me: me(g, body.email) };
+    return grant(req, reply, g, body.email, body.name);
+  });
+
+  app.post<{ Params: { slug: string } }>("/:slug/verify", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {
+    const g = load(req, reply);
+    if (!g) return;
+    const body = parse(z.object({ email, code: z.string().min(4).max(12), name: z.string().trim().max(100).optional() }), req.body, reply);
+    if (!body) return;
+    const key = `${g.id}:${body.email.toLowerCase()}`;
+    const now = Date.now();
+    const w = wrong.get(key);
+    if (w && w.resetAt > now && w.n >= 5) return reply.code(429).send({ error: "rate_limited", field: "code", message: "Too many wrong codes. Ask for a new one in a few minutes." });
+    if (!codeOk(g, body.email, body.code)) {
+      wrong.set(key, !w || w.resetAt < now ? { n: 1, resetAt: now + CODE_MS } : { n: w.n + 1, resetAt: w.resetAt });
+      return reply.code(401).send({ error: "wrong_code", field: "code", message: "That code isn't right, or it has expired. Check your email or ask for a new one." });
+    }
+    wrong.delete(key);
+    return grant(req, reply, g, body.email, body.name);
   });
 
   app.post<{ Params: { slug: string } }>("/:slug/unlock", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {

@@ -226,3 +226,8 @@ section.next { border-top: 1px solid var(--g-line); padding: var(--s7) max(16px,
 .client .zips .btn { text-decoration: none; }
 .lbb.del.sure { background: #b3261e; color: #fff; }
 .lbb.del:disabled { opacity: 0.6; }
+
+/* Text-style button, such as "send a new code". */
+.linkish { background: none; border: 0; padding: 4px 0; font: inherit; font-size: 13.5px; color: var(--g-ink-2, inherit); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; align-self: center; }
+.linkish:hover { color: var(--g-ink); }
+.linkish:focus-visible { outline: 2px solid var(--g-ink, currentColor); outline-offset: 2px; border-radius: 4px; }

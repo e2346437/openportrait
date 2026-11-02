@@ -139,7 +139,7 @@
       "id": "SEC-009",
       "title": "No Content-Security-Policy, HSTS or Permissions-Policy",
       "severity": "Low",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:A/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
       "tests": [
@@ -187,7 +187,7 @@
       "id": "SEC-012",
       "title": "A visitor can act as any email address; the password gate is not applied to identify",
       "severity": "Low",
-      "status": "open",
+      "status": "mitigated",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
       "tests": [
@@ -196,7 +196,8 @@
       "needsApproval": "gallery access behaviour",
       "deployments": [
         "all deployments"
-      ]
+      ],
+      "note": "When the studio has email set up, a visitor must enter a 6-digit emailed code before acting as an address (5 wrong tries lock it for 15 minutes). Without email, the address is still taken as typed."
     },
     {
       "id": "SEC-013",

@@ -168,9 +168,17 @@ describe("SEC-015 stored secrets", () => {
 });
 
 describe("SEC-009 browser hardening headers", () => {
-  openFinding("SEC-009", "responses carry a Content-Security-Policy", async () => {
+  control("SEC-009", "responses carry a Content-Security-Policy that blocks foreign scripts and framing, and Permissions-Policy; HSTS only over HTTPS and never for subdomains", async () => {
     const res = await d.app.inject({ url: "/api/health" });
-    expect(res.headers["content-security-policy"]).toBeTruthy();
+    const csp = String(res.headers["content-security-policy"]);
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).toContain("frame-ancestors 'self'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).not.toContain("unsafe-eval");
+    expect(res.headers["permissions-policy"]).toBeTruthy();
+    expect(res.headers["strict-transport-security"]).toBeUndefined();
+    const tls = await d.app.inject({ url: "/api/health", headers: { "x-forwarded-proto": "https" } });
+    expect(String(tls.headers["strict-transport-security"])).toMatch(/^max-age=\d+$/);
   });
   control("SEC-009c", "the headers that are set stay set", async () => {
     const res = await d.app.inject({ url: "/api/health" });

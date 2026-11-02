@@ -3,15 +3,16 @@ import { and, asc, desc, eq, like, or, sql } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import { displayName, logActivity } from "./contacts.js";
 import { DomainError, linkTo, newId, notFound, type ServiceContext } from "./context.js";
+import { evaluate as evaluateCoupon } from "./coupons.js";
 import { composeEmail, queueEmail } from "./email.js";
 import { formatMoney, totalsFor } from "./money.js";
 import { addDays, isYmd, ymdIn } from "./time.js";
 
-const { order, orderLine, paymentSchedule, payment, counter, contact } = tables;
+const { order, orderLine, paymentSchedule, payment, counter, contact, creditEntry } = tables;
 
 export type OrderRow = typeof order.$inferSelect;
 
-export const METHODS = ["cash", "check", "card", "venmo", "zelle", "paypal", "bank", "other"] as const;
+export const METHODS = ["cash", "check", "card", "venmo", "zelle", "paypal", "bank", "credit", "other"] as const;
 export type Method = (typeof METHODS)[number];
 
 export interface OrderLineInput {
@@ -35,6 +36,8 @@ export interface OrderInput {
   intro?: string | null;
   terms?: string | null;
   discountCents?: number;
+  /** A coupon code to apply. Empty or omitted means none. */
+  couponCode?: string | null;
   validUntil?: string | null;
   lines: OrderLineInput[];
   /** Omit for one payment of the whole amount, due on acceptance. */
@@ -147,7 +150,10 @@ function detail(ctx: ServiceContext, o: OrderRow) {
     intro: o.intro,
     terms: o.terms,
     subtotalCents: o.subtotalCents,
-    discountCents: o.discountCents,
+    /** The hand-typed discount. The coupon's share is `couponCents`; the two add up to what was taken off. */
+    discountCents: o.discountCents - o.couponCents,
+    couponCode: o.couponCode,
+    couponCents: o.couponCents,
     taxCents: o.taxCents,
     taxBps: o.taxBps,
     token: o.token,
@@ -167,7 +173,7 @@ export const getOrder = (ctx: ServiceContext, id: string) => detail(ctx, rowOf(c
 
 // ---- writing ----
 
-function clean(ctx: ServiceContext, input: OrderInput, taxBps: number) {
+function clean(ctx: ServiceContext, input: OrderInput, taxBps: number, existing?: OrderRow) {
   const title = input.title.trim();
   if (!title) throw new DomainError("invalid", "Give it a title, such as “Wedding collection”.");
   if (input.lines.length === 0) throw new DomainError("invalid", "Add at least one line.");
@@ -182,7 +188,9 @@ function clean(ctx: ServiceContext, input: OrderInput, taxBps: number) {
   });
   const discount = input.discountCents ?? 0;
   if (!Number.isInteger(discount) || discount < 0) throw new DomainError("invalid", "The discount must be zero or more.");
-  const totals = totalsFor(lines, discount, taxBps);
+  const code = input.couponCode?.trim();
+  const coupon = code ? evaluateCoupon(ctx, code, lines, { orderId: existing?.id, keepCouponId: existing?.couponId, manualDiscountCents: discount }) : null;
+  const totals = totalsFor(lines, discount + (coupon?.cents ?? 0), taxBps);
   if (totals.totalCents < 0) throw new DomainError("invalid", "The total can't be below zero.");
   if (input.validUntil && !isYmd(input.validUntil)) throw new DomainError("invalid", "Enter the “valid until” date as year-month-day.");
   const schedule = (input.schedule?.length ? input.schedule : [{ label: "Payment in full", amountCents: totals.totalCents, dueDate: null }]).map((s) => {
@@ -193,7 +201,7 @@ function clean(ctx: ServiceContext, input: OrderInput, taxBps: number) {
   });
   const sum = schedule.reduce((n, s) => n + s.amountCents, 0);
   if (sum !== totals.totalCents) throw new DomainError("invalid", `The payments add up to ${money(ctx, sum)}, but the total is ${money(ctx, totals.totalCents)}.`);
-  return { title, lines, totals, schedule, validUntil: input.validUntil || null };
+  return { title, lines, totals, schedule, coupon, validUntil: input.validUntil || null };
 }
 
 function ensureContact(ctx: ServiceContext, id: string) {
@@ -201,11 +209,11 @@ function ensureContact(ctx: ServiceContext, id: string) {
   if (!c) throw notFound("Contact");
 }
 
-function write(ctx: ServiceContext, id: string, input: OrderInput, taxBps: number) {
-  const v = clean(ctx, input, taxBps);
+function write(ctx: ServiceContext, id: string, input: OrderInput, taxBps: number, existing?: OrderRow) {
+  const v = clean(ctx, input, taxBps, existing);
   ctx.db
     .update(order)
-    .set({ title: v.title, intro: input.intro?.trim() || null, terms: input.terms?.trim() ?? null, discountCents: v.totals.discountCents, subtotalCents: v.totals.subtotalCents, taxCents: v.totals.taxCents, totalCents: v.totals.totalCents, taxBps, validUntil: v.validUntil, shootId: input.shootId ?? null, leadId: input.leadId ?? null, updatedAt: new Date() })
+    .set({ title: v.title, intro: input.intro?.trim() || null, terms: input.terms?.trim() ?? null, discountCents: v.totals.discountCents, couponId: v.coupon?.couponId ?? null, couponCode: v.coupon?.code ?? null, couponCents: v.coupon?.cents ?? 0, subtotalCents: v.totals.subtotalCents, taxCents: v.totals.taxCents, totalCents: v.totals.totalCents, taxBps, validUntil: v.validUntil, shootId: input.shootId ?? null, leadId: input.leadId ?? null, updatedAt: new Date() })
     .where(eq(order.id, id))
     .run();
   ctx.db.delete(orderLine).where(eq(orderLine.orderId, id)).run();
@@ -247,7 +255,7 @@ export function updateOrder(ctx: ServiceContext, id: string, input: OrderInput) 
   ctx.db.transaction((tx) => {
     const t = { ...ctx, db: tx as unknown as ServiceContext["db"] };
     t.db.update(order).set({ contactId: input.contactId }).where(eq(order.id, id)).run();
-    write(t, id, input, ctx.settings.get("money.taxBps") ?? o.taxBps);
+    write(t, id, input, ctx.settings.get("money.taxBps") ?? o.taxBps, o);
   });
   return getOrder(ctx, id);
 }
@@ -326,6 +334,7 @@ export function recordPayment(ctx: ServiceContext, id: string, input: PaymentInp
   if (o.kind !== "invoice" || o.status !== "sent") throw new DomainError("invalid", "Payments can be recorded on a sent invoice.");
   if (!METHODS.includes(input.method)) throw new DomainError("invalid", "Choose how it was paid.");
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) throw new DomainError("invalid", "Enter the amount received.");
+  if (input.method === "credit" && source.provider !== "credit") throw new DomainError("invalid", "Use “Apply credit” to pay from a client's credit.");
   if (source.provider && source.providerRef) {
     // A processor can tell us about the same payment twice (the client returning and a webhook). Record it once.
     const seen = ctx.db.select({ id: payment.id }).from(payment).where(and(eq(payment.provider, source.provider), eq(payment.providerRef, source.providerRef))).get();
@@ -353,7 +362,11 @@ export function refundPayment(ctx: ServiceContext, id: string, input: { amountCe
   const paid = paidOf(ctx, id);
   if (input.amountCents > paid) throw new DomainError("invalid", `Only ${money(ctx, paid)} has been paid.`);
   ctx.db.insert(payment).values({ id: newId(), orderId: id, amountCents: -input.amountCents, method: input.method, provider: "manual", note: input.note?.trim().slice(0, 500) || "Refund", paidAt: new Date(), recordedBy: ctx.actorId }).run();
-  logActivity(ctx, { contactId: o.contactId, kind: "payment.refunded", summary: `${money(ctx, input.amountCents)} refunded on ${label(o)}`, shootId: o.shootId });
+  if (input.method === "credit") {
+    // Refunding to credit keeps the money with the studio as a balance the client can spend later.
+    ctx.db.insert(creditEntry).values({ id: newId(), contactId: o.contactId, amountCents: input.amountCents, kind: "refund", note: `Refund from ${label(o)}`, orderId: id, actorId: ctx.actorId }).run();
+  }
+  logActivity(ctx, { contactId: o.contactId, kind: "payment.refunded", summary: `${money(ctx, input.amountCents)} refunded on ${label(o)}${input.method === "credit" ? " as client credit" : ""}`, shootId: o.shootId });
   return getOrder(ctx, id);
 }
 
@@ -403,6 +416,8 @@ export function publicView(ctx: ServiceContext, token: string) {
     lines: d.lines.map((l) => ({ description: l.description, detail: l.detail, quantity: l.quantity, unitCents: l.unitCents })),
     subtotalCents: d.subtotalCents,
     discountCents: d.discountCents,
+    couponCode: d.couponCode,
+    couponCents: d.couponCents,
     taxCents: d.taxCents,
     totalCents: d.totalCents,
     paidCents: d.paidCents,

@@ -28,6 +28,9 @@ interface View {
   schedule: Array<{ label: string; amountCents: number; dueDate: string | null; paidCents: number; status: "paid" | "due" | "overdue" }>;
   paymentInstructions: string;
   contactName: string;
+  couponCode: string | null;
+  couponCents: number;
+  credit: { availableCents: number } | null;
   pay: { provider: string; name: string; dueCents: number; balanceCents: number } | null;
 }
 
@@ -46,6 +49,7 @@ export function OrderViewPage() {
     window.location.assign(r.approveUrl);
     return r;
   };
+  const useCredit = useSubmit(() => publicApi<View>(`/order/${encodeURIComponent(token)}/credit`, { body: {} }));
   const payDue = useSubmit(() => goPay("due"));
   const payAll = useSubmit(() => goPay("balance"));
   // Coming back from PayPal: finish the payment, then show the result and tidy the address bar.
@@ -124,6 +128,7 @@ export function OrderViewPage() {
       <dl className="totals">
         <div><dt>Subtotal</dt><dd>{m(v.subtotalCents)}</dd></div>
         {v.discountCents ? <div><dt>Discount</dt><dd>−{m(v.discountCents)}</dd></div> : null}
+        {v.couponCents ? <div><dt>Coupon {v.couponCode}</dt><dd>−{m(v.couponCents)}</dd></div> : null}
         {v.taxCents ? <div><dt>Tax</dt><dd>{m(v.taxCents)}</dd></div> : null}
         <div className="grand"><dt>Total</dt><dd>{m(v.totalCents)}</dd></div>
         {!quote ? <div><dt>Paid</dt><dd>{m(v.paidCents)}</dd></div> : null}
@@ -149,6 +154,18 @@ export function OrderViewPage() {
       ) : null}
 
       {note ? <Callout tone={note.tone}>{note.text}</Callout> : null}
+      {!quote && v.credit && v.state !== "void" ? (
+        <section className="doc-section pay-box">
+          <h2>Your credit</h2>
+          {useCredit.error ? <Callout tone="bad">{useCredit.error}</Callout> : null}
+          <p className="muted">You have {m(v.credit.availableCents)} of credit with {v.studioName || "the studio"}. Use it toward this invoice.</p>
+          <div className="form-actions">
+            <Button size="lg" loading={useCredit.busy} onClick={async () => { const r = await useCredit.submit(); if (r) { setData(r); setNote({ tone: "ok", text: "Your credit has been applied. Thank you!" }); } }}>
+              Use {m(v.credit.availableCents)} of my credit
+            </Button>
+          </div>
+        </section>
+      ) : null}
       {!quote && v.pay ? (
         <section className="doc-section pay-box">
           <h2>Pay online</h2>

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { DomainError, type ServiceContext } from "../domain/context.js";
 import * as inquiry from "../domain/inquiry.js";
 import * as checkout from "../domain/checkout.js";
+import * as credits from "../domain/credits.js";
 import * as orders from "../domain/orders.js";
 import { verifyWebhook } from "../payments/paypal.js";
 import * as sched from "../domain/scheduler.js";
@@ -84,7 +85,20 @@ export async function publicRoutes(app: FastifyInstance) {
 
   // Quotes and invoices: the private link is the key, so these are rate limited and never cached.
   const orderToken = token;
-  app.get("/order/:token", { config: limit(60) }, async (req) => ({ ...orders.publicView(ctx(req), orderToken(req)), pay: checkout.onlineOptions(ctx(req), orderToken(req)) }));
+  /** The client's page: the document plus what they can do about paying it. */
+  const orderPage = (req: FastifyRequest, view?: ReturnType<typeof orders.publicView>) => {
+    const c = ctx(req);
+    const v = view ?? orders.publicView(c, orderToken(req));
+    const o = orders.byToken(c, orderToken(req));
+    const available = credits.creditAvailable(c, o.id);
+    return { ...v, pay: checkout.onlineOptions(c, orderToken(req)), credit: available > 0 ? { availableCents: available } : null };
+  };
+  app.get("/order/:token", { config: limit(60) }, async (req) => orderPage(req));
+  app.post("/order/:token/credit", { config: limit(10) }, async (req) => {
+    const o = orders.byToken(ctx(req), orderToken(req));
+    credits.applyCredit(ctx(req), o.id);
+    return orderPage(req);
+  });
   app.post("/order/:token/pay", { config: limit(10) }, async (req, reply) => {
     const body = parse(z.object({ amount: z.enum(["due", "balance"]) }), req.body, reply);
     if (!body) return;
@@ -94,7 +108,7 @@ export async function publicRoutes(app: FastifyInstance) {
     const body = parse(z.object({ providerOrderId: z.string().min(1).max(100) }), req.body, reply);
     if (!body) return;
     const { outcome, view } = await checkout.finishCheckout(ctx(req), orderToken(req), body.providerOrderId);
-    return { outcome, ...view, pay: checkout.onlineOptions(ctx(req), orderToken(req)) };
+    return { outcome, ...orderPage(req, view) };
   });
   app.post("/order/:token/accept", { config: limit(10) }, async (req, reply) => {
     const body = parse(z.object({ name: z.string().max(120) }), req.body, reply);

@@ -31,6 +31,7 @@ const groups: Array<{ label?: string; items: NavItem[] }> = [
     label: "Photos",
     items: [
       { to: "/studio/galleries", label: "Galleries", icon: "image" },
+      { to: "/studio/website", label: "Website", icon: "globe" },
       { to: "/studio/incoming", label: "Incoming", icon: "inbox" },
       { to: "/studio/tether", label: "Tethering", icon: "lan" },
     ],

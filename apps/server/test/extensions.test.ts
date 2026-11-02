@@ -116,3 +116,26 @@ describe("extension hooks for shoots and storage", () => {
     expect(by.evil.status).toBe("failed");
   });
 });
+
+describe("extension mail sender", () => {
+  it("sends studio email through an extension's mailbox while it is ready, and reports it", async () => {
+    const cookie = await boot({
+      "mailbox.mjs": `export function register(api) {
+        globalThis.__sent = [];
+        globalThis.__ready = false;
+        api.mailSender({ label: "Test mailbox", ready: () => globalThis.__ready, send: async (m) => { globalThis.__sent.push(m); } });
+      }`,
+    });
+    const g = globalThis as unknown as { __sent: Array<{ to: string; subject: string }>; __ready: boolean };
+    const view = async () => (await app!.inject({ method: "GET", url: "/api/studio/email", headers: { cookie } })).json();
+    expect(await view()).toMatchObject({ configured: false, outside: null });
+    g.__ready = true;
+    expect(await view()).toMatchObject({ configured: true, outside: "Test mailbox" });
+    const test = await app!.inject({ method: "POST", url: "/api/studio/email/test", payload: { to: "me@example.com" }, headers: { cookie } });
+    expect(test.statusCode).toBe(200);
+    expect(g.__sent).toHaveLength(1);
+    expect(g.__sent[0]).toMatchObject({ to: "pat@example.com", subject: "Test email from OpenPortrait" });
+    g.__ready = false;
+    expect(await view()).toMatchObject({ configured: false });
+  });
+});

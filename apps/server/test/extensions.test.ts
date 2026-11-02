@@ -52,6 +52,24 @@ describe("extensions", () => {
     expect(r.json().stats[0]).toEqual({ label: "From", value: "2026-01-01" });
   });
 
+  it("lists the pages a module adds and rejects a bad slug", async () => {
+    const cookie = await boot({
+      "pages.mjs": `export function register(api) {
+        api.page({ slug: "things", title: "Things", icon: "receipt", group: "Books", list: { route: "/things", columns: [{ key: "name", label: "Name" }], empty: { title: "None", text: "Add one." } } });
+        api.routes(async (r) => { r.get("/things", async () => ({ rows: [{ id: "1", name: "a" }], zod: typeof api.z.object })); });
+      }`,
+      "badpage.mjs": `export function register(api) { api.page({ slug: "Bad Slug", title: "x", list: { route: "/x", columns: [], empty: { title: "", text: "" } } }); }`,
+    });
+    const list = (await app!.inject({ method: "GET", url: "/api/studio/extensions", headers: { cookie } })).json().extensions as Array<{ id: string; status: string; pages: Array<{ slug: string; title: string; group: string }> }>;
+    const ok = list.find((e) => e.id === "pages")!;
+    expect(ok.pages).toMatchObject([{ slug: "things", title: "Things", group: "Books" }]);
+    const bad = list.find((e) => e.id === "badpage")!;
+    expect(bad.status).toBe("failed");
+    expect(bad.pages).toEqual([]);
+    const rows = await app!.inject({ method: "GET", url: "/api/studio/extensions/pages/things", headers: { cookie } });
+    expect(rows.json()).toEqual({ rows: [{ id: "1", name: "a" }], zod: "function" });
+  });
+
   it("skips a broken module and still boots", async () => {
     const cookie = await boot({ "bad.mjs": `throw new Error("nope");`, "empty.mjs": `export const x = 1;`, "good.mjs": `export function register() {}` });
     const list = (await app!.inject({ method: "GET", url: "/api/studio/extensions", headers: { cookie } })).json().extensions;

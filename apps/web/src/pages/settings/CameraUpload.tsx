@@ -420,7 +420,7 @@ export function CameraUploadSettingsPage() {
                 {connect.hosts.length ? (
                   connect.hosts.map((h) => <CopyValue key={h} value={h} label="server address" />)
                 ) : (
-                  <span>Your server's address on your home network, such as 192.168.4.5. Save it under Settings &gt; Internet access to see it here.</span>
+                  <span>Your server's address on your home network, such as 192.168.1.20. Save it under Settings &gt; Internet access to see it here.</span>
                 )}
               </dd>
               <dt>Port</dt>

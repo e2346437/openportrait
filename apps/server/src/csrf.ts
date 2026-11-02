@@ -30,3 +30,16 @@ export function crossSiteBlocked(req: FastifyRequest, allowedHosts: string[]): b
 export function rejectCrossSite(reply: FastifyReply) {
   return reply.code(403).send({ error: "cross_site", message: "This request came from another website, so it was refused." });
 }
+
+/** True when a request names an Origin that isn't this studio's own address. Requests with no Origin (servers, scripts) are fine. */
+export function foreignOrigin(req: FastifyRequest, allowedHosts: string[]): boolean {
+  const origin = req.headers.origin;
+  if (typeof origin !== "string" || !origin) return false;
+  if (origin === "null") return true;
+  try {
+    const host = new URL(origin).host.toLowerCase();
+    return ![String(req.headers.host ?? "").toLowerCase(), ...allowedHosts.map((h) => h.toLowerCase())].includes(host);
+  } catch {
+    return true;
+  }
+}

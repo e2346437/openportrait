@@ -332,14 +332,14 @@ export function InternetSettingsPage() {
               label="On your home network"
               hint={
                 status?.platform === "unraid" || status?.lan.addresses.length === 0
-                  ? "OpenPortrait runs in a container, so it can't see its own address on your network. Enter your server's address and the port you mapped, such as http://192.168.4.5:8090. Tethering and camera upload use it. In Unraid it's the WebUI link on the Docker tab."
+                  ? "OpenPortrait runs in a container, so it can't see its own address on your network. Enter your server's address and the port you mapped, such as http://192.168.1.20:8090. Tethering and camera upload use it. In Unraid it's the WebUI link on the Docker tab."
                   : "The address you use to open OpenPortrait from home. Tethering and camera upload use it."
               }
               error={saveLan.fieldErrors.url ?? saveLan.error}
             >
               {(p) => (
                 <div className="input-row">
-                  <TextInput {...p} value={lanDraft ?? (status?.lan.source === "settings" ? (status.lan.url ?? "") : "")} placeholder={status?.lan.url || "http://192.168.4.5:8090"} onChange={(e) => setLanDraft(e.target.value)} inputMode="url" spellCheck={false} />
+                  <TextInput {...p} value={lanDraft ?? (status?.lan.source === "settings" ? (status.lan.url ?? "") : "")} placeholder={status?.lan.url || "http://192.168.1.20:8090"} onChange={(e) => setLanDraft(e.target.value)} inputMode="url" spellCheck={false} />
                   {browserOnLan && window.location.origin !== (lanDraft ?? status?.lan.url) ? (
                     <Button type="button" onClick={() => setLanDraft(window.location.origin)}>
                       Use {window.location.host}

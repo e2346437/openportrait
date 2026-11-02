@@ -34,6 +34,39 @@ export function jailPath(root: string, virtual: string): string {
   return full;
 }
 
+/** Smallest amount of free space a camera upload may start with; stops a stolen login from filling the disk (SEC-007). */
+export const MIN_FREE_BYTES = Number(process.env.UPLOAD_MIN_FREE_MB ?? 512) * 1024 * 1024;
+
+function freeBytes(dir: string): number | null {
+  let probe = dir;
+  for (;;) {
+    try {
+      const s = fs.statfsSync(probe);
+      return Number(s.bavail) * Number(s.bsize);
+    } catch {
+      const parent = path.dirname(probe);
+      if (parent === probe) return null;
+      probe = parent;
+    }
+  }
+}
+
+/**
+ * Moves a file without ever replacing one that is already there. A hard link fails atomically when the name is
+ * taken, so two uploads can't race; directories (which can't be linked) get a check first.
+ */
+export function moveWithoutOverwrite(from: string, to: string, cb: (err?: NodeJS.ErrnoException | null) => void): void {
+  fs.link(from, to, (err) => {
+    if (!err) return fs.unlink(from, () => cb(null));
+    if (err.code === "EEXIST") return cb(err);
+    // Directories and other things that can't be hard-linked.
+    fs.stat(from, (statErr, st) => {
+      if (statErr || !st.isDirectory()) return cb(err);
+      fs.access(to, (missing) => (missing ? fs.rename(from, to, cb) : cb(Object.assign(new Error("exists"), { code: "EEXIST" }))));
+    });
+  });
+}
+
 export interface LandOptions {
   /** File uploads sent to the folder's top level into a dated subfolder (YYYY-MM-DD). */
   sortByDay: boolean;
@@ -54,6 +87,8 @@ export function landingVirtual(virtual: string, opts: LandOptions): string {
  */
 export class IncomingFile {
   bytes = 0;
+  /** Where the file really ended up; differs from finalPath when that name was already taken. */
+  landedPath: string;
   private fd: number | null;
   private done = false;
 
@@ -62,16 +97,20 @@ export class IncomingFile {
     readonly tempPath: string,
     readonly finalPath: string,
     readonly name: string,
+    private readonly append = false,
   ) {
     this.fd = fd;
+    this.landedPath = finalPath;
   }
 
   static open(finalPath: string, opts: { append?: boolean } = {}): IncomingFile {
+    const free = freeBytes(path.dirname(finalPath));
+    if (free !== null && free < MIN_FREE_BYTES) throw new Error("The server is almost out of disk space, so it can't take more photos right now.");
     fs.mkdirSync(path.dirname(finalPath), { recursive: true });
     const tempPath = path.join(path.dirname(finalPath), `.${path.basename(finalPath)}.${crypto.randomBytes(4).toString("hex")}.uploading`);
     if (opts.append && fs.existsSync(finalPath)) fs.copyFileSync(finalPath, tempPath);
     const fd = fs.openSync(tempPath, opts.append ? "a" : "w", 0o666);
-    return new IncomingFile(fd, tempPath, finalPath, path.basename(finalPath));
+    return new IncomingFile(fd, tempPath, finalPath, path.basename(finalPath), !!opts.append);
   }
 
   write(data: Buffer, position: number | null, cb: (err?: Error | null) => void): void {
@@ -90,7 +129,20 @@ export class IncomingFile {
     this.fd = null;
     fs.close(fd, (err) => {
       if (err) return cb(err);
-      fs.rename(this.tempPath, this.finalPath, (renameErr) => cb(renameErr));
+      // Resuming a partial upload replaces its own earlier copy. Anything else never replaces a photo already in the
+      // folder: a repeat of the name lands beside it as "name (2).ext" (SEC-007).
+      if (this.append) return fs.rename(this.tempPath, this.finalPath, (renameErr) => cb(renameErr));
+      const ext = path.extname(this.finalPath);
+      const stem = this.finalPath.slice(0, this.finalPath.length - ext.length);
+      const attempt = (n: number): void => {
+        const target = n === 1 ? this.finalPath : `${stem} (${n})${ext}`;
+        moveWithoutOverwrite(this.tempPath, target, (moveErr) => {
+          if (moveErr?.code === "EEXIST" && n < 1000) return attempt(n + 1);
+          if (!moveErr) this.landedPath = target;
+          cb(moveErr);
+        });
+      };
+      attempt(1);
     });
   }
 

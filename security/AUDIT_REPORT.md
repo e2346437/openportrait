@@ -9,8 +9,7 @@ with synthetic accounts, photos and credentials. **Production was not touched** 
 SEC-001, SEC-002, SEC-003, SEC-005 and SEC-008 were fixed on the same branch and re-verified: the in-process suite (233
 passed, 5 expected-fail for the findings still open), the live suite against hardened containers (26 checks: 19 pass,
 6 open, 1 info, 0 failed) and the isolation checks. Each fix flipped its test from an open finding to a control. The
-sections below keep the original evidence; the status column shows the current state. Still open: SEC-004, 006, 007,
-009 to 012, 014 to 016. SEC-014 is mostly fixed: npm, corepack and yarn are gone from the runtime image and `cloudflared` is bumped to 2026.10.7, which cleared its vulnerabilities. `gosu` still carries an older Go standard library (excepted, with an expiry, because it only drops privileges and opens no sockets). The release gate passes with that exception.
+sections below keep the original evidence; the status column shows the current state. A second batch (SEC-004, 006, 007, 010, 011, 015, 017) was fixed afterwards. Still open: SEC-009, 012 and 016 (CSP, visitor email proof, MFA), plus the accepted SEC-013. SEC-014 is mostly fixed: npm, corepack and yarn are gone from the runtime image and `cloudflared` is bumped to 2026.10.7, which cleared its vulnerabilities. `gosu` still carries an older Go standard library (excepted, with an expiry, because it only drops privileges and opens no sockets). The release gate passes with that exception.
 
 ## 1. Verdict
 

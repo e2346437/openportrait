@@ -135,7 +135,7 @@ describe("SEC-006 MCP wrapper around client-written text", () => {
 });
 
 describe("SEC-007 camera upload folders are write-once", () => {
-  openFinding("SEC-007", "finishing an upload does not replace a photo that is already in the folder", async () => {
+  control("SEC-007", "finishing an upload does not replace a photo that is already in the folder (the repeat lands beside it)", async () => {
     const dir = fs.mkdtempSync(path.join(d.root, "cam-"));
     const target = path.join(dir, "IMG_0001.jpg");
     fs.writeFileSync(target, "ORIGINAL");
@@ -143,6 +143,27 @@ describe("SEC-007 camera upload folders are write-once", () => {
     await new Promise<void>((res) => f.write(Buffer.from("REPLACEMENT"), 0, () => res()));
     await new Promise<void>((res) => f.finish(() => res()));
     expect(fs.readFileSync(target, "utf8")).toBe("ORIGINAL");
+    expect(fs.readFileSync(f.landedPath, "utf8")).toBe("REPLACEMENT");
+    expect(path.basename(f.landedPath)).toBe("IMG_0001 (2).jpg");
+  });
+  control("SEC-007b", "a rename onto an existing file is refused", async () => {
+    const { moveWithoutOverwrite } = await import("../../src/upload/files.js");
+    const dir = fs.mkdtempSync(path.join(d.root, "cam-"));
+    fs.writeFileSync(path.join(dir, "a.jpg"), "A");
+    fs.writeFileSync(path.join(dir, "b.jpg"), "B");
+    const err = await new Promise<NodeJS.ErrnoException | null | undefined>((res) => moveWithoutOverwrite(path.join(dir, "a.jpg"), path.join(dir, "b.jpg"), res));
+    expect(err?.code).toBe("EEXIST");
+    expect(fs.readFileSync(path.join(dir, "b.jpg"), "utf8")).toBe("B");
+    expect(fs.existsSync(path.join(dir, "a.jpg"))).toBe(true);
+  });
+});
+
+describe("SEC-015 stored secrets", () => {
+  control("SEC-015", "a stored secret with a shortened authentication tag is rejected", async () => {
+    const [v, iv, tag, data] = d.app.ctx.secrets.encrypt("hello").split(".");
+    expect(d.app.ctx.secrets.decrypt([v, iv, tag, data].join("."))).toBe("hello");
+    const short = Buffer.from(tag!, "base64").subarray(0, 4).toString("base64");
+    expect(() => d.app.ctx.secrets.decrypt([v, iv, short, data].join("."))).toThrow();
   });
 });
 
@@ -160,7 +181,7 @@ describe("SEC-009 browser hardening headers", () => {
 });
 
 describe("SEC-010 absolute URLs come from configuration, not the request", () => {
-  openFinding("SEC-010", "OAuth metadata ignores a forged Host header when no public address is configured", async () => {
+  control("SEC-010", "OAuth metadata ignores a forged Host header when no public address is configured", async () => {
     await d.app.inject({ method: "PUT", url: "/api/studio/ai", headers: hdr(), payload: { enabled: true } });
     const res = await d.app.inject({ url: "/.well-known/oauth-authorization-server", headers: { host: "evil.example" } });
     expect(json(res).issuer).not.toContain("evil.example");
@@ -168,7 +189,7 @@ describe("SEC-010 absolute URLs come from configuration, not the request", () =>
 });
 
 describe("SEC-011 MCP transport", () => {
-  openFinding("SEC-011", "the MCP endpoint rejects a request that carries a foreign Origin header", async () => {
+  control("SEC-011", "the MCP endpoint rejects a request that carries a foreign Origin header", async () => {
     await d.app.inject({ method: "PUT", url: "/api/studio/ai", headers: hdr(), payload: { enabled: true } });
     const created = await d.app.inject({ method: "POST", url: "/api/studio/ai/connections", headers: hdr(), payload: { label: "t", level: "read", areas: ["studio"] } });
     const token = json(created).token as string;

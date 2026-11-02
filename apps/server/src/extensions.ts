@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { requireOwner } from "./auth.js";
+import { financialReport, resolveRange, type FinancialReport } from "./domain/reports.js";
 import { VERSION, type AppContext } from "./app.js";
 import { defineTool, grantCapability, lockCapability, revokeCapability } from "./ai/registry.js";
 
@@ -136,6 +137,8 @@ export interface ExtensionApi {
   settingsCard(card: SettingsCard): void;
   /** Adds a section to the Reports page (owner only). */
   reportSection(section: ReportSection): void;
+  /** The studio's income figures for a date range (YYYY-MM-DD), the same ones the Reports page shows. Throws on a bad range. */
+  financialReport(from: string, to: string): FinancialReport;
   /** Adds a page to the sidebar (owner only). See ExtensionPage. */
   page(page: ExtensionPage): void;
   /** Runs when the app shuts down. */
@@ -194,6 +197,10 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         routes: (plugin) => void routes.push(plugin),
         settingsCard: (card) => void cards.push(card),
         reportSection: (section) => void reports.push(section),
+        financialReport: (from, to) => {
+          const sctx = { db: ctx.db, settings: ctx.settings, config: ctx.config, actorId: null, publicUrl: ctx.publicUrl };
+          return financialReport(sctx, resolveRange(sctx, from, to));
+        },
         page: (page) => {
           if (!SLUG.test(page.slug)) throw new Error(`page slug "${page.slug}" must be lowercase letters, digits and dashes`);
           if (pages.some((p) => p.slug === page.slug)) throw new Error(`duplicate page slug "${page.slug}"`);

@@ -41,6 +41,17 @@ describe("extensions", () => {
     expect(list.json().extensions[0].sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it("lists report sections an extension adds, and serves them to the owner only", async () => {
+    const cookie = await boot({
+      "rep.mjs": `export function register(api) { api.reportSection({ title: "Extra", route: "/extra" }); api.routes(async (r) => { r.get("/extra", async (req) => ({ stats: [{ label: "From", value: req.query.from }] })); }); }`,
+    });
+    const list = (await app!.inject({ method: "GET", url: "/api/studio/extensions", headers: { cookie } })).json().extensions[0];
+    expect(list.reports).toEqual([{ title: "Extra", route: "/extra" }]);
+    expect((await app!.inject({ method: "GET", url: "/api/studio/extensions/rep/extra?from=2026-01-01" })).statusCode).toBe(401);
+    const r = await app!.inject({ method: "GET", url: "/api/studio/extensions/rep/extra?from=2026-01-01", headers: { cookie } });
+    expect(r.json().stats[0]).toEqual({ label: "From", value: "2026-01-01" });
+  });
+
   it("skips a broken module and still boots", async () => {
     const cookie = await boot({ "bad.mjs": `throw new Error("nope");`, "empty.mjs": `export const x = 1;`, "good.mjs": `export function register() {}` });
     const list = (await app!.inject({ method: "GET", url: "/api/studio/extensions", headers: { cookie } })).json().extensions;

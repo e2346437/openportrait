@@ -40,6 +40,29 @@ export interface SettingsCard {
   }>;
 }
 
+/**
+ * A section an extension adds to the Reports page. The page calls `route` (a GET under the extension's routes) with
+ * `?from=YYYY-MM-DD&to=YYYY-MM-DD` and draws the answer, a {@link ReportData}, so extensions need no UI code.
+ */
+export interface ReportSection {
+  title: string;
+  description?: string;
+  route: string;
+}
+
+export interface ReportData {
+  stats?: Array<{ label: string; value: number | string; format?: "money" | "number" | "text"; tone?: "ok" | "warn" | "bad" | "neutral"; hint?: string }>;
+  /** Horizontal bars, such as income by category. Money values are cents. */
+  bars?: Array<{ title: string; format?: "money" | "number"; rows: Array<{ label: string; value: number }> }>;
+  tables?: Array<{
+    title?: string;
+    columns: Array<{ key: string; label: string; format?: "money" | "number" | "text"; align?: "start" | "end" }>;
+    rows: Array<Record<string, string | number | null>>;
+  }>;
+  /** Shown above the data, for a caveat such as "mileage uses the rate set in Settings". */
+  notice?: string;
+}
+
 export interface ExtensionApi {
   /** The module's id: its file name without the extension. */
   id: string;
@@ -53,6 +76,8 @@ export interface ExtensionApi {
   revokeCapability(id: string): void;
   /** Shows a card under Settings > Extensions (owner only). */
   settingsCard(card: SettingsCard): void;
+  /** Adds a section to the Reports page (owner only). */
+  reportSection(section: ReportSection): void;
   /** Runs when the app shuts down. */
   onClose(fn: () => void | Promise<void>): void;
 }
@@ -64,6 +89,7 @@ export interface ExtensionInfo {
   status: "loaded" | "failed";
   error?: string;
   cards: SettingsCard[];
+  reports: ReportSection[];
 }
 
 const ID = /^[a-z0-9][a-z0-9-]{0,31}$/;
@@ -84,7 +110,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
   for (const file of files) {
     const id = file.replace(/\.mjs$/, "");
     const full = path.join(dir, file);
-    const info: ExtensionInfo = { id, file, sha256: "", status: "failed", cards: [] };
+    const info: ExtensionInfo = { id, file, sha256: "", status: "failed", cards: [], reports: [] };
     infos.push(info);
     try {
       if (!ID.test(id)) throw new Error("file name must be lowercase letters, digits and dashes");
@@ -93,6 +119,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       if (typeof mod.register !== "function") throw new Error("module has no register() export");
       const routes: FastifyPluginAsync[] = [];
       const cards: SettingsCard[] = [];
+      const reports: ReportSection[] = [];
       await mod.register({
         id,
         appVersion: VERSION,
@@ -101,6 +128,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         defineTool,
         routes: (plugin) => void routes.push(plugin),
         settingsCard: (card) => void cards.push(card),
+        reportSection: (section) => void reports.push(section),
         grantCapability,
         revokeCapability,
         onClose: (fn) => void app.addHook("onClose", async () => void (await fn())),
@@ -115,6 +143,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         );
       }
       info.cards = cards;
+      info.reports = reports;
       info.status = "loaded";
       app.log.info({ extension: id, sha256: info.sha256 }, "extension loaded");
     } catch (err) {

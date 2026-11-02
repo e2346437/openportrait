@@ -35,6 +35,8 @@ import { ContractPage } from "./pages/contracts/Contract.js";
 import { ContractTemplatesPage } from "./pages/settings/ContractTemplates.js";
 import { ContractSignPage } from "./pages/public/Contract.js";
 import { OrderPage } from "./pages/orders/Order.js";
+import { QuestionnairesSettingsPage } from "./pages/settings/Questionnaires.js";
+import { QuestionnairePage } from "./pages/public/Questionnaire.js";
 import { PricesSettingsPage } from "./pages/settings/Prices.js";
 import { ExtensionsSettingsPage } from "./pages/settings/Extensions.js";
 import { PaymentsSettingsPage } from "./pages/settings/Payments.js";
@@ -113,6 +115,7 @@ export function App() {
                     <Route path="galleries" element={<GallerySettingsPage />} />
                     <Route path="shoots" element={<ShootSettingsPage />} />
                     <Route path="calendar" element={<CalendarSettingsPage />} />
+                    <Route path="questionnaires" element={<QuestionnairesSettingsPage />} />
                     <Route path="prices" element={<PricesSettingsPage />} />
                     <Route path="payments" element={<PaymentsSettingsPage />} />
                     <Route path="contracts" element={<ContractTemplatesPage />} />
@@ -130,6 +133,7 @@ export function App() {
             </Route>
             <Route path="/g/:slug" element={<ClientGalleryPage />} />
             <Route path="/inquire" element={<InquirePage />} />
+            <Route path="/q/:token" element={<QuestionnairePage />} />
             <Route path="/o/:token" element={<OrderViewPage />} />
             <Route path="/c/:token" element={<ContractSignPage />} />
             <Route path="/book/cancel/:token" element={<BookCancelPage />} />

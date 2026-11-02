@@ -36,6 +36,7 @@ import { bookingRoutes } from "./routes/booking.js";
 import { orderRoutes } from "./routes/orders.js";
 import { contractRoutes } from "./routes/contracts.js";
 import { publicRoutes } from "./routes/public.js";
+import { questionnaireRoutes } from "./routes/questionnaires.js";
 import { registerEmailJob } from "./domain/email.js";
 import { registerGoogleSyncJob } from "./google/job.js";
 import { crmRoutes } from "./routes/crm.js";
@@ -210,6 +211,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(bookingRoutes, { prefix: "/api/studio" });
   await app.register(orderRoutes, { prefix: "/api/studio" });
   await app.register(contractRoutes, { prefix: "/api/studio" });
+  await app.register(questionnaireRoutes, { prefix: "/api/studio" });
   // Clients reach these without signing in, so they sit outside /api/studio and its access rule.
   await app.register(publicRoutes, { prefix: "/api/public" });
 

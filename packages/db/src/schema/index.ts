@@ -8,6 +8,7 @@ export * from "./pipeline.js";
 export * from "./calendar.js";
 export * from "./booking.js";
 export * from "./money.js";
+export * from "./contracts.js";
 export * from "./upload.js";
 export * from "./questionnaires.js";
 export * from "./import.js";

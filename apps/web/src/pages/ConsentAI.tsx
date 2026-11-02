@@ -61,7 +61,7 @@ export function ConsentAIPage() {
               It will return to <span className="mono">{client.redirectHost}</span> after you approve. Only continue if you started this from your AI app.
             </p>
           </div>
-          <AccessPicker level={level} onLevel={setLevel} areas={areas} onAreas={setAreas} allAreas={["studio", "contacts", "leads", "shoots", "calendar", "quotes", "orders", "galleries", "email"]} />
+          <AccessPicker level={level} onLevel={setLevel} areas={areas} onAreas={setAreas} allAreas={["studio", "contacts", "leads", "shoots", "calendar", "quotes", "orders", "contracts", "galleries", "email"]} />
           {error ? <Callout tone="bad">{error}</Callout> : null}
           <div className="form-actions" style={{ justifyContent: "flex-start" }}>
             <Button variant="primary" loading={busy === "approve"} disabled={busy !== null || areas.length === 0} onClick={() => decide(true)}>

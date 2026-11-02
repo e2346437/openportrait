@@ -34,6 +34,11 @@ export function SettingsLayout() {
           <Icon name="receipt" /> Prices
         </NavLink>
         {owner ? (
+          <NavLink to="contracts">
+            <Icon name="note" /> Contracts
+          </NavLink>
+        ) : null}
+        {owner ? (
           <NavLink to="payments">
             <Icon name="receipt" /> Payments
           </NavLink>

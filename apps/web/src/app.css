@@ -558,6 +558,20 @@ button.agenda-row:hover { background: var(--surface-2); }
 .coupon-save { display: block; color: var(--ok, #2f6b4f); margin-top: 4px; }
 .catalog-list .cat-main small { white-space: normal; overflow: visible; text-overflow: clip; }
 
+/* Contracts */
+.contract-text { font-family: var(--font-mono, ui-monospace, monospace); font-size: 13px; line-height: 1.55; min-height: 280px; resize: vertical; }
+.contract-doc h3 { font-size: 1.05rem; margin: 1.4em 0 0.4em; }
+.contract-doc h3:first-child { margin-top: 0; }
+.contract-doc p { margin: 0 0 0.8em; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; color: var(--ink-2); }
+.contract-sheet { padding: var(--s5); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); max-height: 520px; overflow-y: auto; }
+.sig-preview { font-family: "Snell Roundhand", "Segoe Script", "Brush Script MT", cursive; font-size: 2rem; padding: var(--s4) var(--s5); border-bottom: 2px solid var(--line-2); min-height: 72px; color: var(--ink); overflow-wrap: anywhere; }
+.sig-pad { border: 1px solid var(--line-2); border-radius: var(--r-lg); background: #fff; overflow: hidden; }
+.sig-pad canvas { display: block; width: 100%; height: 160px; touch-action: none; cursor: crosshair; }
+.sig-pad-foot { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-top: 1px dashed var(--line-2); color: var(--ink-3); font-size: 13px; min-height: 40px; }
+.consent { align-items: flex-start; gap: 10px; color: var(--ink-2); font-size: 14px; }
+.consent input { margin-top: 3px; }
+.wrap-code { overflow-wrap: anywhere; word-break: break-all; font-size: 11px; }
+
 /* ---- questionnaires ---- */
 .req { color: var(--accent); }
 .muted { color: var(--ink-3); }

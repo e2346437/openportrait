@@ -1,8 +1,10 @@
+import fs from "node:fs";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { DomainError, type ServiceContext } from "../domain/context.js";
 import * as inquiry from "../domain/inquiry.js";
 import * as checkout from "../domain/checkout.js";
+import * as contracts from "../domain/contracts.js";
 import * as credits from "../domain/credits.js";
 import * as orders from "../domain/orders.js";
 import { verifyWebhook } from "../payments/paypal.js";
@@ -135,6 +137,18 @@ export async function publicRoutes(app: FastifyInstance) {
     const body = parse(z.object({ reason: z.string().max(500).optional() }), req.body ?? {}, reply);
     if (!body) return;
     return orders.declineQuote(ctx(req), orderToken(req), body.reason);
+  });
+
+  // Contracts: the private link is the key. Signing records where it came from.
+  app.get("/contract/:token", { config: limit(60) }, async (req) => contracts.publicView(ctx(req), orderToken(req)));
+  app.post("/contract/:token/sign", { config: limit(10), bodyLimit: 300_000 }, async (req, reply) => {
+    const body = parse(z.object({ name: z.string().max(120), consent: z.boolean(), method: z.enum(["typed", "drawn"]), image: z.string().max(250_000).nullish() }), req.body, reply);
+    if (!body) return;
+    return contracts.signContract(ctx(req), orderToken(req), { ...body, ip: app.ctx.ip(req), userAgent: String(req.headers["user-agent"] ?? "") });
+  });
+  app.get("/contract/:token/pdf", { config: limit(20) }, async (req, reply) => {
+    const { file, name } = contracts.pdfByToken(ctx(req), orderToken(req));
+    return reply.header("Content-Type", "application/pdf").header("Content-Disposition", `attachment; filename="${name}"`).send(fs.createReadStream(file));
   });
 
   // Questionnaires: like order links, the private link is the key.

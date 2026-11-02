@@ -31,6 +31,8 @@ import { ApprovalsPage } from "./pages/Approvals.js";
 import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { OrdersPage } from "./pages/orders/Orders.js";
 import { OrderPage } from "./pages/orders/Order.js";
+import { QuestionnairesSettingsPage } from "./pages/settings/Questionnaires.js";
+import { QuestionnairePage } from "./pages/public/Questionnaire.js";
 import { PricesSettingsPage } from "./pages/settings/Prices.js";
 import { PaymentsSettingsPage } from "./pages/settings/Payments.js";
 import { OrderViewPage } from "./pages/public/Order.js";
@@ -106,6 +108,7 @@ export function App() {
                     <Route path="galleries" element={<GallerySettingsPage />} />
                     <Route path="shoots" element={<ShootSettingsPage />} />
                     <Route path="calendar" element={<CalendarSettingsPage />} />
+                    <Route path="questionnaires" element={<QuestionnairesSettingsPage />} />
                     <Route path="prices" element={<PricesSettingsPage />} />
                     <Route path="payments" element={<PaymentsSettingsPage />} />
                     <Route path="email" element={<EmailSettingsPage />} />
@@ -121,6 +124,7 @@ export function App() {
             </Route>
             <Route path="/g/:slug" element={<ClientGalleryPage />} />
             <Route path="/inquire" element={<InquirePage />} />
+            <Route path="/q/:token" element={<QuestionnairePage />} />
             <Route path="/o/:token" element={<OrderViewPage />} />
             <Route path="/book/cancel/:token" element={<BookCancelPage />} />
             <Route path="/book/:slug" element={<BookPage />} />

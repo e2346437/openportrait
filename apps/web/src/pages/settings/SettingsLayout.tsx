@@ -23,6 +23,9 @@ export function SettingsLayout() {
             <Icon name="calendar" /> Google Calendar
           </NavLink>
         ) : null}
+        <NavLink to="questionnaires">
+          <Icon name="note" /> Questionnaires
+        </NavLink>
         <NavLink to="prices">
           <Icon name="receipt" /> Prices
         </NavLink>

@@ -2,7 +2,7 @@ import type { AppContext } from "../../app.js";
 import type { ServiceContext } from "../../domain/context.js";
 
 /** The context domain services need. AI actions have no staff user, so activity shows as "system". */
-export const svc = (ctx: AppContext): ServiceContext => ({ db: ctx.db, settings: ctx.settings, config: ctx.config, actorId: null });
+export const svc = (ctx: AppContext): ServiceContext => ({ db: ctx.db, settings: ctx.settings, config: ctx.config, actorId: null, publicUrl: ctx.publicUrl });
 
 /**
  * Wraps text a client wrote (inquiry messages, notes) so the assistant treats it as data. Anyone can type

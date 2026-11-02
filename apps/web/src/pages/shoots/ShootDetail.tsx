@@ -7,6 +7,7 @@ import { formatDate, formatTime, ms, msToZoned, zonedToMs } from "../../lib/time
 import { SHOOT_STATUS, type ShootDetail, type ShootEvent, type ShootStatus, type ShootType } from "../../lib/types.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { ShootQuestionnaires } from "./ShootQuestionnaires.js";
 
 export function ShootDetailPage() {
   const { id = "" } = useParams();
@@ -137,6 +138,8 @@ export function ShootDetailPage() {
               </div>
             )}
           </Panel>
+
+          <ShootQuestionnaires shootId={id} clientEmail={shoot.primary.email} />
 
           <Panel title="Notes">
             <TextArea aria-label="Shoot notes" rows={4} placeholder="Shot list, location details, what the client asked for…" value={notes ?? ""} maxLength={10000} onChange={(e) => setNotes(e.target.value)} />

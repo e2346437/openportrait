@@ -11,15 +11,15 @@ export function BackgroundPicker({ value, onChange }: { value: string; onChange:
 
   return (
     <div className="bgpick">
-      <div className="bgpick-presets" role="radiogroup" aria-label="Background">
+      <div className="bgpick-presets" role="group" aria-label="Background">
         {([["black", "Black", "#000000"], ["white", "White", "#ffffff"]] as const).map(([key, label, hex]) => (
-          <button key={key} type="button" role="radio" aria-checked={preset === key} className={preset === key ? "on" : ""} onClick={() => onChange(hex)}>
+          <button key={key} type="button" aria-pressed={preset === key} className={preset === key ? "on" : ""} onClick={() => onChange(hex)}>
             <span className="chip-swatch" style={{ background: hex }} />
             {label}
           </button>
         ))}
-        <label className={preset === "custom" ? "on" : ""} role="radio" aria-checked={preset === "custom"}>
-          <input type="color" value={value} onChange={(e) => onChange(parseBg(e.target.value) ?? value)} aria-label="Pick a custom colour" />
+        <label className={preset === "custom" ? "on" : ""}>
+          <input type="color" value={value} onChange={(e) => onChange(parseBg(e.target.value) ?? value)} aria-label={preset === "custom" ? "Custom colour, selected" : "Pick a custom colour"} />
           <span className="chip-swatch custom" style={preset === "custom" ? { background: value } : undefined} />
           Custom
         </label>

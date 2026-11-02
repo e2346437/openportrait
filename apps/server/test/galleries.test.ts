@@ -73,6 +73,33 @@ describe("shoots", () => {
   });
 });
 
+describe("media URLs (SEC-004)", () => {
+  it("expire, are bound to their expiry, and stop working when the gallery is unpublished or the photo hidden", async () => {
+    await jpeg(path.join(share, "Kim Family/a.jpg"), red);
+    const { id, slug, detail } = await galleryFromShare();
+    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
+    const visitor = (await app.inject({ method: "GET", url: `/api/g/${slug}` })).json();
+    const url: string = visitor.photos[0].thumb;
+    const get = (u: string) => app.inject({ method: "GET", url: u });
+    expect((await get(url)).statusCode).toBe(200);
+    // A signature for one expiry doesn't work with another, and a URL without an expiry is refused.
+    expect((await get(url.replace(/e=\d+/, "e=99999999999"))).statusCode).toBe(404);
+    expect((await get(url.replace(/e=\d+&/, ""))).statusCode).toBe(404);
+    // After the window has passed, the same URL is dead.
+    const real = Date.now;
+    Date.now = () => real() + 13 * 3600_000;
+    try {
+      expect((await get(url)).statusCode).toBe(404);
+    } finally {
+      Date.now = real;
+    }
+    // Unpublishing kills URLs that were already handed out.
+    await studio("POST", `/galleries/${id}/unpublish`);
+    expect((await get(url)).statusCode).toBe(404);
+    expect(detail.photos).toHaveLength(1);
+  });
+});
+
 describe("access", () => {
   it("hides everything behind a password and then behind registration, and remembers both", async () => {
     await jpeg(path.join(share, "Kim Family/a.jpg"), red);
@@ -311,11 +338,13 @@ describe("ingest", () => {
     expect(detail.gallery.coverPhotoId).toBeTruthy();
     expect(detail.lists).toEqual([expect.objectContaining({ name: "Favorites" })]);
 
-    const media = await app.inject(a.thumb);
+    // Staff (who see drafts) can load thumbnails; the URL is signed with an expiry.
+    const media = await app.inject({ method: "GET", url: a.thumb, headers: { cookie: staff } });
     expect(media.statusCode).toBe(200);
     expect(media.headers["content-type"]).toBe("image/webp");
-    expect(media.headers["cache-control"]).toContain("immutable");
-    expect((await app.inject(a.thumb.replace(/s=.*/, "s=forged"))).statusCode).toBe(404);
+    expect(media.headers["cache-control"]).toMatch(/^private, max-age=\d+$/);
+    expect(a.thumb).toMatch(/\?e=\d+&s=/);
+    expect((await app.inject({ method: "GET", url: a.thumb.replace(/s=.*/, "s=forged"), headers: { cookie: staff } })).statusCode).toBe(404);
     expect((await studio("GET", "/ingest/folders")).json().folders).toHaveLength(0);
     expect((await studio("GET", "/galleries")).json().galleries[0]).toMatchObject({ id, photoCount: 2, processing: 0 });
   });

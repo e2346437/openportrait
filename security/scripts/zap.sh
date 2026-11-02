@@ -12,12 +12,12 @@ docker network create "$RUN" >/dev/null
 mkdir -p "$WORK"/{config,galleries,incoming,cache}; chmod -R 777 "$WORK"
 docker run -d --name "$RUN-app" --network "$RUN" --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add FOWNER \
   --security-opt no-new-privileges --read-only --tmpfs /tmp:rw,noexec,nosuid,size=256m --pids-limit 512 --memory 2g \
-  -p 127.0.0.1:18095:8080 -e PUID=1000 -e PGID=1000 \
+  -p 127.0.0.1:18095:8080 -e SETUP_CODE=zap-setup-code -e PUID=1000 -e PGID=1000 \
   -v "$WORK/config:/config" -v "$WORK/galleries:/galleries" -v "$WORK/incoming:/incoming" -v "$WORK/cache:/cache" "$IMAGE" >/dev/null
 for _ in $(seq 1 40); do curl -fsS http://127.0.0.1:18095/api/health >/dev/null 2>&1 && break; sleep 1; done
 JAR="$WORK/jar"
 curl -fsS -c "$JAR" -X POST http://127.0.0.1:18095/api/studio/setup -H 'content-type: application/json' \
-  -d '{"studioName":"ZAP Studio","ownerName":"Owner Z","email":"owner-z@audit.invalid","password":"synthetic-Pass-12345","timezone":"UTC"}' >/dev/null
+  -d '{"studioName":"ZAP Studio","ownerName":"Owner Z","email":"owner-z@audit.invalid","password":"synthetic-Pass-12345","timezone":"UTC","setupCode":"zap-setup-code"}' >/dev/null
 SESSION="op_session=$(awk '$6=="op_session"{print $7}' "$JAR")"
 curl -fsS -b "$JAR" -X PUT http://127.0.0.1:18095/api/studio/ai -H 'content-type: application/json' -d '{"enabled":true}' >/dev/null
 curl -fsS -b "$JAR" -X PUT http://127.0.0.1:18095/api/studio/inquiry -H 'content-type: application/json' -d '{"enabled":true}' >/dev/null

@@ -10,6 +10,7 @@ import { JobRunner } from "@openportrait/jobs";
 import { SESSION_COOKIE, lookupSession } from "./auth.js";
 import { registerBackupJob } from "./backup.js";
 import { clientIp } from "./client-ip.js";
+import { crossSiteBlocked, rejectCrossSite } from "./csrf.js";
 import { Secrets } from "./secrets.js";
 import { Settings } from "./settings.js";
 import { TunnelManager } from "./tunnel.js";
@@ -64,6 +65,8 @@ export interface AppContext {
   /** This server's address on the home network (see lan.ts). */
   lan(): LanInfo;
   ip(req: import("fastify").FastifyRequest): string;
+  /** Code required by the first-run wizard. null = not required. undefined = generate one at first start. */
+  setupCode?: string | null;
 }
 
 declare module "fastify" {
@@ -77,9 +80,14 @@ export interface BuildOptions {
   /** Tests pass false to skip timers and child processes. */
   startBackground?: boolean;
   logger?: boolean | object;
+  /**
+   * First-run setup code. Leave undefined to require one (SETUP_CODE, or a random code printed to the log).
+   * Pass null only to skip the check, which tests and embedding code do.
+   */
+  setupCode?: string | null;
 }
 
-export async function buildApp({ config, startBackground = true, logger }: BuildOptions): Promise<FastifyInstance> {
+export async function buildApp({ config, startBackground = true, logger, setupCode }: BuildOptions): Promise<FastifyInstance> {
   for (const dir of [config.configDir, config.cacheDir]) fs.mkdirSync(dir, { recursive: true });
 
   const app = Fastify({
@@ -117,6 +125,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
       return clientIp(req, settings.get("internet.trustCloudflare") ?? true);
     },
   };
+  ctx.setupCode = setupCode === undefined ? (process.env.SETUP_CODE?.trim() || null) ?? undefined : setupCode;
   app.decorate("ctx", ctx);
 
   registerEmailJob(() => settings);
@@ -131,6 +140,18 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(cookie);
   // Every rate limit keys on the verified client address, never on a header the caller can choose (SEC-001).
   await app.register(rateLimit, { global: false, keyGenerator: (req) => ctx.ip(req) });
+
+  // Refuse state-changing studio requests that a browser says came from another site (SEC-003).
+  app.addHook("onRequest", async (req, reply) => {
+    const hosts = [ctx.publicUrl(), config.appUrl, ctx.lan().url].flatMap((u) => {
+      try {
+        return u ? [new URL(u).host] : [];
+      } catch {
+        return [];
+      }
+    });
+    if (crossSiteBlocked(req, hosts)) return rejectCrossSite(reply);
+  });
 
   app.decorateRequest("user", null);
   app.addHook("onRequest", async (req) => {

@@ -19,7 +19,7 @@ const cookieOf = (res: { cookies: Array<{ name: string; value: string }> }) => {
 beforeEach(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), "op-app-"));
   const config = loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web") });
-  app = await buildApp({ config, startBackground: false, logger: false });
+  app = await buildApp({ config, startBackground: false, setupCode: null, logger: false });
 });
 afterEach(async () => {
   await app.close();

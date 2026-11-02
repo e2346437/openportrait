@@ -37,12 +37,17 @@ start() { # name port extra-args...
   for _ in $(seq 1 40); do curl -fsS "http://127.0.0.1:$port/api/health" >/dev/null 2>&1 && return 0; sleep 1; done
   docker logs "$RUN-$t" | tail -20; echo "container $t did not become healthy" >&2; return 1
 }
-start a "$PORT_A" -p "127.0.0.1:$SFTP_A:2222"
+# A gets a fixed setup code through the environment. B gets none, so it prints a random one to its log, which is what
+# an operator does in real life; the suite reads it back from there.
+SETUP_A="audit-setup-A1"
+start a "$PORT_A" -p "127.0.0.1:$SFTP_A:2222" -e "SETUP_CODE=$SETUP_A"
 start b "$PORT_B"
+SETUP_B="$(docker logs "$RUN-b" 2>&1 | grep -o 'setup code: [A-Z0-9-]*' | head -1 | sed 's/.*: //')"
+[ -n "$SETUP_B" ] || { echo "no setup code was printed to the log of deployment b" >&2; exit 1; }
 
 echo "== live suite (hardened=$HARDEN)"
 set +e
-OP_A_URL="http://127.0.0.1:$PORT_A" OP_B_URL="http://127.0.0.1:$PORT_B" OP_A_GALLERIES="$WORK/a/galleries" OP_A_INCOMING="$WORK/a/incoming" \
+OP_SETUP_A="$SETUP_A" OP_SETUP_B="$SETUP_B" OP_A_URL="http://127.0.0.1:$PORT_A" OP_B_URL="http://127.0.0.1:$PORT_B" OP_A_GALLERIES="$WORK/a/galleries" OP_A_INCOMING="$WORK/a/incoming" \
 OP_A_SFTP_PORT="$SFTP_A" OP_REPORT="$OUT/live-suite.json" node security/tests/live/suite.mjs
 LIVE=$?
 

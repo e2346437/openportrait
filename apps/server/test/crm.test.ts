@@ -23,7 +23,7 @@ beforeEach(async () => {
   const config = loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web") });
   galleries = config.galleriesDir;
   fs.mkdirSync(galleries, { recursive: true });
-  app = await buildApp({ config, startBackground: false, logger: false });
+  app = await buildApp({ config, startBackground: false, setupCode: null, logger: false });
   const res = await app.inject({ method: "POST", url: "/api/studio/setup", payload: owner });
   cookie = `op_session=${res.cookies.find((c) => c.name === "op_session")!.value}`;
 });

@@ -30,26 +30,48 @@ const a = new Client(A_URL);
 const b = new Client(B_URL);
 const anon = new Client(A_URL);
 
-// ---------- SEC-002: a brand-new install can be claimed by whoever reaches it first ----------
-await openFinding("SEC-002", "first-run setup needs proof the caller is the person who started the container", async () => {
+// ---------- SEC-002: a brand-new install can't be claimed by whoever reaches it first ----------
+const SETUP_A = process.env.OP_SETUP_A;
+const SETUP_B = process.env.OP_SETUP_B;
+await control("SEC-002", "first-run setup is refused without the setup code (missing and wrong codes), and the install stays unclaimed", async () => {
   const probe = new Client(A_URL);
-  const r = await probe.post("/api/studio/setup", { studioName: "Audit Studio A", ownerName: "Owner A", email: "owner-a@audit.invalid", password: PW_A, timezone: "UTC" });
-  // Secure behaviour: an anonymous caller is refused (for example, a setup code printed in the container log is required).
-  if (r.status === 200) {
-    a.cookie = probe.cookie;
-    return false;
-  }
-  return true;
+  const body = { studioName: "Audit Studio A", ownerName: "Intruder", email: "intruder@audit.invalid", password: PW_A, timezone: "UTC" };
+  const none = await probe.post("/api/studio/setup", body);
+  const wrong = await probe.post("/api/studio/setup", { ...body, setupCode: "wrong-code-0" });
+  const state = await probe.get("/api/studio/setup");
+  return none.status === 403 && wrong.status === 403 && state.body?.needsSetup === true && state.body?.setupCodeRequired === true;
 });
-if (!a.cookie) {
-  const l = await a.post("/api/studio/auth/login", { email: "owner-a@audit.invalid", password: PW_A });
-  if (l.status !== 200) throw new Error("could not sign in to deployment A; is it a fresh container?");
+{
+  const r = await a.post("/api/studio/setup", { studioName: "Audit Studio A", ownerName: "Owner A", email: "owner-a@audit.invalid", password: PW_A, timezone: "UTC", setupCode: SETUP_A });
+  if (r.status !== 200) {
+    const l = await a.post("/api/studio/auth/login", { email: "owner-a@audit.invalid", password: PW_A });
+    if (l.status !== 200) throw new Error("could not set up or sign in to deployment A; is it a fresh container with OP_SETUP_A set?");
+  }
 }
-const setupB = await b.post("/api/studio/setup", { studioName: "Audit Studio B", ownerName: "Owner B", email: "owner-b@audit.invalid", password: PW_B, timezone: "UTC" });
+const setupB = await b.post("/api/studio/setup", { studioName: "Audit Studio B", ownerName: "Owner B", email: "owner-b@audit.invalid", password: PW_B, timezone: "UTC", setupCode: SETUP_B });
 if (setupB.status !== 200) await b.post("/api/studio/auth/login", { email: "owner-b@audit.invalid", password: PW_B });
+await control("SEC-002b", "the setup code printed in the container log (random, nothing configured) opens first-run setup", async () => setupB.status === 200 || setupB.status === 409);
+
+// ---------- SEC-003: cross-site requests ----------
+await control("SEC-003", "a signed-in state-changing request that the browser says is cross-site (or from a sibling origin) is refused; same-origin and scripts work", async () => {
+  const call = (h) => a.req("PUT", "/api/studio/ai", { json: { paused: false }, headers: h });
+  const cross = await call({ "sec-fetch-site": "cross-site", origin: "https://evil.example" });
+  const sibling = await call({ "sec-fetch-site": "same-site", origin: "https://blog.example.com" });
+  const originOnly = await call({ origin: "https://evil.example" });
+  const same = await call({ "sec-fetch-site": "same-origin", origin: A_URL });
+  const script = await call({});
+  return cross.status === 403 && sibling.status === 403 && originOnly.status === 403 && same.status === 200 && script.status === 200;
+});
+
+// Runs before the rate-limit test so the shared client address isn't already throttled.
+await control("ERR-1", "errors don't leak stack traces or file paths", async () => {
+  const r = await anon.req("POST", "/api/studio/auth/login", { body: "{bad", headers: { "content-type": "application/json" } });
+  const t = JSON.stringify(r.body);
+  return r.status === 400 && !/\bat \w+.*\.(ts|js):\d+|\/app\/|node_modules/.test(t);
+});
 
 // ---------- SEC-001: rate limiting ----------
-await openFinding("SEC-001", "login is throttled per real client even when CF-Connecting-IP is forged on every request", async () => {
+await control("SEC-001", "login is throttled per real client even when CF-Connecting-IP is forged on every request", async () => {
   let throttled = false;
   for (let i = 0; i < 30; i++) {
     const r = await anon.req("POST", "/api/studio/auth/login", { json: { email: "owner-a@audit.invalid", password: `wrong-${i}` }, headers: { "cf-connecting-ip": `10.77.${i}.9` } });
@@ -65,12 +87,6 @@ await control("HDR-1", "nosniff, frame and referrer headers are present", async 
   const h = (await anon.get("/api/health")).headers;
   return h.get("x-content-type-options") === "nosniff" && !!h.get("x-frame-options") && !!h.get("referrer-policy");
 });
-await control("ERR-1", "errors don't leak stack traces or file paths", async () => {
-  const r = await anon.req("POST", "/api/studio/auth/login", { body: "{bad", headers: { "content-type": "application/json" } });
-  const t = JSON.stringify(r.body);
-  return r.status === 400 && !/\bat \w+.*\.(ts|js):\d+|\/app\/|node_modules/.test(t);
-});
-
 // ---------- gallery: media URLs, link strength, throttling, EXIF ----------
 let slug = null;
 let galleryId = null;

@@ -89,7 +89,7 @@ beforeEach(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), "op-gsync-"));
   const config = loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web") });
   fs.mkdirSync(config.galleriesDir, { recursive: true });
-  app = await buildApp({ config, startBackground: false, logger: false });
+  app = await buildApp({ config, startBackground: false, setupCode: null, logger: false });
   await app.inject({ method: "POST", url: "/api/studio/setup", payload: { studioName: "T", ownerName: "Pat", email: "pat@example.com", password: "correct horse battery", timezone: "America/Chicago" } });
   ctx = { db: app.ctx.db, settings: app.ctx.settings, config, actorId: null };
 });

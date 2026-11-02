@@ -28,7 +28,7 @@
       "id": "SEC-002",
       "title": "A new install can be claimed by whoever reaches the setup page first",
       "severity": "Medium",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
       "tests": [
@@ -44,7 +44,7 @@
       "id": "SEC-003",
       "title": "State-changing requests are not tied to the site that sent them (no Origin / Fetch-Metadata check)",
       "severity": "Medium",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:A/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N",
       "tests": [

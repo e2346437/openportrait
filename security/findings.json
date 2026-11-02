@@ -139,7 +139,7 @@
       "id": "SEC-009",
       "title": "No Content-Security-Policy, HSTS or Permissions-Policy",
       "severity": "Low",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:A/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
       "tests": [

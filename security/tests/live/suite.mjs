@@ -82,7 +82,7 @@ await control("SEC-001", "login is throttled per real client even when CF-Connec
 await sleep(1000);
 
 // ---------- headers ----------
-await openFinding("SEC-009", "responses carry Content-Security-Policy", async () => !!(await anon.get("/studio")).headers.get("content-security-policy"));
+await control("SEC-009", "responses carry Content-Security-Policy", async () => !!(await anon.get("/studio")).headers.get("content-security-policy"));
 await control("HDR-1", "nosniff, frame and referrer headers are present", async () => {
   const h = (await anon.get("/api/health")).headers;
   return h.get("x-content-type-options") === "nosniff" && !!h.get("x-frame-options") && !!h.get("referrer-policy");

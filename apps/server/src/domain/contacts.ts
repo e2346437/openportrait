@@ -231,7 +231,8 @@ export function getContact(ctx: ServiceContext, id: string) {
     .orderBy(desc(shoot.createdAt))
     .all();
   const hh = row.householdId ? ctx.db.select().from(household).where(eq(household.id, row.householdId)).get() : null;
-  return { ...row, name: displayName(row), tags: tagsFor(ctx, [id]).get(id) ?? [], household: hh ?? null, leads, shoots, timeline: timeline(ctx, id) };
+  const others = hh ? ctx.db.select().from(contact).where(and(eq(contact.householdId, hh.id), isNull(contact.archivedAt), sql`${contact.id} != ${id}`)).orderBy(asc(contact.firstName), asc(contact.lastName)).all() : [];
+  return { ...row, name: displayName(row), tags: tagsFor(ctx, [id]).get(id) ?? [], household: hh ? { id: hh.id, name: hh.name, members: others.map((m) => ({ id: m.id, name: displayName(m), email: m.email, phone: m.phone })) } : null, leads, shoots, timeline: timeline(ctx, id) };
 }
 
 /** Looks for a live contact with this email, so a new inquiry reuses the person instead of duplicating them. */

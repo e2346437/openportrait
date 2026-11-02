@@ -210,6 +210,8 @@ export interface ExtensionInfo {
   sha256: string;
   status: "loaded" | "failed";
   error?: string;
+  /** The add-on's own version, from its optional `version` export. */
+  version?: string;
   cards: SettingsCard[];
   reports: ReportSection[];
   shootCards: SettingsCard[];
@@ -258,8 +260,9 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
     try {
       if (!ID.test(id)) throw new Error("file name must be lowercase letters, digits and dashes");
       info.sha256 = crypto.createHash("sha256").update(fs.readFileSync(full)).digest("hex");
-      const mod = (await import(`${pathToFileURL(full).href}?h=${info.sha256}`)) as { register?: (api: ExtensionApi) => void | Promise<void> };
+      const mod = (await import(`${pathToFileURL(full).href}?h=${info.sha256}`)) as { register?: (api: ExtensionApi) => void | Promise<void>; version?: unknown };
       if (typeof mod.register !== "function") throw new Error("module has no register() export");
+      if (typeof mod.version === "string" && /^[\w.+-]{1,40}$/.test(mod.version)) info.version = mod.version;
       const routes: FastifyPluginAsync[] = [];
       const cards: SettingsCard[] = [];
       const reports: ReportSection[] = [];

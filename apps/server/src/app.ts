@@ -59,8 +59,21 @@ import { UploadManager } from "./upload/manager.js";
 import { lanHosts, lanInfo, type LanInfo } from "./lan.js";
 
 const PACKAGE_VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version as string;
-/** The image tag when running the published image (set at build time), otherwise the package version. */
-export const VERSION = process.env.OPENPORTRAIT_VERSION && process.env.OPENPORTRAIT_VERSION !== "dev" ? process.env.OPENPORTRAIT_VERSION.replace(/^v/, "") : PACKAGE_VERSION;
+const SEMVER = /^v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/;
+const tagged = SEMVER.exec(process.env.OPENPORTRAIT_VERSION ?? "");
+/** The release version: the image's semver tag when it has one, otherwise the package version. */
+export const VERSION = tagged ? tagged[1]! : PACKAGE_VERSION;
+
+/** What is running, for the About panel and the sidebar. The image build stamps the commit and time; a dev run has neither. */
+export const BUILD = {
+  version: VERSION,
+  /** Short git commit, or null outside the published image. */
+  commit: /^[0-9a-f]{7,40}$/i.test(process.env.OPENPORTRAIT_COMMIT ?? "") ? process.env.OPENPORTRAIT_COMMIT!.slice(0, 7).toLowerCase() : null,
+  /** ISO time the image was built, or null. */
+  builtAt: process.env.OPENPORTRAIT_BUILT && !Number.isNaN(Date.parse(process.env.OPENPORTRAIT_BUILT)) ? new Date(process.env.OPENPORTRAIT_BUILT).toISOString() : null,
+  /** "release" for a version tag, the tag name (edge, latest) for a rolling image, "dev" when run from source. */
+  channel: tagged ? "release" : process.env.OPENPORTRAIT_VERSION && process.env.OPENPORTRAIT_VERSION !== "dev" ? process.env.OPENPORTRAIT_VERSION : "dev",
+};
 
 export interface AppContext {
   config: AppConfig;

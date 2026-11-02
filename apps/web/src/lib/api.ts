@@ -37,6 +37,15 @@ async function request<T>(base: string, path: string, init: Init): Promise<T> {
 export interface Me {
   user: { id: string; email: string; name: string; role: "owner" | "staff" | "assistant"; scoped?: boolean } | null;
   studio: { name: string; timezone: string };
+  /** Which build is running. Null when signed out. */
+  build: BuildInfo | null;
+}
+
+export interface BuildInfo {
+  version: string;
+  commit: string | null;
+  builtAt: string | null;
+  channel: string;
 }
 
 export interface InternetStatus {

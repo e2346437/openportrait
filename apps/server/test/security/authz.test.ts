@@ -8,7 +8,7 @@ beforeAll(async () => {
 afterAll(async () => d.close());
 
 /** Routes that are public by design. Anything else under /api/studio must refuse an anonymous caller. */
-const PUBLIC_STUDIO = [/^\/api\/studio\/setup/, /^\/api\/studio\/auth\/(login|logout|me)$/];
+const PUBLIC_STUDIO = [/^\/api\/studio\/setup/, /^\/api\/studio\/auth\/(login|login\/mfa|logout|me)$/];
 
 describe("authorization", () => {
   control("AUTHZ-1", "every /api/studio route refuses an anonymous request", async () => {

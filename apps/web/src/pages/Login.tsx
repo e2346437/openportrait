@@ -12,11 +12,20 @@ export function LoginPage() {
   const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { busy, error, fieldErrors, submit } = useSubmit(() => api("/auth/login", { body: { email, password } }));
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const { busy, error, fieldErrors, submit } = useSubmit(async () => {
+    if (challenge) return api<{ mfaRequired?: boolean }>("/auth/login/mfa", { body: { challenge, code } });
+    const res = await api<{ mfaRequired?: boolean; challenge?: string }>("/auth/login", { body: { email, password } });
+    if (res.mfaRequired && res.challenge) setChallenge(res.challenge);
+    return res;
+  });
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if ((await submit()) === undefined) return;
+    const res = await submit();
+    if (res === undefined) return;
+    if (res.mfaRequired) return;
     await refresh();
     const from = (location.state as { from?: string } | null)?.from;
     navigate(from && from.startsWith("/studio") ? from : "/studio", { replace: true });
@@ -25,20 +34,44 @@ export function LoginPage() {
   return (
     <AuthLayout headline={me?.studio.name ? `Welcome back to ${me.studio.name}` : "Welcome back"}>
       <div>
-        <h2>Sign in</h2>
-        <p className="lede">Use the email and password for your studio account.</p>
+        <h2>{challenge ? "Enter your code" : "Sign in"}</h2>
+        <p className="lede">{challenge ? "Open your authenticator app and enter the 6-digit code, or use a recovery code." : "Use the email and password for your studio account."}</p>
       </div>
       <form onSubmit={onSubmit} noValidate>
         {error ? <Callout tone="bad">{error}</Callout> : null}
-        <Field label="Email" error={fieldErrors.email}>
-          {(p) => <TextInput {...p} type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />}
-        </Field>
-        <Field label="Password" error={fieldErrors.password}>
-          {(p) => <TextInput {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
-        </Field>
-        <Button type="submit" variant="primary" size="lg" block loading={busy} disabled={!email || !password}>
-          Sign in
-        </Button>
+        {challenge ? (
+          <>
+            <Field label="Code" error={fieldErrors.code}>
+              {(p) => <TextInput {...p} inputMode="text" autoComplete="one-time-code" className="mfa-code" value={code} onChange={(e) => setCode(e.target.value)} required autoFocus />}
+            </Field>
+            <Button type="submit" variant="primary" size="lg" block loading={busy} disabled={!code.trim()}>
+              Verify
+            </Button>
+            <Button
+              variant="ghost"
+              block
+              onClick={() => {
+                setChallenge(null);
+                setCode("");
+                setPassword("");
+              }}
+            >
+              Back
+            </Button>
+          </>
+        ) : (
+          <>
+            <Field label="Email" error={fieldErrors.email}>
+              {(p) => <TextInput {...p} type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />}
+            </Field>
+            <Field label="Password" error={fieldErrors.password}>
+              {(p) => <TextInput {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
+            </Field>
+            <Button type="submit" variant="primary" size="lg" block loading={busy} disabled={!email || !password}>
+              Sign in
+            </Button>
+          </>
+        )}
       </form>
       <p className="hint">
         Forgot your password? Run <code className="mono">docker exec openportrait openportrait reset-password you@example.com</code> on the server to get a temporary one.

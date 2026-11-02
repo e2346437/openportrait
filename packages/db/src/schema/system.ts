@@ -19,6 +19,13 @@ export const user = sqliteTable("user", {
   createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
   lastLoginAt: integer({ mode: "timestamp_ms" }),
   disabledAt: integer({ mode: "timestamp_ms" }),
+  /** Two-step sign-in. The secret is encrypted; it is only active once `totpEnabledAt` is set. */
+  totpSecret: text(),
+  totpEnabledAt: integer({ mode: "timestamp_ms" }),
+  /** Time step of the last accepted code, so a code can't be used twice. */
+  totpLastStep: integer(),
+  /** JSON array of SHA-256 hashes of unused one-time recovery codes. */
+  recoveryCodes: text(),
 });
 
 /** Staff sessions. `id` is the SHA-256 of the cookie token, so a leaked database can't be replayed. */

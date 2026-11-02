@@ -28,6 +28,16 @@ afterEach(async () => {
 const caller = { level: "full" as const, areas: ["studio"] };
 
 describe("extensions", () => {
+  it("reports the build to signed-in users only and an add-on's own version", async () => {
+    const cookie = await boot({ "addon.mjs": `export const version = "2.3.4"; export function register() {}` });
+    const signedOut = await app!.inject({ url: "/api/studio/auth/me" });
+    expect(signedOut.json().build).toBeNull();
+    const me = (await app!.inject({ url: "/api/studio/auth/me", headers: { cookie } })).json();
+    expect(me.build).toMatchObject({ version: expect.stringMatching(/^\d+\.\d+\.\d+/), channel: expect.any(String) });
+    const list = await app!.inject({ url: "/api/studio/extensions", headers: { cookie } });
+    expect(list.json().extensions[0]).toMatchObject({ id: "addon", version: "2.3.4" });
+  });
+
   it("loads a module, mounts owner-only routes, and lists it", async () => {
     const cookie = await boot({
       "hello.mjs": `export function register(api) { api.settingsCard({ title: "Hello", status: { route: "/ping" }, actions: [] }); api.routes(async (r) => { r.get("/ping", async () => ({ pong: api.id })); }); }`,

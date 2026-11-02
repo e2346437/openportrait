@@ -34,6 +34,8 @@ ARG CLOUDFLARED_VERSION
 ARG TINI_VERSION
 ARG GOSU_VERSION
 ARG VERSION=dev
+ARG COMMIT=
+ARG BUILD_DATE=
 LABEL org.opencontainers.image.title="OpenPortrait" \
       org.opencontainers.image.description="Self-hosted studio CRM and client galleries for photographers" \
       org.opencontainers.image.source="https://github.com/e2346437/openportrait" \
@@ -78,6 +80,8 @@ ENV NODE_ENV=production \
     WEB_DIR=/app/apps/web/dist \
     CLOUDFLARED_PATH=/usr/local/bin/cloudflared \
     OPENPORTRAIT_VERSION=${VERSION} \
+    OPENPORTRAIT_COMMIT=${COMMIT} \
+    OPENPORTRAIT_BUILT=${BUILD_DATE} \
     PUID=1000 \
     PGID=1000 \
     UMASK=022

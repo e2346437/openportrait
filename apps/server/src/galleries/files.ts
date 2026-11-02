@@ -13,8 +13,12 @@ export function isIgnoredName(name: string): boolean {
   return name.startsWith(".") || name.startsWith("_") || IGNORED_NAMES.has(name);
 }
 
+/**
+ * Underscore-prefixed folders are private, but underscore-prefixed files are normal:
+ * Nikon names Adobe RGB frames "_DSC1234.jpg". Only hidden and system files are skipped.
+ */
 export function isImageFile(name: string): boolean {
-  if (isIgnoredName(name)) return false;
+  if (name.startsWith(".") || IGNORED_NAMES.has(name)) return false;
   const ext = path.extname(name).toLowerCase();
   if (PARTIAL_EXT.has(ext)) return false;
   return IMAGE_EXT.has(ext);

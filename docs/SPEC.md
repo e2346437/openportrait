@@ -239,7 +239,7 @@ There is one image, `ghcr.io/e2346437/openportrait` (mirrored to Docker Hub as `
 | FTP ports | Port | `2121`, passive `30000-30009` | FTP and FTPS, for cameras without SFTP. The passive range is configurable (`FTP_PASSIVE_MIN`, `FTP_PASSIVE_MAX`) |
 | Upload protocol / access | Variables (advanced) | `UPLOAD_PROTOCOL`, `UPLOAD_ACCESS_MODE` | First-run defaults for the Camera upload settings |
 | Cache | Path | `/mnt/user/appdata/openportrait/cache` → `/cache` | Previews; can live on a cache pool |
-| `PUID` / `PGID` / `UMASK` | Variable | `99` / `100` / `022` | Unraid's nobody:users |
+| `PUID` / `PGID` / `UMASK` | Variable | `99` / `100` / `000` | Unraid's nobody:users |
 | `TZ` | Variable | from Unraid | |
 | `CLOUDFLARE_TUNNEL_TOKEN` | Variable (masked) | empty | Token for the built-in cloudflared. It can also be pasted in Settings > Internet access. |
 | `APP_URL` | Variable | empty | Public URL, for example `https://studio.example.com`. Filled in automatically from the tunnel when left empty. |

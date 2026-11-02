@@ -12,7 +12,7 @@ import { verifyPassword } from "../auth.js";
 import { planZip, splitParts, streamZip, zipFilename, type Scope } from "../galleries/zip.js";
 import { email, parse } from "../validate.js";
 import { notifyFavorites } from "../galleries/mail.js";
-import { composeEmail, getEmailConfig, queueEmail } from "../domain/email.js";
+import { composeEmail, emailConfigured, queueEmail } from "../domain/email.js";
 import crypto from "node:crypto";
 
 const { gallery, gallerySet, photo, favoriteList, favoriteSelection, favoriteItem, galleryView, galleryVisitor, downloadEvent } = tables;
@@ -222,7 +222,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     const body = parse(z.object({ email, name: z.string().trim().max(100).optional() }), req.body, reply);
     if (!body) return;
     if (g.registration === "email_name" && !body.name) return reply.code(400).send({ error: "invalid", field: "name", message: "Enter your name." });
-    if (!req.user && getEmailConfig(settings)) {
+    if (!req.user && emailConfigured(settings)) {
       const studio = settings.get("studio.name") || "Your photographer";
       const code = codeFor(g, body.email, Math.floor(Date.now() / CODE_MS));
       const mail = composeEmail(studio, [`Your code for ${g.title} is ${code}.`, "Enter it on the gallery page to continue. It works for about 15 minutes. If you didn't ask for it, you can ignore this email."]);

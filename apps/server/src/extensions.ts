@@ -7,7 +7,7 @@ import { z } from "zod";
 import { requireOwner } from "./auth.js";
 import { financialReport, resolveRange, type FinancialReport } from "./domain/reports.js";
 import { VERSION, type AppContext } from "./app.js";
-import { incomingSubfolderHooks } from "./extension-hooks.js";
+import { incomingSubfolderHooks, mailSenders } from "./extension-hooks.js";
 import { defineTool, grantCapability, lockCapability, revokeCapability } from "./ai/registry.js";
 import { registerSiteExtension, registerSiteTemplate, unregisterSiteExtension, unregisterSiteTemplate, type SiteExtension, type SiteTemplate } from "./site/registry.js";
 
@@ -83,6 +83,14 @@ export interface ReportData {
 
 /** Gets the file's path inside Incoming, such as "Z9/2026-11-14/DSC_1.NEF". Returns a folder name, or nothing. */
 export type IncomingSubfolderHook = (info: { shootId: string; path: string }) => string | undefined | null;
+/** An outside way to send the studio's email, such as a hosted mailbox. */
+export interface MailSender {
+  /** Shown in Settings > Email, for example "Microsoft 365". */
+  label: string;
+  /** True when it is connected and can send right now. */
+  ready(): boolean;
+  send(mail: { fromName: string; to: string; toName?: string | null; replyTo?: string; subject: string; text: string; html?: string }): Promise<void>;
+}
 /** One column in a page's table. `money` values are whole cents, `date` values are YYYY-MM-DD. */
 export interface PageColumn {
   key: string;
@@ -163,6 +171,8 @@ export interface ExtensionApi {
   migrate(name: string, sql: string): void;
   /** Lets an extension pick a subfolder (inside the shoot's RAW folder) for files moved in from Incoming. */
   incomingSubfolder(fn: IncomingSubfolderHook): void;
+  /** Offers an outside mailbox for sending. While it is ready, it replaces the SMTP settings for outgoing email. */
+  mailSender(sender: MailSender): void;
   /** Adds a page to the sidebar (owner only). See ExtensionPage. */
   page(page: ExtensionPage): void;
   /** Runs when the app shuts down. */
@@ -256,6 +266,10 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         incomingSubfolder: (fn) => {
           incomingSubfolderHooks.push(fn);
           app.addHook("onClose", async () => void incomingSubfolderHooks.splice(incomingSubfolderHooks.indexOf(fn), 1));
+        },
+        mailSender: (sender) => {
+          mailSenders.push(sender);
+          app.addHook("onClose", async () => void mailSenders.splice(mailSenders.indexOf(sender), 1));
         },
         page: (page) => {
           if (!SLUG.test(page.slug)) throw new Error(`page slug "${page.slug}" must be lowercase letters, digits and dashes`);

@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { tables } from "@openportrait/db";
-import { composeEmail, getEmailConfig, queueEmail } from "../domain/email.js";
+import { composeEmail, emailConfigured, queueEmail } from "../domain/email.js";
 import { DomainError, linkTo, type ServiceContext } from "../domain/context.js";
 import { displayName } from "../domain/contacts.js";
 
@@ -61,7 +61,7 @@ export function sentFor(ctx: ServiceContext, galleryId: string) {
 export function emailPanel(ctx: ServiceContext, g: Gallery) {
   const recipients = recipientsFor(ctx, g);
   return {
-    configured: !!getEmailConfig(ctx.settings),
+    configured: emailConfigured(ctx.settings),
     live: g.status === "live",
     hasUrl: /^https?:\/\//.test(ctx.publicUrl?.() ?? ""),
     recipients,
@@ -72,7 +72,7 @@ export function emailPanel(ctx: ServiceContext, g: Gallery) {
 }
 
 export function sendGalleryEmail(ctx: ServiceContext, g: Gallery, input: { to: string[]; subject: string; message: string }): number {
-  if (!getEmailConfig(ctx.settings)) throw new DomainError("not_configured", "Set up email in Settings › Email first.", 409);
+  if (!emailConfigured(ctx.settings)) throw new DomainError("not_configured", "Set up email in Settings › Email first.", 409);
   if (g.status !== "live") throw new DomainError("not_live", "Publish the gallery before emailing the link.", 409);
   if (!/^https?:\/\//.test(ctx.publicUrl?.() ?? "")) throw new DomainError("no_url", "Set your public address in Settings › Internet first, so the link in the email works.", 409);
   const known = new Map(recipientsFor(ctx, g).map((r) => [r.email.toLowerCase(), r]));
@@ -91,7 +91,7 @@ export function sendGalleryEmail(ctx: ServiceContext, g: Gallery, input: { to: s
 /** Tells the studio that a client sent their favorites. Quietly does nothing when email isn't set up. */
 export function notifyFavorites(ctx: ServiceContext, g: Gallery, who: string, listName: string, count: number): void {
   const to = ctx.settings.get("studio.email");
-  if (!to || !getEmailConfig(ctx.settings)) return;
+  if (!to || !emailConfigured(ctx.settings)) return;
   const studio = ctx.settings.get("studio.name") || "the studio";
   const mail = composeEmail(studio, [`${who} sent ${count} ${count === 1 ? "photo" : "photos"} from "${listName}" in "${g.title}".`], { label: "See their picks", url: linkTo(ctx, `/studio/galleries/${g.id}?tab=favorites`) });
   queueEmail(ctx, { to, subject: `${who} sent favorites: ${g.title}`, text: mail.text, html: mail.html, kind: "gallery.favorites", shootId: g.shootId, galleryId: g.id });

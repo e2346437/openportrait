@@ -5,6 +5,7 @@ import { tables, type Db } from "@openportrait/db";
 import { defineJob, enqueue } from "@openportrait/jobs";
 import type { Settings } from "../settings.js";
 import { DomainError, type ServiceContext } from "./context.js";
+import { mailSenders } from "../extension-hooks.js";
 
 const { emailLog } = tables;
 
@@ -42,7 +43,8 @@ export function getEmailConfig(settings: Settings): EmailConfig | null {
 export function emailSettingsView(settings: Settings) {
   const c = getEmailConfig(settings);
   return {
-    configured: !!c,
+    configured: !!c || !!outsideSender(),
+    outside: outsideSender()?.label ?? null,
     host: settings.get("email.host") ?? "",
     port: settings.get("email.port") ?? 587,
     security: settings.get("email.security") ?? "starttls",
@@ -80,6 +82,16 @@ export function saveEmailSettings(ctx: ServiceContext, input: EmailSettingsInput
   s.set("email.fromName", input.fromName?.trim() ?? "");
   s.set("email.fromAddress", input.fromAddress.trim());
   s.set("email.replyTo", input.replyTo?.trim() ?? "");
+}
+
+/** The outside mailbox an extension offers, when one is connected. */
+export function outsideSender() {
+  return mailSenders.find((m) => m.ready()) ?? null;
+}
+
+/** True when email can go out, by SMTP or through an extension's mailbox. */
+export function emailConfigured(settings: Settings): boolean {
+  return !!getEmailConfig(settings) || !!outsideSender();
 }
 
 // ---- sending ----
@@ -133,7 +145,7 @@ export interface OutgoingEmail {
  * courtesy (a thank-you after an inquiry) can carry on without it.
  */
 export function queueEmail(ctx: { db: Db; settings: Settings }, mail: OutgoingEmail): string | null {
-  if (!getEmailConfig(ctx.settings)) return null;
+  if (!emailConfigured(ctx.settings)) return null;
   if (!EMAIL.test(mail.to)) return null;
   const id = crypto.randomUUID();
   ctx.db.insert(emailLog).values({ id, toAddress: mail.to, toName: mail.toName ?? null, subject: mail.subject, bodyText: mail.text, bodyHtml: mail.html ?? null, kind: mail.kind ?? "other", contactId: mail.contactId ?? null, shootId: mail.shootId ?? null, galleryId: mail.galleryId ?? null }).run();
@@ -144,13 +156,16 @@ export function queueEmail(ctx: { db: Db; settings: Settings }, mail: OutgoingEm
 async function deliver(db: Db, settings: Settings, id: string): Promise<void> {
   const row = db.select().from(emailLog).where(eq(emailLog.id, id)).get();
   if (!row || row.status === "sent") return;
+  const outside = outsideSender();
   const config = getEmailConfig(settings);
-  if (!config) {
+  if (!config && !outside) {
     db.update(emailLog).set({ status: "failed", error: "Email isn't set up." }).where(eq(emailLog.id, id)).run();
     return;
   }
   try {
-    await factory(config).sendMail({
+    if (outside) {
+      await outside.send({ fromName: config?.fromName || settings.get("studio.name") || "", to: row.toAddress, toName: row.toName, replyTo: config?.replyTo || undefined, subject: row.subject, text: row.bodyText, html: row.bodyHtml ?? undefined });
+    } else if (config) await factory(config).sendMail({
       from: { name: config.fromName, address: config.fromAddress },
       to: row.toName ? { name: row.toName, address: row.toAddress } : row.toAddress,
       replyTo: config.replyTo || undefined,
@@ -174,9 +189,15 @@ export function registerEmailJob(settings: () => Settings) {
 
 /** Sends one now and waits, so the settings screen can show the real error. */
 export async function sendTestEmail(ctx: ServiceContext, to: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const outside = outsideSender();
   const config = getEmailConfig(ctx.settings);
-  if (!config) throw new DomainError("not_configured", "Save your email settings first.");
+  if (!config && !outside) throw new DomainError("not_configured", "Save your email settings first.");
   try {
+    if (outside) {
+      await outside.send({ fromName: config?.fromName || ctx.settings.get("studio.name") || "", to, subject: "Test email from OpenPortrait", text: "This is a test. If you're reading it, OpenPortrait can send email." });
+      return { ok: true };
+    }
+    if (!config) throw new Error("Email isn't set up.");
     await factory(config).sendMail({
       from: { name: config.fromName, address: config.fromAddress },
       to,

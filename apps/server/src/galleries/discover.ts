@@ -85,7 +85,7 @@ export function listGalleryFiles(shareRoot: string, root: string): Map<string, s
   const sets = new Map<string, string[]>();
   const collect = (dir: string, depth: number, out: string[]) => {
     for (const e of readDirSafe(dir)) {
-      if (isIgnoredName(e.name)) continue;
+      if (e.isDirectory() && isIgnoredName(e.name)) continue;
       const p = path.join(dir, e.name);
       if (e.isFile() && isImageFile(e.name)) out.push(toRel(shareRoot, p));
       else if (e.isDirectory() && depth < 4) collect(p, depth + 1, out);
@@ -93,7 +93,7 @@ export function listGalleryFiles(shareRoot: string, root: string): Map<string, s
   };
   const loose: string[] = [];
   for (const e of readDirSafe(abs)) {
-    if (isIgnoredName(e.name)) continue;
+    if (e.isDirectory() && isIgnoredName(e.name)) continue;
     const p = path.join(abs, e.name);
     if (e.isFile() && isImageFile(e.name)) loose.push(toRel(shareRoot, p));
     else if (e.isDirectory()) {

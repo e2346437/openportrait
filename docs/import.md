@@ -30,3 +30,7 @@ Dates may be written 2026-03-14 or 3/14/2026 (month first). Money may include a 
 
 - `POST /api/studio/import/preview` and `/commit` take `{ kind, text, source, mapping?, updateExisting? }`. Omit `mapping` to use the automatic guess. `GET /api/studio/import/fields` lists the fields per kind.
 - Code is in `apps/server/src/import/` (`csv.ts`, `fields.ts`, `importer.ts`). Remembered rows are in the `import_record` table.
+
+## Exporting your data
+
+Settings > Import and export has a download button for clients, shoots, and invoices with their payments. Each is a CSV file you can open in a spreadsheet or hand to an accountant. The column names are the same ones the importer recognises, so an exported file can be imported again and nothing is duplicated. Only the studio owner can export. For a full copy of everything, including photos and settings, use `openportrait backup` and copy the galleries folder.

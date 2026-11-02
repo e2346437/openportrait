@@ -47,6 +47,7 @@ import { registerEmailJob } from "./domain/email.js";
 import { registerGoogleSyncJob } from "./google/job.js";
 import { crmRoutes } from "./routes/crm.js";
 import { importRoutes } from "./routes/import.js";
+import { exportRoutes } from "./routes/export.js";
 import { internetRoutes } from "./routes/internet.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { setupRoutes } from "./routes/setup.js";
@@ -241,6 +242,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(catalogRoutes, { prefix: "/api/studio" });
   await app.register(crmRoutes, { prefix: "/api/studio" });
   await app.register(importRoutes, { prefix: "/api/studio/import" });
+  await app.register(exportRoutes, { prefix: "/api/studio/export" });
   await app.register(tetherRoutes, { prefix: "/api/studio/tether" });
   await app.register(incomingRoutes, { prefix: "/api/studio/incoming" });
   await app.register(uploadRoutes, { prefix: "/api/studio/upload" });

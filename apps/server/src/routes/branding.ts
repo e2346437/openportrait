@@ -6,7 +6,7 @@ import { requireOwner, requireUser } from "../auth.js";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-/** The studio logo: shown at the top of client galleries. Stored once, normalized to a PNG at most 600 px wide. */
+/** The studio logo: shown at the top of client galleries. Stored once, trimmed of empty margins and normalized to a PNG that fits 600 x 300 px. */
 export async function brandingRoutes(app: FastifyInstance) {
   const { settings, config } = app.ctx;
   const file = path.join(config.configDir, "logo.png");
@@ -28,7 +28,15 @@ export async function brandingRoutes(app: FastifyInstance) {
   app.put("/api/studio/branding/logo", { preHandler: requireOwner }, async (req, reply) => {
     if (!Buffer.isBuffer(req.body)) return reply.code(415).send({ error: "invalid", message: "Upload a PNG, JPEG or WebP image." });
     try {
-      const png = await sharp(req.body).rotate().resize({ width: 600, height: 300, fit: "inside", withoutEnlargement: true }).png().toBuffer();
+      let img = sharp(req.body).rotate();
+      // Trim empty edges (transparent or a flat background) so the logo fills its box; keep the original if nothing is left.
+      try {
+        const trimmed = await img.clone().trim({ threshold: 10 }).toBuffer();
+        img = sharp(trimmed);
+      } catch {
+        img = sharp(req.body).rotate();
+      }
+      const png = await img.resize({ width: 600, height: 300, fit: "inside", withoutEnlargement: true }).png().toBuffer();
       fs.mkdirSync(config.configDir, { recursive: true });
       fs.writeFileSync(file, png);
     } catch {

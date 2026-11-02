@@ -141,6 +141,19 @@ describe("access", () => {
     expect((await app.inject({ method: "GET", url: `/api/g/${slug}`, headers: { cookie: staff } })).json().photos).toHaveLength(1);
   });
 
+  it("trims transparent margins from an uploaded logo and fits it in 600 x 300", async () => {
+    const mark = await sharp({ create: { width: 400, height: 100, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 1 } } }).png().toBuffer();
+    const padded = await sharp({ create: { width: 1000, height: 1000, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: mark, left: 300, top: 450 }])
+      .png()
+      .toBuffer();
+    const put = await app.inject({ method: "PUT", url: "/api/studio/branding/logo", payload: padded, headers: { cookie: staff, "content-type": "image/png" } });
+    expect(put.statusCode).toBe(200);
+    const meta = await sharp((await app.inject({ method: "GET", url: put.json().logo })).rawPayload).metadata();
+    expect(meta.width).toBe(400);
+    expect(meta.height).toBe(100);
+  });
+
   it("stores a studio logo as a small PNG and serves it publicly", async () => {
     const png = await sharp({ create: { width: 1200, height: 400, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 1 } } }).png().toBuffer();
     const put = await app.inject({ method: "PUT", url: "/api/studio/branding/logo", payload: png, headers: { cookie: staff, "content-type": "image/png" } });

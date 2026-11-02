@@ -106,3 +106,35 @@ export const shootContact = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.shootId, t.contactId] })],
 );
+
+/** A to-do on a shoot ("Edit the gallery", "Send the questionnaire reminder"). Due dates are plain calendar days in the studio's time zone. */
+export const shootTask = sqliteTable(
+  "shoot_task",
+  {
+    id: text().primaryKey(),
+    shootId: text()
+      .notNull()
+      .references(() => shoot.id, { onDelete: "cascade" }),
+    title: text().notNull(),
+    dueDate: text(),
+    doneAt: integer({ mode: "timestamp_ms" }),
+    position: integer().notNull().default(0),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [index("shoot_task_shoot_idx").on(t.shootId), index("shoot_task_due_idx").on(t.doneAt, t.dueDate)],
+);
+
+/** A checklist every new shoot of a type starts with. `dueDays` counts from the shoot's first date (negative is before). */
+export const shootTypeTask = sqliteTable(
+  "shoot_type_task",
+  {
+    id: text().primaryKey(),
+    shootTypeId: text()
+      .notNull()
+      .references(() => shootType.id, { onDelete: "cascade" }),
+    title: text().notNull(),
+    dueDays: integer(),
+    position: integer().notNull().default(0),
+  },
+  (t) => [index("shoot_type_task_type_idx").on(t.shootTypeId)],
+);

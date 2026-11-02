@@ -41,6 +41,17 @@ describe("extensions", () => {
     expect(list.json().extensions[0].sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it("lists report sections an extension adds, and serves them to the owner only", async () => {
+    const cookie = await boot({
+      "rep.mjs": `export function register(api) { api.reportSection({ title: "Extra", route: "/extra" }); api.routes(async (r) => { r.get("/extra", async (req) => ({ stats: [{ label: "From", value: req.query.from }, { label: "Collected", value: api.financialReport(req.query.from, "2026-12-31").totals.collectedCents }] })); }); }`,
+    });
+    const list = (await app!.inject({ method: "GET", url: "/api/studio/extensions", headers: { cookie } })).json().extensions[0];
+    expect(list.reports).toEqual([{ title: "Extra", route: "/extra" }]);
+    expect((await app!.inject({ method: "GET", url: "/api/studio/extensions/rep/extra?from=2026-01-01" })).statusCode).toBe(401);
+    const r = await app!.inject({ method: "GET", url: "/api/studio/extensions/rep/extra?from=2026-01-01", headers: { cookie } });
+    expect(r.json().stats).toEqual([{ label: "From", value: "2026-01-01" }, { label: "Collected", value: 0 }]);
+  });
+
   it("lists the pages a module adds and rejects a bad slug", async () => {
     const cookie = await boot({
       "pages.mjs": `export function register(api) {
@@ -145,5 +156,28 @@ describe("limiting a login to certain shoots", () => {
     expect((await app!.inject({ method: "PATCH", url: `/api/studio/shoots/${mine}`, payload: { notes: "x" }, headers: sam.cookie ? sam : owner })).statusCode).toBe(403);
     // The owner is unaffected.
     expect((await app!.inject({ method: "GET", url: "/api/studio/contacts", headers: owner })).statusCode).toBe(200);
+  });
+});
+
+describe("extension mail sender", () => {
+  it("sends studio email through an extension's mailbox while it is ready, and reports it", async () => {
+    const cookie = await boot({
+      "mailbox.mjs": `export function register(api) {
+        globalThis.__sent = [];
+        globalThis.__ready = false;
+        api.mailSender({ label: "Test mailbox", ready: () => globalThis.__ready, send: async (m) => { globalThis.__sent.push(m); } });
+      }`,
+    });
+    const g = globalThis as unknown as { __sent: Array<{ to: string; subject: string }>; __ready: boolean };
+    const view = async () => (await app!.inject({ method: "GET", url: "/api/studio/email", headers: { cookie } })).json();
+    expect(await view()).toMatchObject({ configured: false, outside: null });
+    g.__ready = true;
+    expect(await view()).toMatchObject({ configured: true, outside: "Test mailbox" });
+    const test = await app!.inject({ method: "POST", url: "/api/studio/email/test", payload: { to: "me@example.com" }, headers: { cookie } });
+    expect(test.statusCode).toBe(200);
+    expect(g.__sent).toHaveLength(1);
+    expect(g.__sent[0]).toMatchObject({ to: "pat@example.com", subject: "Test email from OpenPortrait" });
+    g.__ready = false;
+    expect(await view()).toMatchObject({ configured: false });
   });
 });

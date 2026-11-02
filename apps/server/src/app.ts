@@ -19,6 +19,8 @@ import { GalleryIngest } from "./galleries/ingest.js";
 import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
 import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
+import { siteRoutes } from "./routes/site.js";
+import { registerFreeTemplates } from "./site/templates.js";
 import { mcpRoutes } from "./ai/mcp.js";
 import { enforceShootScope, shootScopeFor } from "./scope.js";
 import { loadExtensions, extensionRoutes } from "./extensions.js";
@@ -35,7 +37,10 @@ import { calendarRoutes } from "./routes/calendar.js";
 import { googleRoutes } from "./routes/google.js";
 import { bookingRoutes } from "./routes/booking.js";
 import { orderRoutes } from "./routes/orders.js";
+import { reportRoutes } from "./routes/reports.js";
 import { contractRoutes } from "./routes/contracts.js";
+import { householdRoutes } from "./routes/households.js";
+import { taskRoutes } from "./routes/tasks.js";
 import { publicRoutes } from "./routes/public.js";
 import { questionnaireRoutes } from "./routes/questionnaires.js";
 import { registerEmailJob } from "./domain/email.js";
@@ -226,6 +231,8 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(internetRoutes, { prefix: "/api/studio/internet" });
   await app.register(galleryRoutes, { prefix: "/api/studio/galleries" });
   await app.register(ingestRoutes, { prefix: "/api/studio/ingest" });
+  registerFreeTemplates();
+  await app.register(siteRoutes, { prefix: "/api/studio/site" });
   // Client pages and their media are public; the private link (and signed media URLs) are the key.
   await app.register(clientGalleryRoutes, { prefix: "/api/g" });
   await app.register(mediaRoutes);
@@ -241,7 +248,10 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(googleRoutes, { prefix: "/api/studio/google" });
   await app.register(bookingRoutes, { prefix: "/api/studio" });
   await app.register(orderRoutes, { prefix: "/api/studio" });
+  await app.register(reportRoutes, { prefix: "/api/studio" });
   await app.register(contractRoutes, { prefix: "/api/studio" });
+  await app.register(householdRoutes, { prefix: "/api/studio" });
+  await app.register(taskRoutes, { prefix: "/api/studio" });
   await app.register(questionnaireRoutes, { prefix: "/api/studio" });
   // Clients reach these without signing in, so they sit outside /api/studio and its access rule.
   await app.register(publicRoutes, { prefix: "/api/public" });

@@ -51,7 +51,7 @@ const money = (ctx: ServiceContext, cents: number) => formatMoney(cents, currenc
 const tzOf = (ctx: ServiceContext) => ctx.settings.get("studio.timezone") ?? "UTC";
 const today = (ctx: ServiceContext) => ymdIn(Date.now(), tzOf(ctx));
 
-function nextNumber(tx: Pick<ServiceContext["db"], "select" | "insert" | "update">, name: "quote" | "invoice"): number {
+export function nextNumber(tx: Pick<ServiceContext["db"], "select" | "insert" | "update">, name: "quote" | "invoice"): number {
   const row = tx.select().from(counter).where(eq(counter.name, name)).get();
   if (!row) {
     tx.insert(counter).values({ name, value: 1001 }).run();

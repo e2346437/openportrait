@@ -50,6 +50,11 @@ export const scheduler = sqliteTable(
     /** The shoot type an inquiry from this page is filed under. */
     shootTypeId: text().references(() => shootType.id, { onDelete: "set null" }),
     approval: text({ enum: ["manual", "auto"] }).notNull().default("manual"),
+    /** What the session costs, in cents. Zero means the page is free to book. */
+    priceCents: integer().notNull().default(0),
+    /** The deposit asked up front. "percent" stores `depositValue` in basis points (2500 = 25%); "fixed" stores cents. */
+    depositType: text({ enum: ["none", "percent", "fixed"] }).notNull().default("none"),
+    depositValue: integer().notNull().default(0),
     /** Weekly hours: { "1": [{ "start": "09:00", "end": "17:00" }], ... } with 0 = Sunday. */
     availability: text({ mode: "json" }).$type<Record<string, Array<{ start: string; end: string }>>>().notNull(),
     active: integer({ mode: "boolean" }).notNull().default(true),
@@ -72,6 +77,8 @@ export const schedulerBooking = sqliteTable(
       .references(() => contact.id),
     leadId: text().references(() => lead.id, { onDelete: "set null" }),
     entryId: text().references(() => calendarEntry.id, { onDelete: "set null" }),
+    /** The invoice raised for a paid page, so the deposit is paid and tracked like any other invoice. */
+    orderId: text(),
     startsAt: integer({ mode: "timestamp_ms" }).notNull(),
     endsAt: integer({ mode: "timestamp_ms" }).notNull(),
     status: text({ enum: ["pending", "confirmed", "declined", "cancelled"] }).notNull(),

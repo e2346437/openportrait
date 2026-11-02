@@ -4,8 +4,11 @@ import { tables } from "@openportrait/db";
 import { busyIntervals } from "./calendar.js";
 import { displayName } from "./contacts.js";
 import { DomainError, linkTo, newId, notFound, type ServiceContext } from "./context.js";
+import { evaluate as evaluateCoupon } from "./coupons.js";
 import { composeEmail, queueEmail } from "./email.js";
 import { createLead } from "./leads.js";
+import { formatMoney, totalsFor } from "./money.js";
+import { createOrder, paidOf, voidOrder } from "./orders.js";
 import { addDays, atTime, isYmd, weekdayOf, ymdIn } from "./time.js";
 
 const { scheduler, schedulerBooking, calendarEntry, contact, shootType } = tables;
@@ -27,6 +30,11 @@ export interface SchedulerInput {
   location?: string | null;
   shootTypeId?: string | null;
   approval?: "manual" | "auto";
+  /** What the session costs, in cents. Zero or omitted means free to book. */
+  priceCents?: number;
+  depositType?: "none" | "percent" | "fixed";
+  /** Percent: basis points (2500 = 25%). Fixed: cents. */
+  depositValue?: number;
   availability: Availability;
   active?: boolean;
 }
@@ -79,7 +87,13 @@ function values(ctx: ServiceContext, input: SchedulerInput) {
   const step = int(input.stepMinutes, 30, 5, 240, "Start times");
   if (step % 5) throw new DomainError("invalid", "Start times must be a multiple of 5 minutes.");
   if (input.shootTypeId && !ctx.db.select({ id: shootType.id }).from(shootType).where(eq(shootType.id, input.shootTypeId)).get()) throw new DomainError("invalid", "Choose a shoot type.");
+  const priceCents = int(input.priceCents, 0, 0, 100_000_000, "The price");
+  const depositType = priceCents > 0 ? (input.depositType ?? "none") : "none";
+  const depositValue = depositType === "none" ? 0 : int(input.depositValue, 0, 1, depositType === "percent" ? 10_000 : priceCents, depositType === "percent" ? "The deposit percentage" : "The deposit");
   return {
+    priceCents,
+    depositType,
+    depositValue,
     name: input.name.trim().slice(0, 120),
     description: input.description?.trim().slice(0, 2000) || null,
     durationMinutes: int(input.durationMinutes, 30, 5, 600, "Length"),
@@ -187,6 +201,31 @@ export interface BookingInput {
   email: string;
   phone?: string;
   message?: string;
+  /** A coupon code for a page that charges. */
+  couponCode?: string;
+}
+
+/** What a visitor owes for a page that charges, with an optional coupon, before anything is booked. */
+export function priceFor(ctx: ServiceContext, s: typeof scheduler.$inferSelect, rawCode?: string | null) {
+  if (s.priceCents <= 0) return null;
+  const lines = [{ itemId: null, quantity: 1, unitCents: s.priceCents, taxable: true }];
+  const coupon = rawCode?.trim() ? evaluateCoupon(ctx, rawCode, lines, { manualDiscountCents: 0, schedulerId: s.id }) : null;
+  const totals = totalsFor(lines, coupon?.cents ?? 0, ctx.settings.get("money.taxBps") ?? 0);
+  const asked = s.depositType === "percent" ? Math.round((totals.totalCents * s.depositValue) / 10_000) : s.depositType === "fixed" ? s.depositValue : 0;
+  // A deposit is never more than the total; one that covers everything just means paying in full.
+  const depositCents = Math.min(asked, totals.totalCents);
+  const cur = ctx.settings.get("money.currency") || "USD";
+  return {
+    currency: cur,
+    priceCents: s.priceCents,
+    couponCode: coupon?.code ?? null,
+    couponCents: coupon?.cents ?? 0,
+    taxCents: totals.taxCents,
+    totalCents: totals.totalCents,
+    depositCents,
+    balanceCents: totals.totalCents - depositCents,
+    summary: depositCents > 0 && depositCents < totals.totalCents ? `${formatMoney(depositCents, cur)} deposit now, ${formatMoney(totals.totalCents - depositCents, cur)} later` : formatMoney(totals.totalCents, cur),
+  };
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -208,6 +247,8 @@ export function createBooking(ctx: ServiceContext, slug: string, input: BookingI
   if (!EMAIL.test(email) || email.length > 254) throw new DomainError("invalid", "Please enter a valid email address so we can confirm with you.");
   const tz = ctx.settings.get("studio.timezone") ?? "UTC";
   const day = ymdIn(input.startsAt, tz);
+  // Check the coupon before the time is held, so a typo never costs anyone a slot.
+  const price = priceFor(ctx, s, input.couponCode);
 
   const made = ctx.db.transaction(() => {
     const offered = availableSlots(ctx, s, day, day)[day] ?? [];
@@ -233,6 +274,7 @@ export function createBooking(ctx: ServiceContext, slug: string, input: BookingI
     return { id, token, status, contactId: res.lead.contactId, leadId: res.lead.id, slot, name };
   });
 
+  const invoice = price ? raiseInvoice(ctx, s, made, price, day, input.couponCode) : null;
   const studio = ctx.settings.get("studio.name") || "the studio";
   const when = formatWhen(made.slot.startsAt, tz);
   const cancelUrl = linkTo(ctx, `/book/cancel/${made.token}`);
@@ -240,6 +282,7 @@ export function createBooking(ctx: ServiceContext, slug: string, input: BookingI
     made.status === "confirmed"
       ? [`Hi ${firstName},`, `You're booked: ${s.name} on ${when}.`, ...(s.location ? [`Where: ${s.location}`] : [])]
       : [`Hi ${firstName},`, `Thanks for asking to book ${s.name} on ${when}. I'll confirm it by email shortly. Until then the time is held for you.`];
+  if (invoice && price) lines.push(price.depositCents > 0 && price.depositCents < price.totalCents ? `A ${formatMoney(price.depositCents, price.currency)} deposit is due to hold your time, and ${formatMoney(price.balanceCents, price.currency)} after that. You can pay it here: ${invoice.url}` : `The total is ${formatMoney(price.totalCents, price.currency)}. You can pay it here: ${invoice.url}`);
   const mail = composeEmail(studio, lines, { label: "Need to cancel?", url: cancelUrl });
   queueEmail(ctx, { to: email, toName: made.name, subject: made.status === "confirmed" ? `You're booked: ${s.name}` : `Booking request received: ${s.name}`, text: mail.text, html: mail.html, kind: made.status === "confirmed" ? "booking.confirmed" : "booking.requested", contactId: made.contactId });
   const owner = ctx.settings.get("studio.email");
@@ -247,7 +290,37 @@ export function createBooking(ctx: ServiceContext, slug: string, input: BookingI
     const note = composeEmail(studio, [`${made.status === "confirmed" ? "New booking" : "New booking request"}: ${made.name} for ${s.name}, ${when}.`, input.message ? `Their message:\n${input.message.trim().slice(0, 2000)}` : ""].filter(Boolean), { label: made.status === "pending" ? "Review the request" : "Open bookings", url: linkTo(ctx, "/studio/booking") });
     queueEmail(ctx, { to: owner, subject: `${made.status === "confirmed" ? "Booked" : "Booking request"}: ${made.name}, ${s.name}`, text: note.text, html: note.html, kind: "booking.notify" });
   }
-  return { id: made.id, status: made.status, startsAt: made.slot.startsAt, endsAt: made.slot.endsAt, cancelToken: made.token, when };
+  return { id: made.id, status: made.status, startsAt: made.slot.startsAt, endsAt: made.slot.endsAt, cancelToken: made.token, when, invoice: invoice ? { token: invoice.token, totalCents: price!.totalCents, depositCents: price!.depositCents, currency: price!.currency } : null };
+}
+
+/**
+ * A page that charges gets an invoice the moment someone books, with the deposit as its first payment and the balance
+ * due on the day. It is the same invoice clients pay everywhere else, so PayPal, credit and manual payments all work.
+ */
+function raiseInvoice(ctx: ServiceContext, s: typeof scheduler.$inferSelect, made: { id: string; contactId: string; leadId: string; name: string }, price: NonNullable<ReturnType<typeof priceFor>>, day: string, couponCode?: string) {
+  const full = price.depositCents <= 0 || price.depositCents >= price.totalCents;
+  const inv = createOrder(ctx, "invoice", {
+    contactId: made.contactId,
+    leadId: made.leadId,
+    title: s.name,
+    schedulerId: s.id,
+    couponCode: couponCode?.trim() || null,
+    lines: [{ description: s.name, unitCents: s.priceCents }],
+    schedule: full ? undefined : [{ label: "Deposit", amountCents: price.depositCents, dueDate: null }, { label: "Balance", amountCents: price.balanceCents, dueDate: day }],
+  });
+  ctx.db.update(tables.order).set({ status: "sent", sentAt: new Date() }).where(eq(tables.order.id, inv.id)).run();
+  ctx.db.update(schedulerBooking).set({ orderId: inv.id }).where(eq(schedulerBooking.id, made.id)).run();
+  return { id: inv.id, token: inv.token, url: linkTo(ctx, `/o/${inv.token}`) };
+}
+
+/** When a booking falls through, an invoice nobody paid is voided so it doesn't linger. A paid one is left for the studio to refund. */
+function releaseInvoice(ctx: ServiceContext, b: typeof schedulerBooking.$inferSelect) {
+  if (!b.orderId) return;
+  try {
+    voidOrder(ctx, b.orderId);
+  } catch {
+    /* payments were taken: the studio decides whether to refund */
+  }
 }
 
 const bookingSelect = {
@@ -258,6 +331,7 @@ const bookingSelect = {
   message: schedulerBooking.message,
   createdAt: schedulerBooking.createdAt,
   leadId: schedulerBooking.leadId,
+  orderId: schedulerBooking.orderId,
   contactId: contact.id,
   firstName: contact.firstName,
   lastName: contact.lastName,
@@ -282,7 +356,16 @@ export function listBookings(ctx: ServiceContext, filter: { status?: "pending" |
     .orderBy(filter.status === "pending" || filter.upcomingOnly ? asc(schedulerBooking.startsAt) : desc(schedulerBooking.startsAt))
     .limit(200)
     .all()
-    .map((r) => ({ ...r, name: displayName(r) }));
+    .map((r) => ({ ...r, name: displayName(r), payment: paymentOf(ctx, r.orderId) }));
+}
+
+/** Where a paid booking's invoice stands, for the bookings list. */
+function paymentOf(ctx: ServiceContext, orderId: string | null) {
+  if (!orderId) return null;
+  const o = ctx.db.select({ totalCents: tables.order.totalCents, status: tables.order.status }).from(tables.order).where(eq(tables.order.id, orderId)).get();
+  if (!o) return null;
+  const paidCents = paidOf(ctx, orderId);
+  return { totalCents: o.totalCents, paidCents, status: o.status === "void" ? ("void" as const) : paidCents <= 0 ? ("unpaid" as const) : paidCents >= o.totalCents ? ("paid" as const) : ("partial" as const) };
 }
 
 function bookingRow(ctx: ServiceContext, id: string) {
@@ -324,6 +407,7 @@ export function declineBooking(ctx: ServiceContext, id: string, reason?: string)
   if (b.status !== "pending") throw new DomainError("invalid", "Only a waiting request can be declined.");
   ctx.db.update(schedulerBooking).set({ status: "declined" }).where(eq(schedulerBooking.id, id)).run();
   setCalendar(ctx, b);
+  releaseInvoice(ctx, b);
   tell(ctx, b, (n) => `About your request: ${n}`, (when, n) => [`I'm sorry, I can't do ${n} on ${when}.`, ...(reason?.trim() ? [reason.trim().slice(0, 1000)] : []), "Please pick another time and I'll do my best to fit you in."], "booking.declined");
   return { ok: true };
 }
@@ -334,6 +418,7 @@ export function cancelBooking(ctx: ServiceContext, id: string, reason?: string) 
   if (b.status === "cancelled" || b.status === "declined") return { ok: true };
   ctx.db.update(schedulerBooking).set({ status: "cancelled" }).where(eq(schedulerBooking.id, id)).run();
   setCalendar(ctx, b);
+  releaseInvoice(ctx, b);
   tell(ctx, b, (n) => `Cancelled: ${n}`, (when, n) => [`Your ${n} on ${when} has been cancelled.`, ...(reason?.trim() ? [reason.trim().slice(0, 1000)] : [])], "booking.cancelled");
   return { ok: true };
 }
@@ -354,6 +439,7 @@ export function cancelByToken(ctx: ServiceContext, token: string) {
   if (b.startsAt.getTime() < Date.now()) throw new DomainError("past", "That time has already passed.");
   ctx.db.update(schedulerBooking).set({ status: "cancelled" }).where(eq(schedulerBooking.id, b.id)).run();
   setCalendar(ctx, b);
+  releaseInvoice(ctx, b);
   const owner = ctx.settings.get("studio.email");
   const c = ctx.db.select().from(contact).where(eq(contact.id, b.contactId)).get();
   const s = ctx.db.select().from(scheduler).where(eq(scheduler.id, b.schedulerId)).get();

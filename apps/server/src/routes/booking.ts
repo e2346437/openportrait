@@ -21,6 +21,9 @@ const SchedulerBody = z.object({
   location: z.string().trim().max(200).nullish(),
   shootTypeId: z.string().nullish(),
   approval: z.enum(["manual", "auto"]).optional(),
+  priceCents: z.number().int().optional(),
+  depositType: z.enum(["none", "percent", "fixed"]).optional(),
+  depositValue: z.number().int().optional(),
   availability: z.record(z.string(), z.array(Window).max(6)),
   active: z.boolean().optional(),
 });

@@ -1,0 +1,42 @@
+{
+  "_comment": "Every exception needs a justification and an expiry date. The gate ignores an expired entry, so nothing is suppressed forever. Add an entry only after reasoning about reachability, never to make a run go green.",
+  "exceptions": [
+    {
+      "id": "DS002",
+      "path": "Dockerfile",
+      "justification": "The entrypoint starts as root only to chown the data volumes and drop to PUID:PGID with gosu, which Unraid needs (99:100). The app process runs as an unprivileged user with no capabilities (verified by NET-4 on every run). Further hardening is tracked as SEC-008.",
+      "expires": "2026-12-31"
+    },
+    {
+      "id": "*",
+      "package": "stdlib",
+      "path": "usr/local/bin/gosu",
+      "justification": "Go standard library inside the gosu helper. gosu only calls setuid/setgid and execs the app; it opens no sockets and parses no network input, so the vulnerable code is not reachable. Re-check when a gosu release built with a newer Go is available.",
+      "expires": "2026-12-31"
+    },
+    {
+      "id": "mcp-ssrf-typescript",
+      "path": "apps/server/src/ai/mcp.ts",
+      "justification": "False positive. The rule flags MCP tool registration; none of the tools accept a URL or path argument. Enforced by test MCP-13 (no tool exposes shell, file-system or URL access).",
+      "expires": "2026-12-31"
+    },
+    {
+      "id": "react-insecure-request",
+      "path": "apps/server/src/tunnel.ts",
+      "justification": "False positive. This is a 2-second readiness probe of cloudflared's metrics port on the container's own loopback address.",
+      "expires": "2026-12-31"
+    },
+    {
+      "id": "useless-ternary",
+      "path": "apps/web/",
+      "justification": "Code-quality hint, not a security issue.",
+      "expires": "2026-12-31"
+    },
+    {
+      "id": "gcm-no-tag-length",
+      "path": "apps/server/src/secrets.ts",
+      "justification": "Real but low: decryption doesn't pin the 16-byte tag length, so a stored value with a truncated tag would still verify. Needs write access to the database file to exploit. Tracked as SEC-015; fix is one argument to createDecipheriv.",
+      "expires": "2026-12-31"
+    }
+  ]
+}

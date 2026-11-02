@@ -1,0 +1,276 @@
+{
+  "_comment": "Source of truth for the release gate. status: open | fixed | accepted. confirmed: true only when the behaviour was observed on a running sandbox. severity is the audit's judgement for the most exposed edition. cvss4 vectors are estimated base vectors; scores are deliberately not calculated.",
+  "audit": {
+    "date": "2026-11-02",
+    "commit": "1601f66",
+    "target": "disposable local containers, synthetic data only"
+  },
+  "findings": [
+    {
+      "id": "SEC-001",
+      "title": "Rate limits key on an address the caller controls (and share one bucket behind the tunnel)",
+      "severity": "High",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N",
+      "tests": [
+        "apps/server/test/security/findings.test.ts#SEC-001",
+        "security/tests/live/suite.mjs#SEC-001"
+      ],
+      "needsApproval": "authentication behaviour",
+      "deployments": [
+        "single studio, LAN port reachable",
+        "self-hosted, exposed to the internet",
+        "managed hosting"
+      ]
+    },
+    {
+      "id": "SEC-002",
+      "title": "A new install can be claimed by whoever reaches the setup page first",
+      "severity": "Medium",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
+      "tests": [
+        "security/tests/live/suite.mjs#SEC-002"
+      ],
+      "needsApproval": "authentication / first-run flow",
+      "deployments": [
+        "self-hosted, exposed to the internet",
+        "managed hosting"
+      ]
+    },
+    {
+      "id": "SEC-003",
+      "title": "State-changing requests are not tied to the site that sent them (no Origin / Fetch-Metadata check)",
+      "severity": "Medium",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:A/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N",
+      "tests": [
+        "apps/server/test/security/findings.test.ts#SEC-003"
+      ],
+      "needsApproval": "public API behaviour",
+      "deployments": [
+        "studio sharing a parent domain with other sites",
+        "managed hosting"
+      ]
+    },
+    {
+      "id": "SEC-004",
+      "title": "Signed photo URLs never expire and keep working after a gallery is unpublished or expires",
+      "severity": "Medium",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:N/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N",
+      "tests": [
+        "security/tests/live/suite.mjs#SEC-004"
+      ],
+      "needsApproval": "public URL format",
+      "deployments": [
+        "all deployments"
+      ]
+    },
+    {
+      "id": "SEC-005",
+      "title": "Gallery links carry about 31 bits of randomness and public gallery endpoints are not rate limited",
+      "severity": "Medium",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:N/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N",
+      "tests": [
+        "apps/server/test/security/findings.test.ts#SEC-005",
+        "security/tests/live/suite.mjs#SEC-005"
+      ],
+      "needsApproval": "public URL format",
+      "deployments": [
+        "all deployments"
+      ]
+    },
+    {
+      "id": "SEC-006",
+      "title": "AI wrapper around client-written text can be closed early by the text itself; names and other fields are not wrapped",
+      "severity": "Medium",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:A/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N",
+      "tests": [
+        "apps/server/test/security/findings.test.ts#SEC-006",
+        "apps/server/test/security/mcp.test.ts#MCP-8..12"
+      ],
+      "needsApproval": "none (tool output format)",
+      "deployments": [
+        "all with AI access on"
+      ]
+    },
+    {
+      "id": "SEC-007",
+      "title": "Camera upload logins can overwrite existing photos (rename or re-upload) despite the upload-only promise",
+      "severity": "Low",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:N/VI:L/VA:L/SC:N/SI:N/SA:N",
+      "tests": [
+        "apps/server/test/security/findings.test.ts#SEC-007",
+        "security/tests/live/suite.mjs#SEC-007"
+      ],
+      "needsApproval": "none",
+      "deployments": [
+        "all with camera upload on"
+      ]
+    },
+    {
+      "id": "SEC-008",
+      "title": "Container starts as root with Docker's default capabilities, and ships without no-new-privileges, read-only filesystem or resource limits",
+      "severity": "Medium",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:L/AC:H/AT:P/PR:L/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:N",
+      "tests": [
+        "security/scripts/isolation.sh#NET-4"
+      ],
+      "needsApproval": "deployment behaviour",
+      "deployments": [
+        "managed hosting (High there)",
+        "all deployments"
+      ]
+    },
+    {
+      "id": "SEC-009",
+      "title": "No Content-Security-Policy, HSTS or Permissions-Policy",
+      "severity": "Low",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:A/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
+      "tests": [
+        "apps/server/test/security/findings.test.ts#SEC-009",
+        "security/tests/live/suite.mjs#SEC-009"
+      ],
+      "needsApproval": "public behaviour (could affect the UI)",
+      "deployments": [
+        "all deployments"
+      ]
+    },
+    {
+      "id": "SEC-010",
+      "title": "OAuth and MCP discovery URLs are built from the Host header when no public address is set",
+      "severity": "Low",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:A/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N",
+      "tests": [
+        "apps/server/test/security/findings.test.ts#SEC-010",
+        "security/tests/live/suite.mjs#SEC-010"
+      ],
+      "needsApproval": "none",
+      "deployments": [
+        "installs without a public address"
+      ]
+    },
+    {
+      "id": "SEC-011",
+      "title": "MCP endpoint does not check Origin; anyone can register an OAuth client with any display name",
+      "severity": "Low",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:A/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
+      "tests": [
+        "apps/server/test/security/findings.test.ts#SEC-011",
+        "security/tests/live/suite.mjs#SEC-011"
+      ],
+      "needsApproval": "none",
+      "deployments": [
+        "all with AI access on"
+      ]
+    },
+    {
+      "id": "SEC-012",
+      "title": "A visitor can act as any email address; the password gate is not applied to identify",
+      "severity": "Low",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
+      "tests": [
+        "security/tests/live/suite.mjs#SEC-012"
+      ],
+      "needsApproval": "gallery access behaviour",
+      "deployments": [
+        "all deployments"
+      ]
+    },
+    {
+      "id": "SEC-013",
+      "title": "Full-size downloads keep GPS location in the photo file",
+      "severity": "Informational",
+      "status": "accepted",
+      "confirmed": true,
+      "cvss4": "n/a",
+      "tests": [
+        "security/tests/live/suite.mjs#SEC-013"
+      ],
+      "needsApproval": "option to add",
+      "deployments": [
+        "all deployments"
+      ]
+    },
+    {
+      "id": "SEC-014",
+      "title": "Vulnerable components in the image: bundled npm, cloudflared and gosu Go runtime, Debian packages without fixes",
+      "severity": "Medium",
+      "status": "open",
+      "confirmed": false,
+      "cvss4": "n/a (scanner finding; exploitability unverified)",
+      "tests": [
+        "security/scripts/scan.sh",
+        "security/scripts/gate.mjs"
+      ],
+      "needsApproval": "none",
+      "deployments": [
+        "all deployments"
+      ]
+    },
+    {
+      "id": "SEC-015",
+      "title": "Secret key sits next to the database and backups; decryption does not pin the auth-tag length",
+      "severity": "Low",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "CVSS:4.0/AV:L/AC:L/AT:P/PR:H/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N",
+      "tests": [
+        "semgrep gcm-no-tag-length"
+      ],
+      "needsApproval": "backup format",
+      "deployments": [
+        "all deployments"
+      ]
+    },
+    {
+      "id": "SEC-016",
+      "title": "No second factor, no idle timeout, 30-day sessions (OWASP ASVS L2 gap)",
+      "severity": "Low",
+      "status": "open",
+      "confirmed": true,
+      "cvss4": "n/a (missing control)",
+      "tests": [],
+      "needsApproval": "authentication feature",
+      "deployments": [
+        "all deployments"
+      ]
+    },
+    {
+      "id": "SEC-017",
+      "title": "A private home-network address is used as the example in shipped UI text, the Unraid template and tests",
+      "severity": "Informational",
+      "status": "open",
+      "confirmed": true,
+      "deployments": [
+        "all deployments"
+      ],
+      "cvss4": "n/a",
+      "tests": [
+        "ZAP: Private IP Disclosure"
+      ],
+      "needsApproval": "none"
+    }
+  ]
+}

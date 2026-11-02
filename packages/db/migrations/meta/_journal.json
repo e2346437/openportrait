@@ -127,6 +127,13 @@
       "when": 1793634920332,
       "tag": "0017_freezing_pepper_potts",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1793636032646,
+      "tag": "0018_thick_wolverine",
+      "breakpoints": true
     }
   ]
 }

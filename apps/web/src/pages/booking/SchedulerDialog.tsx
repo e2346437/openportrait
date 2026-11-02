@@ -25,6 +25,7 @@ export interface Scheduler {
   depositType: "none" | "percent" | "fixed";
   depositValue: number;
   contractTemplateId: string | null;
+  createShoot: boolean;
   maxPerDay: number;
   dateOverrides: Windows;
   availability: Windows;
@@ -53,6 +54,7 @@ const blank = (): Scheduler => ({
   depositType: "none",
   depositValue: 0,
   contractTemplateId: null,
+  createShoot: false,
   maxPerDay: 0,
   dateOverrides: {},
   availability: Object.fromEntries(WEEKDAYS.map((d) => [d, [{ start: "09:00", end: "17:00" }]])),
@@ -95,6 +97,7 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
       depositValue,
       // Dates that have passed are dropped, so the list doesn't grow forever.
       dateOverrides: Object.fromEntries(Object.entries(f.dateOverrides ?? {}).filter(([d]) => d >= new Date().toISOString().slice(0, 10))),
+      createShoot: !!f.shootTypeId && f.createShoot,
       contractTemplateId: priceCents > 0 ? f.contractTemplateId || null : null,
       active: f.active, description: f.description || null, location: f.location || null, shootTypeId: f.shootTypeId || null, slug: f.slug || undefined };
     return editing ? api(`/schedulers/${editing.id}`, { method: "PATCH", body }) : api("/schedulers", { body });
@@ -234,6 +237,11 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
             </select>
           )}
         </Field>
+        {f.shootTypeId ? (
+          <div className="span-2">
+            <SwitchRow checked={f.createShoot} onChange={(v) => setF((x) => ({ ...x, createShoot: v }))} label="Make a shoot when it's booked" hint="A confirmed booking becomes a shoot with this time on it, ready for questionnaires, contracts and a gallery. Leave it off for calls and consults that stay as leads." />
+          </div>
+        ) : null}
         <fieldset className="span-2 pay-edit">
           <legend>Price and deposit</legend>
           <Field label="Price" hint="Leave empty if the page is free to book.">

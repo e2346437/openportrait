@@ -7,7 +7,8 @@ import { displayName } from "./contacts.js";
 import { DomainError, linkTo, newId, notFound, type ServiceContext } from "./context.js";
 import { evaluate as evaluateCoupon } from "./coupons.js";
 import { composeEmail, queueEmail } from "./email.js";
-import { createLead } from "./leads.js";
+import { convertLead, createLead } from "./leads.js";
+import { updateShoot } from "./shoots.js";
 import { formatMoney, totalsFor } from "./money.js";
 import { createOrder, paidOf, voidOrder } from "./orders.js";
 import { addDays, atTime, isYmd, weekdayOf, ymdIn } from "./time.js";
@@ -38,6 +39,8 @@ export interface SchedulerInput {
   depositValue?: number;
   /** A contract template the client signs before paying. Needs a price. */
   contractTemplateId?: string | null;
+  /** Make a shoot when a booking is confirmed. Needs a shoot type. */
+  createShoot?: boolean;
   /** Most bookings in one day. Zero or omitted means no limit. */
   maxPerDay?: number;
   /** Special dates (YYYY-MM-DD) that replace the weekly hours. An empty list closes that day. */
@@ -110,6 +113,8 @@ function values(ctx: ServiceContext, input: SchedulerInput) {
   const priceCents = int(input.priceCents, 0, 0, 100_000_000, "The price");
   const depositType = priceCents > 0 ? (input.depositType ?? "none") : "none";
   const depositValue = depositType === "none" ? 0 : int(input.depositValue, 0, 1, depositType === "percent" ? 10_000 : priceCents, depositType === "percent" ? "The deposit percentage" : "The deposit");
+  const createShoot = input.createShoot ?? false;
+  if (createShoot && !input.shootTypeId) throw new DomainError("invalid", "Choose a shoot type to make shoots from bookings.");
   const maxPerDay = int(input.maxPerDay, 0, 0, 100, "The daily limit");
   const contractTemplateId = input.contractTemplateId || null;
   if (contractTemplateId) {
@@ -117,6 +122,7 @@ function values(ctx: ServiceContext, input: SchedulerInput) {
     assertBookingTemplate(ctx, contractTemplateId);
   }
   return {
+    createShoot,
     maxPerDay,
     dateOverrides: cleanOverrides(input.dateOverrides ?? {}),
     contractTemplateId,
@@ -318,6 +324,7 @@ export function createBooking(ctx: ServiceContext, slug: string, input: BookingI
   });
 
   const invoice = price ? raiseInvoice(ctx, s, made, price, day, input.couponCode) : null;
+  if (made.status === "confirmed") bookAsShoot(ctx, made.id);
   const agreement = invoice && s.contractTemplateId ? requestContract(ctx, s.contractTemplateId, made.contactId, invoice.id) : null;
   const studio = ctx.settings.get("studio.name") || "the studio";
   const when = formatWhen(made.slot.startsAt, tz);
@@ -356,6 +363,34 @@ function raiseInvoice(ctx: ServiceContext, s: typeof scheduler.$inferSelect, mad
   ctx.db.update(tables.order).set({ status: "sent", sentAt: new Date() }).where(eq(tables.order.id, inv.id)).run();
   ctx.db.update(schedulerBooking).set({ orderId: inv.id }).where(eq(schedulerBooking.id, made.id)).run();
   return { id: inv.id, token: inv.token, url: linkTo(ctx, `/o/${inv.token}`) };
+}
+
+/**
+ * When the page asks for it, a confirmed booking becomes a shoot with one event at the booked time. The calendar then shows
+ * the shoot's event instead of the appointment, so the time isn't listed twice. Never fails the booking itself.
+ */
+function bookAsShoot(ctx: ServiceContext, bookingId: string) {
+  const b = ctx.db.select().from(schedulerBooking).where(eq(schedulerBooking.id, bookingId)).get();
+  if (!b || b.shootId || !b.leadId) return;
+  const s = ctx.db.select().from(scheduler).where(eq(scheduler.id, b.schedulerId)).get();
+  if (!s?.createShoot || !s.shootTypeId) return;
+  try {
+    const made = convertLead(ctx, b.leadId, { events: [{ title: s.name, startsAt: b.startsAt.getTime(), endsAt: b.endsAt.getTime(), location: s.location }] });
+    if (b.entryId) ctx.db.delete(calendarEntry).where(eq(calendarEntry.id, b.entryId)).run();
+    ctx.db.update(schedulerBooking).set({ shootId: made.shoot.id, entryId: null }).where(eq(schedulerBooking.id, b.id)).run();
+  } catch {
+    /* The lead was already booked by hand, or the type was archived: the booking stands without a shoot. */
+  }
+}
+
+/** A booking that fell through takes its shoot with it. */
+function cancelShoot(ctx: ServiceContext, b: typeof schedulerBooking.$inferSelect) {
+  if (!b.shootId) return;
+  try {
+    updateShoot(ctx, b.shootId, { status: "cancelled" });
+  } catch {
+    /* already gone */
+  }
 }
 
 /** Drafts the page's agreement for this client, sends it, and holds online payment until it is signed. */
@@ -448,7 +483,8 @@ export function confirmBooking(ctx: ServiceContext, id: string) {
   const b = bookingRow(ctx, id);
   if (b.status !== "pending") throw new DomainError("invalid", "Only a waiting request can be confirmed.");
   ctx.db.update(schedulerBooking).set({ status: "confirmed" }).where(eq(schedulerBooking.id, id)).run();
-  if (b.entryId) {
+  bookAsShoot(ctx, id);
+  if (b.entryId && !ctx.db.select({ s: schedulerBooking.shootId }).from(schedulerBooking).where(eq(schedulerBooking.id, id)).get()?.s) {
     const e = ctx.db.select().from(calendarEntry).where(eq(calendarEntry.id, b.entryId)).get();
     if (e) setCalendar(ctx, b, e.title.replace(/^Pending: /, ""));
   }
@@ -461,6 +497,7 @@ export function declineBooking(ctx: ServiceContext, id: string, reason?: string)
   if (b.status !== "pending") throw new DomainError("invalid", "Only a waiting request can be declined.");
   ctx.db.update(schedulerBooking).set({ status: "declined" }).where(eq(schedulerBooking.id, id)).run();
   setCalendar(ctx, b);
+  cancelShoot(ctx, b);
   releaseInvoice(ctx, b);
   tell(ctx, b, (n) => `About your request: ${n}`, (when, n) => [`I'm sorry, I can't do ${n} on ${when}.`, ...(reason?.trim() ? [reason.trim().slice(0, 1000)] : []), "Please pick another time and I'll do my best to fit you in."], "booking.declined");
   return { ok: true };
@@ -472,6 +509,7 @@ export function cancelBooking(ctx: ServiceContext, id: string, reason?: string) 
   if (b.status === "cancelled" || b.status === "declined") return { ok: true };
   ctx.db.update(schedulerBooking).set({ status: "cancelled" }).where(eq(schedulerBooking.id, id)).run();
   setCalendar(ctx, b);
+  cancelShoot(ctx, b);
   releaseInvoice(ctx, b);
   tell(ctx, b, (n) => `Cancelled: ${n}`, (when, n) => [`Your ${n} on ${when} has been cancelled.`, ...(reason?.trim() ? [reason.trim().slice(0, 1000)] : [])], "booking.cancelled");
   return { ok: true };
@@ -493,6 +531,7 @@ export function cancelByToken(ctx: ServiceContext, token: string) {
   if (b.startsAt.getTime() < Date.now()) throw new DomainError("past", "That time has already passed.");
   ctx.db.update(schedulerBooking).set({ status: "cancelled" }).where(eq(schedulerBooking.id, b.id)).run();
   setCalendar(ctx, b);
+  cancelShoot(ctx, b);
   releaseInvoice(ctx, b);
   const owner = ctx.settings.get("studio.email");
   const c = ctx.db.select().from(contact).where(eq(contact.id, b.contactId)).get();

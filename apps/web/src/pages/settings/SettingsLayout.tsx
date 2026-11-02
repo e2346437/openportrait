@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from "react-router";
+import { useEffect, useRef } from "react";
+import { NavLink, Outlet, useLocation } from "react-router";
 import { Icon, PageHeader } from "@openportrait/ui";
 import { useSession } from "../../lib/session.js";
 import { useLoad } from "../../lib/useLoad.js";
@@ -9,10 +10,16 @@ export function SettingsLayout() {
   // Only owners can see extensions, and the tab only appears when one is installed.
   const ext = useLoad<{ extensions: unknown[] }>(owner ? "/extensions" : null);
   const hasExtensions = !!ext.data?.extensions.length;
+  const nav = useRef<HTMLElement>(null);
+  const { pathname } = useLocation();
+  // On phones the bar scrolls; keep the current section in view.
+  useEffect(() => {
+    nav.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [pathname, hasExtensions]);
   return (
     <>
       <PageHeader title="Settings" />
-      <nav className="subnav" aria-label="Settings sections">
+      <nav ref={nav} className="subnav" aria-label="Settings sections">
         <NavLink to="studio">
           <Icon name="building" /> Studio
         </NavLink>

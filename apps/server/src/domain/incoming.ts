@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { DomainError, type ServiceContext } from "./context.js";
-import { resolveInside } from "./folders.js";
+import { incomingSubfolderHooks } from "../extension-hooks.js";
+import { resolveInside, safeSegment } from "./folders.js";
 import { folderSettings, getShoot, listShoots } from "./shoots.js";
 import { scanPhotos } from "./tether.js";
 import { ymdIn } from "./time.js";
@@ -122,8 +123,17 @@ export async function moveToShoot(ctx: ServiceContext, shootId: string, paths: s
       skip(p, "Still arriving from the camera.");
       continue;
     }
-    const target = path.join(dest, freeName(dest, path.basename(src)));
+    let into = dest;
+    for (const hook of incomingSubfolderHooks) {
+      const sub = safeSegment(String(hook({ shootId, path: p }) ?? ""));
+      if (sub) {
+        into = path.join(dest, sub);
+        break;
+      }
+    }
+    const target = path.join(into, freeName(into, path.basename(src)));
     try {
+      fs.mkdirSync(into, { recursive: true });
       fs.copyFileSync(src, target, fs.constants.COPYFILE_EXCL);
       if ((await hashOf(src)) !== (await hashOf(target))) {
         fs.rmSync(target, { force: true });

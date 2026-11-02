@@ -4,6 +4,7 @@ import { and, asc, desc, eq, isNull, or, sql, count } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import { displayName, logActivity } from "./contacts.js";
 import { DomainError, newId, notFound, type ServiceContext } from "./context.js";
+import { autoSendForShoot } from "./questionnaires.js";
 import {
   cleanSubdir,
   createShootFolder,
@@ -187,6 +188,7 @@ export function createShoot(
   });
   logActivity(ctx, { contactId: primary.id, shootId: id, leadId: input.leadId ?? null, kind: "shoot.created", summary: `${type.name} shoot booked for ${subject}` });
   const folderError = ensureFolder(ctx, id);
+  autoSendForShoot(ctx, id);
   return { shoot: getShoot(ctx, id), folderError };
 }
 

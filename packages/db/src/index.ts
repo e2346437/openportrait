@@ -9,6 +9,7 @@ import * as schema from "./schema/index.js";
 export * as schema from "./schema/index.js";
 export { schema as tables };
 export { DEFAULT_DESIGN, type GalleryDesign } from "./schema/galleries.js";
+export type { QuestionField } from "./schema/questionnaires.js";
 export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 
 const here = path.dirname(fileURLToPath(import.meta.url));

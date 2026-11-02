@@ -39,6 +39,8 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
   const [values, setValues] = useState<Record<string, string>>({});
   const [running, setRunning] = useState<number | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  // An action may answer with a `message` the owner needs to read, such as a one-time password. It stays until dismissed.
+  const [resultNote, setResultNote] = useState<string | null>(null);
 
   const chip = data && card.status.chip ? card.status.chip.values[String(data[card.status.chip.key])] : undefined;
   const notice = data && card.status.notice ? data[card.status.notice] : null;
@@ -68,6 +70,7 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
         window.location.assign(r.openUrl);
         return;
       }
+      setResultNote(typeof r.message === "string" && r.message ? r.message : null);
       setData((prev) => ({ ...(prev ?? {}), ...r }));
       setValues({});
       toast(`${action.label}: done`);
@@ -119,6 +122,12 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
               </div>
             );
           })}
+          {resultNote ? (
+            <Callout tone="ok" title="Done">
+              <p style={{ margin: 0, overflowWrap: "anywhere", userSelect: "all" }}>{resultNote}</p>
+              <Button size="sm" onClick={() => setResultNote(null)}>Dismiss</Button>
+            </Callout>
+          ) : null}
           {runError ? <Callout tone="bad">{runError}</Callout> : null}
           {actions.map(({ a, i }) => (
             <form key={i} className="form-grid" noValidate onSubmit={(e) => { e.preventDefault(); void go(i); }}>

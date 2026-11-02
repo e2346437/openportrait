@@ -177,11 +177,12 @@ if (slug) {
 
   const v = new Client(A_URL);
   await v.post(`/api/g/${slug}/identify`, { email: "victim@audit.invalid" });
-  await openFinding("SEC-012", "a visitor can't act as an email address they haven't proven they own", async () => {
-    // Identify accepts any address. Secure behaviour would be to confirm ownership before showing or changing that address's favorites.
+  // With no email set up on the studio (as in these containers) a visitor's address is still taken as typed. With email
+  // set up, a code is required first; that path is covered by apps/server/test/galleries.test.ts (SEC-012).
+  await info("SEC-012", "a visitor's address is taken as typed when the studio has no email set up (proven by emailed code when it has)", async () => {
     const other = new Client(A_URL);
     const r = await other.post(`/api/g/${slug}/identify`, { email: "victim@audit.invalid" });
-    return r.status !== 200;
+    return r.status === 200 ? "unverified without email" : false;
   });
   await info("SEC-013", "full-size downloads keep GPS in the file", async () => {
     const r = await v.req("GET", `/api/g/${slug}/photos/${photo.id}/download`, { raw: true });

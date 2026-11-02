@@ -441,6 +441,8 @@ function GateScreen({ slug, data, onThrough }: { slug: string; data: ClientGalle
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const cover = data.gallery.cover;
   const needName = gate.register === "email_name";
   const studio = data.studio.name;
@@ -456,10 +458,21 @@ function GateScreen({ slug, data, onThrough }: { slug: string; data: ClientGalle
       return;
     }
     try {
-      if (gate.register) await call(`${encodeURIComponent(slug)}/identify`, "POST", { email, ...(needName ? { name } : {}) });
+      if (gate.register) {
+        const nameField = needName ? { name } : {};
+        if (codeSent) await call(`${encodeURIComponent(slug)}/verify`, "POST", { email, code, ...nameField });
+        else {
+          const r = await call<{ verify?: boolean }>(`${encodeURIComponent(slug)}/identify`, "POST", { email, ...nameField });
+          if (r.verify) {
+            setCodeSent(true);
+            setBusy(false);
+            return;
+          }
+        }
+      }
     } catch (e2) {
       const err = e2 as ClientError;
-      setErrors({ [err.message.toLowerCase().includes("name") ? "name" : "email"]: err.message });
+      setErrors({ [codeSent ? "code" : err.message.toLowerCase().includes("name") ? "name" : "email"]: err.message });
       setBusy(false);
       return;
     }
@@ -485,12 +498,13 @@ function GateScreen({ slug, data, onThrough }: { slug: string; data: ClientGalle
               </Field>
             ) : null}
             <Field label="Email" error={errors.email}>
-              {(p) => <TextInput {...p} type="email" autoComplete="email" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus={!gate.password && !needName} />}
+              {(p) => <TextInput {...p} type="email" autoComplete="email" inputMode="email" required value={email} readOnly={codeSent} onChange={(e) => setEmail(e.target.value)} autoFocus={!gate.password && !needName} />}
             </Field>
+            {codeSent ? <CodeField error={errors.code} value={code} onChange={setCode} email={email} onResend={() => { setCodeSent(false); setCode(""); setErrors({}); }} /> : null}
           </>
         ) : null}
-        <Button type="submit" variant="primary" block loading={busy} disabled={(gate.password && !password) || (!!gate.register && (!email.includes("@") || (needName && !name.trim())))}>
-          View gallery
+        <Button type="submit" variant="primary" block loading={busy} disabled={(gate.password && !password) || (!!gate.register && (!email.includes("@") || (needName && !name.trim()) || (codeSent && code.trim().length < 6)))}>
+          {codeSent ? "Verify and view" : gate.register ? "Continue" : "View gallery"}
         </Button>
       </form>
     </div>
@@ -566,8 +580,24 @@ function ZipDialog({ slug, locked, lockMode, onClose }: { slug: string; locked: 
   );
 }
 
+/** The six-digit code the studio emailed, with a way back to fix the address or ask for a new code. */
+function CodeField({ value, onChange, error, email, onResend }: { value: string; onChange: (v: string) => void; error: string | null | undefined; email: string; onResend: () => void }) {
+  return (
+    <>
+      <Field label="Code from your email" error={error} hint={`We sent a 6-digit code to ${email}. It works for about 15 minutes.`}>
+        {(p) => <TextInput {...p} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} required value={value} onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))} autoFocus />}
+      </Field>
+      <button type="button" className="linkish" onClick={onResend}>
+        Use a different address or send a new code
+      </button>
+    </>
+  );
+}
+
 function EmailGate({ slug, pending, onClose, onDone, studioName }: { slug: string; pending: Pending; onClose: () => void; onDone: (me: ClientMe) => void; studioName: string }) {
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const submit = async (e: FormEvent) => {
@@ -575,8 +605,11 @@ function EmailGate({ slug, pending, onClose, onDone, studioName }: { slug: strin
     setBusy(true);
     setErr(null);
     try {
-      const r = await call<{ me: ClientMe }>(`${encodeURIComponent(slug)}/identify`, "POST", { email });
-      onDone(r.me);
+      const r = codeSent
+        ? await call<{ me: ClientMe }>(`${encodeURIComponent(slug)}/verify`, "POST", { email, code })
+        : await call<{ me?: ClientMe; verify?: boolean }>(`${encodeURIComponent(slug)}/identify`, "POST", { email });
+      if ("verify" in r && r.verify) setCodeSent(true);
+      else if (r.me) onDone(r.me);
     } catch (e2) {
       setErr((e2 as Error).message);
     } finally {
@@ -593,10 +626,11 @@ function EmailGate({ slug, pending, onClose, onDone, studioName }: { slug: strin
     >
       <form onSubmit={submit} className="gate-form" noValidate>
         <Field label="Email" error={err}>
-          {(p) => <TextInput {...p} type="email" autoComplete="email" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />}
+          {(p) => <TextInput {...p} type="email" autoComplete="email" inputMode="email" required value={email} readOnly={codeSent} onChange={(e) => setEmail(e.target.value)} autoFocus={!codeSent} />}
         </Field>
-        <Button type="submit" variant="primary" block loading={busy} disabled={!email.includes("@")}>
-          Continue
+        {codeSent ? <CodeField error={null} value={code} onChange={setCode} email={email} onResend={() => { setCodeSent(false); setCode(""); setErr(null); }} /> : null}
+        <Button type="submit" variant="primary" block loading={busy} disabled={!email.includes("@") || (codeSent && code.trim().length < 6)}>
+          {codeSent ? "Verify" : "Continue"}
         </Button>
       </form>
     </Dialog>

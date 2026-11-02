@@ -6,6 +6,7 @@ import { tables, type Db } from "@openportrait/db";
 import { enqueue, type Logger } from "@openportrait/jobs";
 import { DEFAULT_RULES, discover, listGalleryFiles, type FolderRules } from "./discover.js";
 import { newId, resolveInside, sha256File, slugify, titleFromFolder } from "./files.js";
+import type { Originals } from "./originals.js";
 import type { Settings } from "../settings.js";
 
 const { gallery, gallerySet, photo, ingestFolder, favoriteList, shoot, shootType } = tables;
@@ -53,7 +54,13 @@ export class GalleryIngest {
   private again = false;
   private followUp: NodeJS.Timeout | null = null;
 
+  private originals: Originals | null = null;
+
   constructor(private readonly deps: IngestDeps) {}
+
+  setOriginals(originals: Originals): void {
+    this.originals = originals;
+  }
 
   scan(): Promise<ScanResult> {
     if (this.running) {
@@ -253,6 +260,11 @@ export class GalleryIngest {
             .where(eq(photo.id, prev.id))
             .run();
           if (!same) {
+            // A new local file replaces anything an extension had moved to remote storage.
+            if (prev.remoteKey) {
+              db.update(photo).set({ remoteKey: null }).where(eq(photo.id, prev.id)).run();
+              void this.originals?.dropRemote(prev.remoteKey);
+            }
             out.changed++;
             this.queueDerivatives(prev.id, version);
           }
@@ -284,7 +296,7 @@ export class GalleryIngest {
     }
 
     for (const p of existing) {
-      if (seen.has(p.id) || p.state === "missing") continue;
+      if (seen.has(p.id) || p.state === "missing" || p.remoteKey) continue; // offloaded originals have no local file by design
       db.update(photo).set({ state: "missing", missingSince: new Date(), updatedAt: new Date() }).where(eq(photo.id, p.id)).run();
       out.missing++;
     }

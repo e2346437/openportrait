@@ -22,6 +22,7 @@ import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
 import { siteRoutes } from "./routes/site.js";
 import { registerFreeTemplates } from "./site/templates.js";
 import { mcpRoutes } from "./ai/mcp.js";
+import { Originals } from "./galleries/originals.js";
 import { enforceShootScope, shootScopeFor } from "./scope.js";
 import { loadExtensions, extensionRoutes } from "./extensions.js";
 import { oauthRoutes, oauthStudioRoutes } from "./ai/oauth.js";
@@ -70,6 +71,8 @@ export interface AppContext {
   uploads: UploadManager;
   jobs: JobRunner;
   galleries: GalleryIngest;
+  /** Where full-size originals are read from; extensions can attach remote storage (see galleries/originals.ts). */
+  originals: Originals;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
   publicUrl(): string;
   /** This server's address on the home network (see lan.ts). */
@@ -136,6 +139,8 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   const tunnel = new TunnelManager(app.log);
   const jobs = new JobRunner(db, { logger: app.log });
   const galleries = new GalleryIngest({ db, settings, galleriesDir: config.galleriesDir, settleSeconds: config.ingestSettleSeconds, logger: app.log });
+  const originals = new Originals({ db, galleriesDir: config.galleriesDir });
+  galleries.setOriginals(originals);
   registerDerivativesJob(config);
   const uploads = new UploadManager({ config, db, settings, log: app.log, lanHosts: () => lanHosts(settings, config) });
 
@@ -148,6 +153,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     uploads,
     jobs,
     galleries,
+    originals,
     lan() {
       return lanInfo(settings, config);
     },

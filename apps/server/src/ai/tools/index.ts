@@ -2,3 +2,4 @@
 import "./studio.js";
 import "./crm.js";
 import "./calendar.js";
+import "./orders.js";

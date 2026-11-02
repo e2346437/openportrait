@@ -19,6 +19,7 @@ interface View {
   countersignedAt: string | number | null;
   countersignedBy: string | null;
   hasPdf: boolean;
+  payUrl?: string | null;
   consent: string;
 }
 
@@ -67,9 +68,14 @@ export function ContractSignPage() {
             {when(v.signedAt)}
             {v.countersignedAt ? ` · Countersigned by ${v.countersignedBy} ${when(v.countersignedAt)}` : ""}
           </Callout>
+          {v.payUrl ? (
+            <div className="form-actions">
+              <a className="btn primary lg" href={v.payUrl}>Continue to payment</a>
+            </div>
+          ) : null}
           {v.hasPdf ? (
             <div className="form-actions">
-              <a className="btn primary lg" href={`/api/public/contract/${encodeURIComponent(token)}/pdf`} download>
+              <a className={`btn lg${v.payUrl ? "" : " primary"}`} href={`/api/public/contract/${encodeURIComponent(token)}/pdf`} download>
                 <Icon name="download" /> Download your signed copy
               </a>
             </div>

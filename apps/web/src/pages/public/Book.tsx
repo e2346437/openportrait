@@ -34,7 +34,7 @@ type Slots = Record<string, Array<{ startsAt: number; endsAt: number }>>;
 interface Made {
   status: "pending" | "confirmed";
   when: string;
-  invoice: { token: string; totalCents: number; depositCents: number; currency: string } | null;
+  invoice: { token: string; totalCents: number; depositCents: number; currency: string; contractUrl?: string | null } | null;
 }
 interface OrderPay {
   pay: { name: string; dueCents: number } | null;
@@ -53,6 +53,13 @@ function DepositStep({ made }: { made: NonNullable<Made["invoice"]> }) {
   const due = order.data?.pay?.dueCents ?? (split ? made.depositCents : made.totalCents);
   return (
     <section className="doc-section pay-box" aria-label="Payment">
+      {made.contractUrl ? (
+        <>
+          <h2>Sign your agreement</h2>
+          <p className="muted">Please sign first. We've also emailed you the link. Then you can pay {split ? "your deposit" : "online"}.</p>
+          <div className="form-actions"><a className="btn primary lg" href={made.contractUrl}>Review and sign</a></div>
+        </>
+      ) : null}
       <h2>{split ? "Pay your deposit" : "Pay for your session"}</h2>
       {go.error ? <Callout tone="bad">{go.error}</Callout> : null}
       <p className="muted">

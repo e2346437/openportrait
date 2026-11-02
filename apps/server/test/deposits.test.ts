@@ -180,3 +180,56 @@ describe("paid booking pages", () => {
     expect((await pub("POST", `/book/${s.slug}`, { ...who, startsAt: at })).body.invoice).toBeNull();
   });
 });
+
+describe("a contract before paying", () => {
+  const TEMPLATE = "Booking agreement for {{client.name}} with {{studio.name}}. Total {{order.total}}. {{today}}";
+  async function setup(extra: object = {}) {
+    const t = (await staff("POST", "/contract-templates", { name: "Booking agreement", body: TEMPLATE })).body;
+    const day = monday();
+    const s = await staff("POST", "/schedulers", { name: "Mini session", durationMinutes: 30, approval: "auto", priceCents: 20_000, depositType: "percent", depositValue: 5_000, contractTemplateId: t.id, availability: { "1": [{ start: "09:00", end: "12:00" }] }, ...extra });
+    return { t, s: s.body, at: atTime(day, "09:00", TZ) };
+  }
+  const who = { firstName: "Ana", email: "ana@example.com" };
+
+  it("only accepts a template a booking can fill in, and only on a paid page", async () => {
+    const shooty = (await staff("POST", "/contract-templates", { name: "Shoot", body: "For {{shoot.subject}}" })).body;
+    const bad = await staff("POST", "/schedulers", { name: "A", durationMinutes: 30, priceCents: 10_000, contractTemplateId: shooty.id, availability: {} });
+    expect(bad.status).toBe(400);
+    expect(bad.body.message).toMatch(/can't fill in/);
+    const t = (await staff("POST", "/contract-templates", { name: "OK", body: TEMPLATE })).body;
+    const free = await staff("POST", "/schedulers", { name: "B", durationMinutes: 30, contractTemplateId: t.id, availability: {} });
+    expect(free.body.message).toMatch(/price first/);
+  });
+
+  it("sends the agreement with the booking and holds payment until it is signed", async () => {
+    const { s, at } = await setup();
+    const r = await pub("POST", `/book/${s.slug}`, { ...who, startsAt: at });
+    expect(r.status).toBe(201);
+    expect(r.body.invoice.contractUrl).toMatch(/\/c\//);
+    const link = r.body.invoice.contractUrl as string;
+    await app.ctx.jobs.drain();
+    expect(sent.find((m) => /You're booked/.test(m.subject))?.text).toContain(link);
+
+    const page = (await pub("GET", `/order/${r.body.invoice.token}`)).body;
+    expect(page.pay).toBeNull();
+    expect(page.contract).toMatchObject({ title: "Booking agreement", url: link });
+    const pay = await pub("POST", `/order/${r.body.invoice.token}/pay`, { amount: "due" });
+    expect(pay.status).toBe(409);
+    expect(pay.body.message).toMatch(/sign Booking agreement/);
+
+    expect((await pub("GET", `/contract/${link.split("/c/")[1]}`)).body.payUrl).toContain(`/o/${r.body.invoice.token}`);
+    const signed = await pub("POST", `/contract/${link.split("/c/")[1]}/sign`, { name: "Ana Client", consent: true, method: "typed" });
+    expect(signed.status).toBe(200);
+    expect((await pub("GET", `/order/${r.body.invoice.token}`)).body.contract).toBeNull();
+    // With nothing in the way, the request now fails only because no processor is set up here.
+    expect((await pub("POST", `/order/${r.body.invoice.token}/pay`, { amount: "due" })).body.message).toMatch(/isn't available/);
+  });
+
+  it("leaves pages without a contract alone", async () => {
+    const day = monday();
+    const s = (await staff("POST", "/schedulers", { name: "Plain", durationMinutes: 30, approval: "auto", priceCents: 20_000, availability: { "1": [{ start: "09:00", end: "12:00" }] } })).body;
+    const r = await pub("POST", `/book/${s.slug}`, { ...who, startsAt: atTime(day, "09:00", TZ) });
+    expect(r.body.invoice.contractUrl).toBeNull();
+    expect((await pub("GET", `/order/${r.body.invoice.token}`)).body.contract).toBeNull();
+  });
+});

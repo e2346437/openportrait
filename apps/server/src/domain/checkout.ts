@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import { paypal, paypalConfigured } from "../payments/paypal.js";
 import { PaymentError, type PaymentProvider } from "../payments/provider.js";
+import { requiredContract } from "./contracts.js";
 import { DomainError, linkTo, newId, type ServiceContext } from "./context.js";
 import { formatMoney } from "./money.js";
 import { byToken, nextDueCents, paidOf, publicView, recordPayment, recordProcessorRefund } from "./orders.js";
@@ -26,10 +27,16 @@ const wrap = async <T>(f: () => Promise<T>): Promise<T> => {
 };
 
 /** What the client can pay online right now, or null. Shown on their invoice page. */
+/** Stops payment until a required contract is signed. */
+function assertSigned(ctx: ServiceContext, o: { requiredContractId: string | null }) {
+  const c = requiredContract(ctx, o);
+  if (c) throw new DomainError("contract_required", `Please sign ${c.title} before paying.`, 409);
+}
+
 export function onlineOptions(ctx: ServiceContext, token: string) {
   const o = byToken(ctx, token);
   const provider = onlineProvider(ctx);
-  if (!provider || o.kind !== "invoice" || o.status !== "sent") return null;
+  if (!provider || o.kind !== "invoice" || o.status !== "sent" || requiredContract(ctx, o)) return null;
   const due = nextDueCents(ctx, o);
   const balance = Math.max(0, o.totalCents - paidOf(ctx, o.id));
   return due > 0 ? { provider: provider.id, name: provider.name, dueCents: due, balanceCents: balance } : null;
@@ -38,6 +45,7 @@ export function onlineOptions(ctx: ServiceContext, token: string) {
 /** Begins an online payment. Returns where to send the client to approve it. */
 export async function startCheckout(ctx: ServiceContext, token: string, input: { amount: "due" | "balance" }) {
   const o = byToken(ctx, token);
+  assertSigned(ctx, o);
   const provider = onlineProvider(ctx);
   if (!provider) throw new DomainError("not_available", "Online payment isn't available. Please pay another way.");
   if (o.kind !== "invoice" || o.status !== "sent") throw new DomainError("invalid", "This can't be paid right now.");

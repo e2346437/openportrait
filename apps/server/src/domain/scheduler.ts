@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import { busyIntervals } from "./calendar.js";
+import { assertBookingTemplate, createContract, markSent } from "./contracts.js";
 import { displayName } from "./contacts.js";
 import { DomainError, linkTo, newId, notFound, type ServiceContext } from "./context.js";
 import { evaluate as evaluateCoupon } from "./coupons.js";
@@ -35,6 +36,8 @@ export interface SchedulerInput {
   depositType?: "none" | "percent" | "fixed";
   /** Percent: basis points (2500 = 25%). Fixed: cents. */
   depositValue?: number;
+  /** A contract template the client signs before paying. Needs a price. */
+  contractTemplateId?: string | null;
   availability: Availability;
   active?: boolean;
 }
@@ -90,7 +93,13 @@ function values(ctx: ServiceContext, input: SchedulerInput) {
   const priceCents = int(input.priceCents, 0, 0, 100_000_000, "The price");
   const depositType = priceCents > 0 ? (input.depositType ?? "none") : "none";
   const depositValue = depositType === "none" ? 0 : int(input.depositValue, 0, 1, depositType === "percent" ? 10_000 : priceCents, depositType === "percent" ? "The deposit percentage" : "The deposit");
+  const contractTemplateId = input.contractTemplateId || null;
+  if (contractTemplateId) {
+    if (priceCents <= 0) throw new DomainError("invalid", "A contract is signed before paying, so give this page a price first.");
+    assertBookingTemplate(ctx, contractTemplateId);
+  }
   return {
+    contractTemplateId,
     priceCents,
     depositType,
     depositValue,
@@ -275,6 +284,7 @@ export function createBooking(ctx: ServiceContext, slug: string, input: BookingI
   });
 
   const invoice = price ? raiseInvoice(ctx, s, made, price, day, input.couponCode) : null;
+  const agreement = invoice && s.contractTemplateId ? requestContract(ctx, s.contractTemplateId, made.contactId, invoice.id) : null;
   const studio = ctx.settings.get("studio.name") || "the studio";
   const when = formatWhen(made.slot.startsAt, tz);
   const cancelUrl = linkTo(ctx, `/book/cancel/${made.token}`);
@@ -282,6 +292,7 @@ export function createBooking(ctx: ServiceContext, slug: string, input: BookingI
     made.status === "confirmed"
       ? [`Hi ${firstName},`, `You're booked: ${s.name} on ${when}.`, ...(s.location ? [`Where: ${s.location}`] : [])]
       : [`Hi ${firstName},`, `Thanks for asking to book ${s.name} on ${when}. I'll confirm it by email shortly. Until then the time is held for you.`];
+  if (agreement) lines.push(`Please review and sign your agreement first: ${agreement.url}`, "Once it's signed you can pay online.");
   if (invoice && price) lines.push(price.depositCents > 0 && price.depositCents < price.totalCents ? `A ${formatMoney(price.depositCents, price.currency)} deposit is due to hold your time, and ${formatMoney(price.balanceCents, price.currency)} after that. You can pay it here: ${invoice.url}` : `The total is ${formatMoney(price.totalCents, price.currency)}. You can pay it here: ${invoice.url}`);
   const mail = composeEmail(studio, lines, { label: "Need to cancel?", url: cancelUrl });
   queueEmail(ctx, { to: email, toName: made.name, subject: made.status === "confirmed" ? `You're booked: ${s.name}` : `Booking request received: ${s.name}`, text: mail.text, html: mail.html, kind: made.status === "confirmed" ? "booking.confirmed" : "booking.requested", contactId: made.contactId });
@@ -290,7 +301,7 @@ export function createBooking(ctx: ServiceContext, slug: string, input: BookingI
     const note = composeEmail(studio, [`${made.status === "confirmed" ? "New booking" : "New booking request"}: ${made.name} for ${s.name}, ${when}.`, input.message ? `Their message:\n${input.message.trim().slice(0, 2000)}` : ""].filter(Boolean), { label: made.status === "pending" ? "Review the request" : "Open bookings", url: linkTo(ctx, "/studio/booking") });
     queueEmail(ctx, { to: owner, subject: `${made.status === "confirmed" ? "Booked" : "Booking request"}: ${made.name}, ${s.name}`, text: note.text, html: note.html, kind: "booking.notify" });
   }
-  return { id: made.id, status: made.status, startsAt: made.slot.startsAt, endsAt: made.slot.endsAt, cancelToken: made.token, when, invoice: invoice ? { token: invoice.token, totalCents: price!.totalCents, depositCents: price!.depositCents, currency: price!.currency } : null };
+  return { id: made.id, status: made.status, startsAt: made.slot.startsAt, endsAt: made.slot.endsAt, cancelToken: made.token, when, invoice: invoice ? { token: invoice.token, totalCents: price!.totalCents, depositCents: price!.depositCents, currency: price!.currency, contractUrl: agreement?.url ?? null } : null };
 }
 
 /**
@@ -311,6 +322,15 @@ function raiseInvoice(ctx: ServiceContext, s: typeof scheduler.$inferSelect, mad
   ctx.db.update(tables.order).set({ status: "sent", sentAt: new Date() }).where(eq(tables.order.id, inv.id)).run();
   ctx.db.update(schedulerBooking).set({ orderId: inv.id }).where(eq(schedulerBooking.id, made.id)).run();
   return { id: inv.id, token: inv.token, url: linkTo(ctx, `/o/${inv.token}`) };
+}
+
+/** Drafts the page's agreement for this client, sends it, and holds online payment until it is signed. */
+function requestContract(ctx: ServiceContext, templateId: string, contactId: string, orderId: string) {
+  const made = createContract(ctx, { templateId, contactId, orderId });
+  ctx.db.update(tables.order).set({ requiredContractId: made.id }).where(eq(tables.order.id, orderId)).run();
+  // The booking email carries the link, so the contract's own email isn't sent as well.
+  markSent(ctx, made.id);
+  return { id: made.id, url: made.link };
 }
 
 /** When a booking falls through, an invoice nobody paid is voided so it doesn't linger. A paid one is left for the studio to refund. */

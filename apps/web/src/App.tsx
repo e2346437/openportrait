@@ -32,6 +32,7 @@ import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { OrdersPage } from "./pages/orders/Orders.js";
 import { OrderPage } from "./pages/orders/Order.js";
 import { PricesSettingsPage } from "./pages/settings/Prices.js";
+import { ExtensionsSettingsPage } from "./pages/settings/Extensions.js";
 import { PaymentsSettingsPage } from "./pages/settings/Payments.js";
 import { OrderViewPage } from "./pages/public/Order.js";
 import { NotFoundPage } from "./pages/NotFound.js";
@@ -113,6 +114,7 @@ export function App() {
                     <Route path="internet" element={<InternetSettingsPage />} />
                     <Route path="automation" element={<AutomationSettingsPage />} />
                     <Route path="ai" element={<ConnectAISettingsPage />} />
+                    <Route path="extensions" element={<ExtensionsSettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />
                   </Route>
                   <Route path="*" element={<NotFoundPage />} />

@@ -1,10 +1,14 @@
 import { NavLink, Outlet } from "react-router";
 import { Icon, PageHeader } from "@openportrait/ui";
 import { useSession } from "../../lib/session.js";
+import { useLoad } from "../../lib/useLoad.js";
 
 export function SettingsLayout() {
   const { me } = useSession();
   const owner = me?.user?.role === "owner";
+  // Only owners can see extensions, and the tab only appears when one is installed.
+  const ext = useLoad<{ extensions: unknown[] }>(owner ? "/extensions" : null);
+  const hasExtensions = !!ext.data?.extensions.length;
   return (
     <>
       <PageHeader title="Settings" />
@@ -54,6 +58,11 @@ export function SettingsLayout() {
         {owner ? (
           <NavLink to="automation">
             <Icon name="refresh" /> Automation
+          </NavLink>
+        ) : null}
+        {owner && hasExtensions ? (
+          <NavLink to="extensions">
+            <Icon name="sparkle" /> Extensions
           </NavLink>
         ) : null}
         <NavLink to="account">

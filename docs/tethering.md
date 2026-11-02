@@ -28,6 +28,19 @@ A photo takes this route: camera, Wi-Fi, router, internet, Cloudflare, your serv
 - At home or in the studio, open the live view from your server's local address (for example `http://tower:8080`) so the picture doesn't leave your network. The Tethering page has a field for that address and builds the link.
 - The live view shows the round-trip time to the server and whether you're on your network or going through the internet, and, after each photo, how long it took to reach the screen after it landed.
 
+### Example timings
+
+A real test under good conditions: a Nikon Z9 sending over its own Wi-Fi by SFTP to an OpenPortrait container on the same home network. Times are how long the camera took to send one photo. Your numbers will differ with your camera, Wi-Fi band, distance and router.
+
+| Format | Resolution | File size | Time to upload | Speed |
+|---|---|---|---|---|
+| RAW (NEF) | 8256 x 5504 | 28.7 MB | 29.0 s | 1.0 MB/s |
+| JPEG Fine | 8256 x 5504 | 10.6 MB | 13.6 s | 0.8 MB/s |
+| JPEG Normal | 8256 x 5504 | 7.1 MB | 10.2 s | 0.7 MB/s |
+| JPEG Basic | 8256 x 5504 | 1.2 MB | 4.7 s | 0.3 MB/s |
+
+Sizes depend on the scene, so another frame at the same setting will be a little larger or smaller. The speed is far below what the network and server can do, which points to the camera's Wi-Fi as the limit. Sending JPEG Basic or Normal while you tether, and keeping the RAW files on the card, gets a photo on screen several times sooner.
+
 Large RAW previews are made once and cached under `/cache/tether`, and cleaned up after a day.
 
 ## API

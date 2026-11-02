@@ -2,12 +2,14 @@
 # OpenPortrait: one image for plain Docker and Unraid.
 
 ARG NODE_VERSION=22
-ARG CLOUDFLARED_VERSION=2026.10.0
+# Pinned by digest so a build is reproducible; Dependabot proposes new digests weekly (.github/dependabot.yml).
+ARG NODE_IMAGE=node:22-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da
+ARG CLOUDFLARED_VERSION=2026.10.7
 ARG TINI_VERSION=0.19.0
 ARG GOSU_VERSION=1.19
 
 # ---- build: install everything, compile, then keep only production deps ----
-FROM node:${NODE_VERSION}-bookworm-slim AS build
+FROM ${NODE_IMAGE} AS build
 RUN corepack enable
 WORKDIR /src
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
@@ -26,7 +28,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
   && CI=true pnpm install --frozen-lockfile --prod --filter @openportrait/server...
 
 # ---- runtime ----
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM ${NODE_IMAGE} AS runtime
 ARG TARGETARCH
 ARG CLOUDFLARED_VERSION
 ARG TINI_VERSION
@@ -44,6 +46,13 @@ ADD --chmod=755 https://github.com/cloudflare/cloudflared/releases/download/${CL
 ADD --chmod=755 https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini-static-${TARGETARCH} /usr/bin/tini
 ADD --chmod=755 https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${TARGETARCH} /usr/local/bin/gosu
 RUN cloudflared --version && gosu --version && tini --version
+
+# Trim what the app never uses at run time (SEC-008, SEC-014): the package managers carry their own CVEs, and
+# set-uid/set-gid bits are privilege-escalation paths. Also give Unraid's default ids (99:100) an account now, so the
+# entrypoint never has to write /etc and the container can run with a read-only root filesystem.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /opt/yarn* /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+  && find / -xdev -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true \
+  && (getent passwd 99 >/dev/null || useradd -o -u 99 -g 100 -d /config -s /usr/sbin/nologin -K UID_MIN=1 nobody99)
 
 WORKDIR /app
 COPY --from=build /src/node_modules ./node_modules

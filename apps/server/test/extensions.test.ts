@@ -15,7 +15,7 @@ async function boot(files: Record<string, string>) {
   const config = loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web") });
   fs.mkdirSync(path.join(config.configDir, "extensions"), { recursive: true });
   for (const [name, code] of Object.entries(files)) fs.writeFileSync(path.join(config.configDir, "extensions", name), code);
-  app = await buildApp({ config, startBackground: false, logger: false });
+  app = await buildApp({ config, startBackground: false, setupCode: null, logger: false });
   const res = await app.inject({ method: "POST", url: "/api/studio/setup", payload: { studioName: "Lumen", ownerName: "Pat", email: "pat@example.com", password: "correct horse battery", timezone: "America/Chicago" } });
   return `op_session=${res.cookies.find((c) => c.name === "op_session")!.value}`;
 }

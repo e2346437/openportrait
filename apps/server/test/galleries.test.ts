@@ -32,7 +32,7 @@ beforeEach(async () => {
   const config = loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web"), INGEST_SETTLE_SECONDS: "0" });
   share = config.galleriesDir;
   fs.mkdirSync(share, { recursive: true });
-  app = await buildApp({ config, startBackground: false, logger: false });
+  app = await buildApp({ config, startBackground: false, setupCode: null, logger: false });
   const res = await app.inject({ method: "POST", url: "/api/studio/setup", payload: { studioName: "Test Studio", ownerName: "Pat", email: "pat@example.com", password: "correct horse battery", timezone: "UTC" } });
   staff = `op_session=${res.cookies.find((c) => c.name === "op_session")!.value}`;
 });

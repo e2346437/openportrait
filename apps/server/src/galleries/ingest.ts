@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { and, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
@@ -339,11 +340,29 @@ export class GalleryIngest {
   }
 }
 
-/** "smith-family", or "smith-family-2" when that is taken, with a random tail so links can't be guessed. */
+/**
+ * "smith-family-" plus 128 random bits (26 base32 characters), so a link can't be guessed or enumerated (SEC-005).
+ * Links made before this change keep working; only new galleries get the longer tail.
+ */
 export function uniqueSlug(db: Db, title: string): string {
-  const base = slugify(title);
+  const base = slugify(title).slice(0, 40).replace(/-+$/, "") || "gallery";
   for (;;) {
-    const candidate = `${base}-${newId().slice(0, 6).toLowerCase().replace(/[^a-z0-9]/g, "x")}`;
+    const candidate = `${base}-${base32(randomBytes(16))}`;
     if (!db.select({ id: gallery.id }).from(gallery).where(eq(gallery.slug, candidate)).get()) return candidate;
   }
+}
+
+const B32 = "abcdefghijklmnopqrstuvwxyz234567";
+function base32(buf: Buffer): string {
+  let bits = 0, value = 0, out = "";
+  for (const byte of buf) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      out += B32[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) out += B32[(value << (5 - bits)) & 31];
+  return out;
 }

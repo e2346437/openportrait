@@ -75,7 +75,7 @@ export function SettingsLayout() {
         ) : null}
         {owner ? (
           <NavLink to="import">
-            <Icon name="inbox" /> Import data
+            <Icon name="inbox" /> Import and export
           </NavLink>
         ) : null}
         <NavLink to="account">

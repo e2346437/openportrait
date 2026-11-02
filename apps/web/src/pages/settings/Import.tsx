@@ -111,6 +111,14 @@ export function ImportSettingsPage() {
         </div>
       </Panel>
 
+      <Panel title="Export your data" description="Download your clients, shoots and invoices as CSV files for a spreadsheet, your accountant, or a backup. They can be imported again here.">
+        <div className="row-gap">
+          {KINDS.map((k) => (
+            <a key={k.value} className="btn" href={`/api/studio/export/${k.value}.csv`} download>{k.label} (CSV)</a>
+          ))}
+        </div>
+      </Panel>
+
       {error ? <Callout tone="bad" title="Couldn't read that file">{error}</Callout> : null}
       {busy === "preview" && !report ? <Spinner label="Reading your file" /> : null}
 

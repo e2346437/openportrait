@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import { busyIntervals } from "./calendar.js";
 import { assertBookingTemplate, createContract, markSent } from "./contracts.js";
@@ -38,6 +38,10 @@ export interface SchedulerInput {
   depositValue?: number;
   /** A contract template the client signs before paying. Needs a price. */
   contractTemplateId?: string | null;
+  /** Most bookings in one day. Zero or omitted means no limit. */
+  maxPerDay?: number;
+  /** Special dates (YYYY-MM-DD) that replace the weekly hours. An empty list closes that day. */
+  dateOverrides?: Availability;
   availability: Availability;
   active?: boolean;
 }
@@ -75,6 +79,19 @@ export function cleanAvailability(input: Availability): Availability {
   return out;
 }
 
+/** Cleans special dates: real dates, valid hours, at most 400 of them. A date with no hours is a closed day. */
+export function cleanOverrides(input: Availability): Availability {
+  const out: Availability = {};
+  const entries = Object.entries(input);
+  if (entries.length > 400) throw new DomainError("invalid", "That's too many special dates. Remove some that have passed.");
+  for (const [date, windows] of entries) {
+    if (!isYmd(date)) throw new DomainError("invalid", `${date} isn't a valid date.`);
+    // The same checks as weekly hours, using day 0 as a stand-in.
+    out[date] = cleanAvailability({ "0": windows })["0"] ?? [];
+  }
+  return out;
+}
+
 function uniqueSlug(ctx: ServiceContext, wanted: string, ignoreId?: string): string {
   const base = slugify(wanted) || "booking";
   for (let n = 1; n < 200; n++) {
@@ -93,12 +110,15 @@ function values(ctx: ServiceContext, input: SchedulerInput) {
   const priceCents = int(input.priceCents, 0, 0, 100_000_000, "The price");
   const depositType = priceCents > 0 ? (input.depositType ?? "none") : "none";
   const depositValue = depositType === "none" ? 0 : int(input.depositValue, 0, 1, depositType === "percent" ? 10_000 : priceCents, depositType === "percent" ? "The deposit percentage" : "The deposit");
+  const maxPerDay = int(input.maxPerDay, 0, 0, 100, "The daily limit");
   const contractTemplateId = input.contractTemplateId || null;
   if (contractTemplateId) {
     if (priceCents <= 0) throw new DomainError("invalid", "A contract is signed before paying, so give this page a price first.");
     assertBookingTemplate(ctx, contractTemplateId);
   }
   return {
+    maxPerDay,
+    dateOverrides: cleanOverrides(input.dateOverrides ?? {}),
     contractTemplateId,
     priceCents,
     depositType,
@@ -182,9 +202,23 @@ export function availableSlots(ctx: ServiceContext, s: typeof scheduler.$inferSe
   const pad = Math.max(s.bufferBeforeMinutes, s.bufferAfterMinutes) * MIN;
   const busy = busyIntervals(ctx, atTime(from, "00:00", tz) - pad - 86_400_000, atTime(addDays(to, 1), "00:00", tz) + pad + 86_400_000);
   const earliest = now + s.minNoticeHours * 60 * MIN;
+  // How many bookings each day already holds, for pages with a daily limit.
+  const taken: Record<string, number> = {};
+  if (s.maxPerDay > 0) {
+    const rows = ctx.db
+      .select({ startsAt: schedulerBooking.startsAt })
+      .from(schedulerBooking)
+      .where(and(eq(schedulerBooking.schedulerId, s.id), inArray(schedulerBooking.status, ["pending", "confirmed"]), gte(schedulerBooking.startsAt, new Date(atTime(from, "00:00", tz))), lt(schedulerBooking.startsAt, new Date(atTime(addDays(to, 1), "00:00", tz)))))
+      .all();
+    for (const r of rows) {
+      const d = ymdIn(r.startsAt.getTime(), tz);
+      taken[d] = (taken[d] ?? 0) + 1;
+    }
+  }
   for (let day = from; day <= to; day = addDays(day, 1)) {
     const slots: Slot[] = [];
-    for (const w of s.availability[String(weekdayOf(day))] ?? []) {
+    if (s.maxPerDay > 0 && (taken[day] ?? 0) >= s.maxPerDay) continue;
+    for (const w of s.dateOverrides[day] ?? s.availability[String(weekdayOf(day))] ?? []) {
       const windowStart = atTime(day, w.start, tz);
       const windowEnd = atTime(day, w.end, tz);
       for (let t = windowStart; t + s.durationMinutes * MIN <= windowEnd; t += s.stepMinutes * MIN) {

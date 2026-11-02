@@ -123,7 +123,7 @@
       "id": "SEC-008",
       "title": "Container starts as root with Docker's default capabilities, and ships without no-new-privileges, read-only filesystem or resource limits",
       "severity": "Medium",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:L/AC:H/AT:P/PR:L/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:N",
       "tests": [
@@ -227,7 +227,8 @@
       "needsApproval": "none",
       "deployments": [
         "all deployments"
-      ]
+      ],
+      "note": "npm/corepack/yarn removed from the runtime image (10 findings gone). Remaining: Go dependencies inside the cloudflared and gosu binaries; needs upstream releases built with newer Go."
     },
     {
       "id": "SEC-015",

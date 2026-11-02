@@ -4,7 +4,7 @@
     {
       "id": "DS002",
       "path": "Dockerfile",
-      "justification": "The entrypoint starts as root only to chown the data volumes and drop to PUID:PGID with gosu, which Unraid needs (99:100). The app process runs as an unprivileged user with no capabilities (verified by NET-4 on every run). Further hardening is tracked as SEC-008.",
+      "justification": "The entrypoint starts as root only to chown the data volumes and drop to PUID:PGID with gosu, which Unraid needs (99:100). The shipped compose file and Unraid template now run it with all capabilities dropped except CHOWN, SETUID, SETGID and FOWNER, no-new-privileges and a read-only root, and the app process runs unprivileged with no capabilities (NET-4 on every run).",
       "expires": "2026-12-31"
     },
     {

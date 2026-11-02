@@ -48,6 +48,11 @@ export interface ExtensionApi {
   defineTool: typeof defineTool;
   /** Adds staff-only (owner) routes under /api/studio/extensions/<id>/. */
   routes(plugin: FastifyPluginAsync): void;
+  /**
+   * Remote storage for full-size originals. Previews stay on local disk. The extension uploads and verifies
+   * copies itself, then calls `originals.markRemote`. Attach a store only while the extension is licensed to.
+   */
+  originals: AppContext["originals"];
   grantCapability(id: string): void;
   revokeCapability(id: string): void;
   /** Shows a card under Settings > Extensions (owner only). */
@@ -98,6 +103,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         ctx,
         log: app.log,
         defineTool,
+        originals: ctx.originals,
         routes: (plugin) => void routes.push(plugin),
         settingsCard: (card) => void cards.push(card),
         grantCapability,

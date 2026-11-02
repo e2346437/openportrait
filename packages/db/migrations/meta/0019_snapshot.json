@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "43ffbeae-ca9e-4a28-8d77-a3625bdcff4d",
+  "id": "d45b874c-62cd-4865-a097-61f9ff56eb66",
   "prevId": "083f781b-35d0-4053-8e98-06d2fdb20706",
   "tables": {
     "ai_approval": {
@@ -642,34 +642,6 @@
         "disabled_at": {
           "name": "disabled_at",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "totp_secret": {
-          "name": "totp_secret",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "totp_enabled_at": {
-          "name": "totp_enabled_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "totp_last_step": {
-          "name": "totp_last_step",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "recovery_codes": {
-          "name": "recovery_codes",
-          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2836,6 +2808,97 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "shoot_task": {
+      "name": "shoot_task",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "shoot_id": {
+          "name": "shoot_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "done_at": {
+          "name": "done_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch('subsec') * 1000)"
+        }
+      },
+      "indexes": {
+        "shoot_task_shoot_idx": {
+          "name": "shoot_task_shoot_idx",
+          "columns": [
+            "shoot_id"
+          ],
+          "isUnique": false
+        },
+        "shoot_task_due_idx": {
+          "name": "shoot_task_due_idx",
+          "columns": [
+            "done_at",
+            "due_date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "shoot_task_shoot_id_shoot_id_fk": {
+          "name": "shoot_task_shoot_id_shoot_id_fk",
+          "tableFrom": "shoot_task",
+          "tableTo": "shoot",
+          "columnsFrom": [
+            "shoot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "shoot_type": {
       "name": "shoot_type",
       "columns": {
@@ -2885,6 +2948,74 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "shoot_type_task": {
+      "name": "shoot_type_task",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "shoot_type_id": {
+          "name": "shoot_type_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "due_days": {
+          "name": "due_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "shoot_type_task_type_idx": {
+          "name": "shoot_type_task_type_idx",
+          "columns": [
+            "shoot_type_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "shoot_type_task_shoot_type_id_shoot_type_id_fk": {
+          "name": "shoot_type_task_shoot_type_id_shoot_type_id_fk",
+          "tableFrom": "shoot_type_task",
+          "tableTo": "shoot_type",
+          "columnsFrom": [
+            "shoot_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

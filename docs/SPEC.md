@@ -1,6 +1,6 @@
 # OpenPortrait: product spec and architecture
 
-Status: draft for review (step 1 of the project plan). Open questions are listed at the end.
+Status: living document. Milestones 2 to 5 are built and shipping; sections describe what OpenPortrait does, with planned items marked as such. Decisions are in section 12.
 
 ## 1. What OpenPortrait is
 
@@ -38,6 +38,7 @@ All of these are in scope for 1.0. The milestones in section 11 set the build or
 | **Credits and coupons** | Client account credit (gift cards, package print credit) applied to orders. Coupon codes (percent or fixed, expiry, usage limits, scoped to products or booking pages). |
 | **Questionnaires** | A form builder (text, choice, date, file upload, and so on), templates attached to shoot types, sent automatically or by hand, and answers stored on the shoot. |
 | **Galleries** | Client galleries fed from the Unraid share or a web upload, with sets, cover images, multiple favorites lists (each with an optional cap, submitted by the client), downloads (full, web-size, or per photo), access by private link (default), password, or invited emails, expiry dates, and view and download tracking. Each gallery has a payment-lock mode chosen when it is published (lock all downloads until paid, Highlights early with the rest when paid, or no lock), and the studio default lives in Settings > Galleries. The watermark shows only while downloads are payment-locked and goes away automatically once the balance is paid; downloaded files are never watermarked. Each shoot type has an auto-publish switch (off by default) that sends the gallery live as soon as an export finishes. |
+| **Website** | A static studio website builder: three templates, editable colors, fonts, pages and sections, and photos the owner explicitly picks from galleries. Exports a zip of plain files for any static host (Cloudflare Pages recommended). See `docs/website.md`. |
 | **Email** | SMTP sending, branded templates with merge fields, a message log per contact. Automated workflows (for example "send questionnaire 14 days before the shoot") come after 1.0. |
 
 ## 3. Architecture
@@ -421,4 +422,4 @@ Decided by Eric on 2026-11-01:
 
 9. **AI access:** proposed in section 10. Eric chose on 2026-11-01 that outward and money actions need approval by default. The rest of the design, the failsafe default, and the first clients to verify are awaiting confirmation.
 
-Still needed: sample CSV exports from the studio's current system (contacts, leads, projects, invoices, payments), with names scrambled, to build the importer.
+The importer (section 3, [`import.md`](import.md)) reads generic CSV and JSON exports.

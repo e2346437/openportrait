@@ -6,7 +6,7 @@
 
 1. Choose what you are importing: **Clients**, **Shoots**, or **Invoices and payments**. Import in that order, so shoots and invoices can find their client.
 2. Choose a file. A CSV (comma, semicolon or tab separated) or a JSON list of records works.
-3. OpenPortrait guesses which column is which, using common column names (including the ones Sprout Studio uses). Change any it got wrong.
+3. OpenPortrait guesses which column is which from common column names. Change any it got wrong.
 4. Read the **Preview**. It runs the real import inside a database transaction and then undoes it, so what it shows is exactly what will happen. Nothing is saved yet.
 5. Press **Import**. Rows with a problem are left out and listed with the reason; fix them in the file and import again.
 
@@ -20,12 +20,9 @@ Importing the same file twice never duplicates anything. Each imported row is re
 | Shoots | name, date, type, status, client, notes | Shoot types that don't exist yet are created. Statuses are mapped (for example Pre-Shoot to Booked, Post-Shoot to Editing, Complete and Archived to Complete). The client is found by email or name, or added. Folders are not created for imported shoots. |
 | Invoices and payments | order number, title, client, total, payment date, amount, method, status, shoot | Rows with the same order number become one invoice with several payments. If the file has no total, the total is the sum of the payments. Payment methods are mapped (Credit Card to card, and so on). Invoices are saved as sent, or void when the status says void or cancelled. Nothing is emailed to clients. Re-importing a later payments report adds only the new payments. |
 
-## Getting data out of Sprout Studio
+## Getting data out of your old system
 
-Sprout has no full export. What it does offer:
-
-- **Reports > Income Report** has an Export button. It lists every payment with its order number, client name, method, and amount. Use it for **Invoices and payments**.
-- The contact list and shoot list can be copied or typed into a spreadsheet using the column names in the tables above. OpenPortrait recognises Sprout's names: First Name, Last Name, Company, Street Address, State/Prov, Zip/Postal Code, Phone (Primary), Referral Source, Shoot Date, Shoot Type, Order Number, Paid On, Paid Via.
+Most studio systems can export a list of clients, a list of shoots, or a payments report as a CSV file. Use the export that matches each import above. If a system has no export, copy the list into a spreadsheet and use column names like these, which OpenPortrait recognises: First Name, Last Name, Company, Street Address, State/Prov, Zip/Postal Code, Phone (Primary), Referral Source, Shoot Date, Shoot Type, Order Number, Paid On, Paid Via.
 
 Dates may be written 2026-03-14 or 3/14/2026 (month first). Money may include a currency symbol, thousands separators, or parentheses for negatives.
 

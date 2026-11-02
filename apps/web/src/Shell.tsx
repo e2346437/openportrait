@@ -11,6 +11,8 @@ interface NavItem {
   icon: IconName;
   soon?: boolean;
   end?: boolean;
+  /** Only the studio owner sees it. */
+  owner?: boolean;
 }
 
 const groups: Array<{ label?: string; items: NavItem[] }> = [
@@ -20,17 +22,20 @@ const groups: Array<{ label?: string; items: NavItem[] }> = [
     items: [
       { to: "/studio/leads", label: "Leads", icon: "lead" },
       { to: "/studio/shoots", label: "Shoots", icon: "camera" },
+      { to: "/studio/tasks", label: "Tasks", icon: "check" },
       { to: "/studio/calendar", label: "Calendar", icon: "calendar" },
       { to: "/studio/booking", label: "Booking", icon: "clock" },
       { to: "/studio/clients", label: "Clients", icon: "users" },
       { to: "/studio/orders", label: "Orders", icon: "receipt" },
       { to: "/studio/contracts", label: "Contracts", icon: "note" },
+      { to: "/studio/reports", label: "Reports", icon: "chart", owner: true },
     ],
   },
   {
     label: "Photos",
     items: [
       { to: "/studio/galleries", label: "Galleries", icon: "image" },
+      { to: "/studio/website", label: "Website", icon: "globe" },
       { to: "/studio/incoming", label: "Incoming", icon: "inbox" },
       { to: "/studio/tether", label: "Tethering", icon: "lan" },
     ],
@@ -99,7 +104,7 @@ export function Shell() {
           {navGroups.map((g, i) => (
             <div key={g.label ?? i} className="nav">
               {g.label ? <div className="nav-label">{g.label}</div> : null}
-              {g.items.map((item) => (
+              {g.items.filter((item) => !item.owner || user?.role === "owner").map((item) => (
                 <NavLink key={item.to} to={item.to} end={item.end}>
                   <Icon name={item.icon} />
                   {item.label}

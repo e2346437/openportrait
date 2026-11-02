@@ -41,7 +41,7 @@ export function ImportSettingsPage() {
   const toast = useToast();
   const fields = useLoad<{ fields: Record<Kind, FieldDef[]> }>("/import/fields").data?.fields;
   const [kind, setKind] = useState<Kind>("contacts");
-  const [source, setSource] = useState("Sprout Studio");
+  const [source, setSource] = useState("Previous system");
   const [fileName, setFileName] = useState("");
   const [text, setText] = useState("");
   const [mapping, setMapping] = useState<Record<string, string> | null>(null);

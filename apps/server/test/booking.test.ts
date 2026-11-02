@@ -288,6 +288,18 @@ describe("bookings that become shoots", () => {
     expect(await shoots()).toHaveLength(1);
   });
 
+  it("sends the shoot type's form when the booking becomes a shoot", async () => {
+    const t = await staff("POST", "/questionnaire-templates", { name: "Session details", intro: "Tell us more", fields: [{ label: "Anything we should know?", type: "text" }] });
+    expect((await staff("PUT", `/shoot-types/${await typeId()}/questionnaire`, { templateId: t.body.id, sendMode: "on_booking" })).status).toBe(200);
+    const s = await make({ approval: "auto" });
+    expect((await pub("POST", `/book/${s.slug}`, { ...who, startsAt: atTime(monday(), "09:00", TZ) })).status).toBe(201);
+    await app.ctx.jobs.drain();
+    const shoot = (await shoots())[0];
+    const list = await staff("GET", `/shoots/${shoot.id}/questionnaires`);
+    expect(list.body.items).toHaveLength(1);
+    expect(list.body.items[0]).toMatchObject({ status: "sent", origin: "auto" });
+  });
+
   it("leaves pages that don't ask for a shoot as they were", async () => {
     const s = await make({ createShoot: false, approval: "auto" });
     await pub("POST", `/book/${s.slug}`, { ...who, startsAt: atTime(monday(), "09:00", TZ) });

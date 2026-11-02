@@ -32,3 +32,10 @@ Clients see times in your studio's time zone, which is shown on the page.
 ## For AI assistants
 
 Everything above is also available through the MCP tools (`calendar_list_schedulers`, `calendar_list_bookings`, `calendar_confirm_booking`, `calendar_decline_booking`). Confirming or declining emails a client, so those tools require approval by default. Text clients write is always returned as untrusted content.
+
+## Special dates and daily limits
+
+Under **Booking > Booking pages > Edit**:
+
+- **Special dates** replace the weekly hours for one calendar day. Tick *Closed* for a holiday or trip, or give that date its own hours, for example a Saturday mini-session day. Dates that have passed are dropped when you save.
+- **Most bookings per day** stops a page from offering a day once it holds that many pending or confirmed bookings. Cancelling one frees the day again. Leave it at 0 for no limit.

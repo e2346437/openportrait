@@ -25,6 +25,8 @@ const SchedulerBody = z.object({
   depositType: z.enum(["none", "percent", "fixed"]).optional(),
   depositValue: z.number().int().optional(),
   contractTemplateId: z.string().nullish(),
+  maxPerDay: z.number().int().optional(),
+  dateOverrides: z.record(z.string(), z.array(Window).max(6)).optional(),
   availability: z.record(z.string(), z.array(Window).max(6)),
   active: z.boolean().optional(),
 });

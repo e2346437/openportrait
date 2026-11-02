@@ -25,6 +25,8 @@ export interface Scheduler {
   depositType: "none" | "percent" | "fixed";
   depositValue: number;
   contractTemplateId: string | null;
+  maxPerDay: number;
+  dateOverrides: Windows;
   availability: Windows;
   active: boolean;
 }
@@ -51,6 +53,8 @@ const blank = (): Scheduler => ({
   depositType: "none",
   depositValue: 0,
   contractTemplateId: null,
+  maxPerDay: 0,
+  dateOverrides: {},
   availability: Object.fromEntries(WEEKDAYS.map((d) => [d, [{ start: "09:00", end: "17:00" }]])),
   active: true,
 });
@@ -89,6 +93,8 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
       priceCents,
       depositType: priceCents > 0 ? f.depositType : "none",
       depositValue,
+      // Dates that have passed are dropped, so the list doesn't grow forever.
+      dateOverrides: Object.fromEntries(Object.entries(f.dateOverrides ?? {}).filter(([d]) => d >= new Date().toISOString().slice(0, 10))),
       contractTemplateId: priceCents > 0 ? f.contractTemplateId || null : null,
       active: f.active, description: f.description || null, location: f.location || null, shootTypeId: f.shootTypeId || null, slug: f.slug || undefined };
     return editing ? api(`/schedulers/${editing.id}`, { method: "PATCH", body }) : api("/schedulers", { body });
@@ -103,6 +109,14 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
     if ((await submit()) !== undefined) onSaved();
   };
 
+  const overrides = Object.entries(f.dateOverrides ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const setOverride = (date: string, windows: Array<{ start: string; end: string }> | null, was?: string) =>
+    setF((x) => {
+      const next = { ...x.dateOverrides };
+      if (was !== undefined) delete next[was];
+      if (windows) next[date] = windows;
+      return { ...x, dateOverrides: next };
+    });
   const setDay = (d: string, windows: Array<{ start: string; end: string }>) => setF((x) => ({ ...x, availability: { ...x.availability, [d]: windows } }));
 
   return (
@@ -166,6 +180,41 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
           })}
         </fieldset>
 
+        <fieldset className="span-2 week-edit">
+          <legend>Special dates</legend>
+          <p className="muted">Close a day, or open one with different hours: a holiday, a vacation, or a mini-session day. These replace the weekly hours for that date.</p>
+          {overrides.map(([date, w]) => (
+            <div key={date} className="week-row override-row">
+              <input type="date" aria-label="Date" value={date} onChange={(e) => e.target.value && setOverride(e.target.value, w, date)} />
+              <label className="week-day">
+                <input type="checkbox" checked={w.length === 0} onChange={(e) => setOverride(date, e.target.checked ? [] : [{ start: "10:00", end: "14:00" }])} />
+                Closed
+              </label>
+              {w.length > 0 ? (
+                <div className="week-win">
+                  <input type="time" aria-label={`${date} start`} value={w[0]!.start} onChange={(e) => setOverride(date, [{ ...w[0]!, start: e.target.value }])} />
+                  <span aria-hidden="true">to</span>
+                  <input type="time" aria-label={`${date} end`} value={w[0]!.end} onChange={(e) => setOverride(date, [{ ...w[0]!, end: e.target.value }])} />
+                </div>
+              ) : null}
+              <button type="button" className="btn sm ghost icon" aria-label={`Remove ${date}`} onClick={() => setOverride(date, null, date)}>
+                <Icon name="x" />
+              </button>
+            </div>
+          ))}
+          <div>
+            <button type="button" className="btn sm ghost" onClick={() => {
+              let d = new Date();
+              let key = d.toISOString().slice(0, 10);
+              while (f.dateOverrides?.[key]) { d = new Date(d.getTime() + 86_400_000); key = d.toISOString().slice(0, 10); }
+              setOverride(key, []);
+            }}>
+              <Icon name="plus" /> Add a date
+            </button>
+          </div>
+        </fieldset>
+
+        <Field label="Most bookings per day" hint="Leave 0 for no limit.">{(p) => <TextInput {...p} inputMode="numeric" value={f.maxPerDay} onChange={num("maxPerDay")} />}</Field>
         <Field label="Buffer before (min)">{(p) => <TextInput {...p} inputMode="numeric" value={f.bufferBeforeMinutes} onChange={num("bufferBeforeMinutes")} />}</Field>
         <Field label="Buffer after (min)">{(p) => <TextInput {...p} inputMode="numeric" value={f.bufferAfterMinutes} onChange={num("bufferAfterMinutes")} />}</Field>
         <Field label="Minimum notice (hours)" hint="How soon before a time it can still be booked.">{(p) => <TextInput {...p} inputMode="numeric" value={f.minNoticeHours} onChange={num("minNoticeHours")} />}</Field>

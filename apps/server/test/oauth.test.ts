@@ -13,7 +13,7 @@ const REDIRECT = "https://claude.ai/api/mcp/auth_callback";
 
 beforeEach(async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "op-oauth-"));
-  app = await buildApp({ config: loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web") }), startBackground: false, logger: false });
+  app = await buildApp({ config: loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web") }), startBackground: false, setupCode: null, logger: false });
   const res = await app.inject({ method: "POST", url: "/api/studio/setup", payload: { studioName: "Test Studio", ownerName: "Pat", email: "pat@example.com", password: "correct horse battery", timezone: "UTC" } });
   cookie = `op_session=${res.cookies.find((c) => c.name === "op_session")!.value}`;
   await app.inject({ method: "PUT", url: "/api/studio/ai", payload: { enabled: true }, headers: { cookie } });

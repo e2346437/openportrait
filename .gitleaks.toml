@@ -1,0 +1,8 @@
+# The security tests use obviously synthetic credentials against throwaway containers. Nothing else is allowed here.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "synthetic credentials used by the security tests"
+regexes = ['''synthetic-Pass-\d+''']
+paths = ['''security/reports/''']

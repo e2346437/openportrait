@@ -6,6 +6,15 @@ services:
     image: ghcr.io/e2346437/openportrait:latest
     container_name: openportrait
     restart: unless-stopped
+    # Hardened by default: no extra privileges, a read-only root filesystem, and only the four capabilities the
+    # start-up script needs to hand files to your user. See security/DOCKER_HARDENING.md.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, FOWNER]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    pids_limit: 512
     ports:
       - "8080:8080"
       # Camera upload (see docs/camera-upload.md). Nothing listens until you open the upload server in
@@ -25,6 +34,10 @@ services:
       # Optional: this server's address on your home network, with the mapped port. Tethering and camera
       # upload show it, because a container can't see its host's address. Can also be set in Settings.
       LAN_URL: ""
+      # Optional: a fixed code for the first-run setup screen. Left empty, a random one is printed to the container log.
+      SETUP_CODE: ""
+      # Optional: addresses allowed to tell the app a visitor's real IP (cloudflared in a separate container).
+      TRUSTED_PROXIES: ""
       # Optional: your public address. Filled in from the tunnel when left empty.
       APP_URL: ""
     volumes:

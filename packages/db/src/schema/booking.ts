@@ -55,6 +55,8 @@ export const scheduler = sqliteTable(
     /** The deposit asked up front. "percent" stores `depositValue` in basis points (2500 = 25%); "fixed" stores cents. */
     depositType: text({ enum: ["none", "percent", "fixed"] }).notNull().default("none"),
     depositValue: integer().notNull().default(0),
+    /** Turn a confirmed booking into a shoot (needs a shoot type), so it follows the usual workflow from there. */
+    createShoot: integer({ mode: "boolean" }).notNull().default(false),
     /** Most bookings taken on one day. Zero means no limit. */
     maxPerDay: integer().notNull().default(0),
     /** Special days that replace the weekly hours: { "2027-03-14": [] } is closed, a list of windows is different hours. */
@@ -85,6 +87,8 @@ export const schedulerBooking = sqliteTable(
     entryId: text().references(() => calendarEntry.id, { onDelete: "set null" }),
     /** The invoice raised for a paid page, so the deposit is paid and tracked like any other invoice. */
     orderId: text(),
+    /** The shoot made when this booking was confirmed, if its page does that. */
+    shootId: text(),
     startsAt: integer({ mode: "timestamp_ms" }).notNull(),
     endsAt: integer({ mode: "timestamp_ms" }).notNull(),
     status: text({ enum: ["pending", "confirmed", "declined", "cancelled"] }).notNull(),

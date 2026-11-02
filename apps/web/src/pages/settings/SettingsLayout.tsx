@@ -68,6 +68,11 @@ export function SettingsLayout() {
             <Icon name="sparkle" /> Extensions
           </NavLink>
         ) : null}
+        {owner ? (
+          <NavLink to="import">
+            <Icon name="inbox" /> Import data
+          </NavLink>
+        ) : null}
         <NavLink to="account">
           <Icon name="user" /> Your account
         </NavLink>

@@ -197,7 +197,7 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 Google sync details (as built): shoot times are the source of truth, so one deleted in Google is restored on the next pass, while appointments and time off deleted in Google are deleted locally. Edits made in Google to a time or place come back; a shoot time's title is always rebuilt from the shoot. Events created in the OpenPortrait Google calendar import as appointments. Other calendars store busy times only, never titles. All-day items end at the start of the day after their last day. Changes in the app are pushed within seconds, and a five-minute poll is the backstop. Setup guide: [`docs/google-calendar.md`](google-calendar.md).
 | **PayPal** | PayPal Checkout (Orders v2 API) for deposits and invoice payments, with webhooks for confirmation. The client ID and secret are entered in Settings. Payments go through a `PaymentProvider` interface, so Stripe and Square can be added as connectors later. |
 | **Email** | Any SMTP provider. |
-| **Studio data import** | A one-time importer for CSV exports (contacts, leads, shoots or projects, invoices and payments where available). Mapping is shown before anything is written. ERW Photography's exports are the test data. |
+| **Studio data import** | As built: Settings > Import data takes CSV or JSON for clients, shoots, and invoices with payments. Columns are matched automatically and can be changed; a preview runs the real import in a transaction and rolls it back; re-importing never duplicates. See [`docs/import.md`](import.md). |
 | **Lightroom / Aftershoot** | Folder export (section 4). |
 
 ## 7. Access and security

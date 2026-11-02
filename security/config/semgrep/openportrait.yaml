@@ -1,0 +1,67 @@
+# Project-specific Semgrep rules. They encode the lessons of the audit so the same mistakes can't come back.
+rules:
+  - id: op-rate-limit-key-from-request-header
+    message: >-
+      A rate-limit key built from a request header is chosen by the caller. Use the shared helper that trusts
+      CF-Connecting-IP only when the connection really comes from the built-in tunnel (SEC-001).
+    severity: WARNING
+    languages: [typescript]
+    pattern-either:
+      - pattern: |
+          keyGenerator: (...) => $REQ.headers[...]
+      - pattern: |
+          keyGenerator: (...) => $REQ.headers.$H
+    paths: { include: ["apps/server/src/**"] }
+
+  - id: op-absolute-url-from-host-header
+    message: >-
+      Building an absolute URL from the Host or X-Forwarded-* headers lets a caller choose it. Use the configured
+      public address (ctx.publicUrl()) and fall back to a fixed value (SEC-010).
+    severity: WARNING
+    languages: [typescript]
+    pattern-either:
+      - pattern: $REQ.headers.host
+      - pattern: $REQ.headers["x-forwarded-proto"]
+      - pattern: $REQ.headers["x-forwarded-host"]
+    paths: { include: ["apps/server/src/**"], exclude: ["apps/server/src/client-ip.ts"] }
+
+  - id: op-untrusted-wrapper-without-escaping
+    message: >-
+      Text a client wrote must be wrapped for the AI with the escaping helper, not a hand-built tag (SEC-006).
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: "<untrusted_client_text>\\$\\{"
+    paths: { include: ["apps/server/src/**"], exclude: ["apps/server/src/ai/tools/util.ts"] }
+
+  - id: op-child-process
+    message: Spawning a process from the app needs a review. Pass arguments as an array, never through a shell, and never include request data.
+    severity: WARNING
+    languages: [typescript]
+    pattern-either:
+      - pattern: exec(...)
+      - pattern: execSync(...)
+      - pattern: 'spawn($CMD, ..., {shell: true, ...})'
+    paths: { include: ["apps/server/src/**"] }
+
+  - id: op-fetch-of-variable-url
+    message: >-
+      An outbound request to an address that came from a request or a setting is an SSRF path. Restrict it to https,
+      block private and link-local ranges, and don't follow redirects blindly.
+    severity: INFO
+    languages: [typescript]
+    patterns:
+      - pattern: fetch($URL, ...)
+      - pattern-not: fetch("...", ...)
+      - pattern-not: fetch(`http://${METRICS}/...`, ...)
+    paths: { include: ["apps/server/src/**"], exclude: ["apps/server/src/payments/**"] }
+
+  - id: op-file-path-from-request
+    message: Join request-derived names onto a root only through resolveInside() or jailPath() (path traversal).
+    severity: ERROR
+    languages: [typescript]
+    patterns:
+      - pattern-either:
+          - pattern: fs.$FN(path.join(..., $REQ.params.$X, ...), ...)
+          - pattern: fs.$FN(path.join(..., $REQ.query.$X, ...), ...)
+          - pattern: fs.$FN(path.join(..., $REQ.body.$X, ...), ...)
+    paths: { include: ["apps/server/src/**"] }

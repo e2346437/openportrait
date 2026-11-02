@@ -1,0 +1,69 @@
+# OWASP ZAP automation plan: authenticated scan of a disposable OpenPortrait container with synthetic data.
+# Run through security/scripts/zap.sh, which starts the target, signs in with the synthetic owner and passes the
+# session in as ZAP_SESSION. Never point this at a real studio.
+env:
+  contexts:
+    - name: openportrait
+      urls: ["${TARGET}"]
+      includePaths: ["${TARGET}/.*"]
+      excludePaths:
+        - "${TARGET}/api/studio/auth/logout.*"    # would end the scan's own session
+        - "${TARGET}/api/studio/upload/(open|close).*"
+  parameters:
+    failOnError: false
+    failOnWarning: false
+    progressToStdout: true
+jobs:
+  - type: replacer
+    parameters: { deleteAllRules: true }
+    rules:
+      - description: synthetic owner session
+        matchType: req_header
+        matchString: Cookie
+        matchRegex: false
+        replacementString: "${ZAP_SESSION}"
+        initiators: []
+  - type: requestor
+    parameters: { user: "" }
+    requests:
+      - { url: "${TARGET}/api/studio/auth/me", method: GET }
+      - { url: "${TARGET}/api/studio/settings/studio", method: GET }
+      - { url: "${TARGET}/api/studio/galleries", method: GET }
+      - { url: "${TARGET}/api/studio/ai", method: GET }
+      - { url: "${TARGET}/api/studio/ai/approvals", method: GET }
+      - { url: "${TARGET}/api/studio/ai/activity", method: GET }
+      - { url: "${TARGET}/api/studio/contacts", method: GET }
+      - { url: "${TARGET}/api/studio/leads", method: GET }
+      - { url: "${TARGET}/api/studio/shoots", method: GET }
+      - { url: "${TARGET}/api/studio/orders", method: GET }
+      - { url: "${TARGET}/api/studio/upload", method: GET }
+      - { url: "${TARGET}/api/studio/internet", method: GET }
+      - { url: "${TARGET}/api/studio/ingest/folders", method: GET }
+      - { url: "${TARGET}/api/public/inquiry", method: GET }
+      - { url: "${TARGET}/api/health", method: GET }
+      - { url: "${TARGET}/.well-known/oauth-protected-resource", method: GET }
+      - { url: "${TARGET}/.well-known/oauth-authorization-server", method: GET }
+      - { url: "${TARGET}/studio", method: GET }
+      - url: "${TARGET}/api/public/inquiry"
+        method: POST
+        headers: ["Content-Type: application/json"]
+        data: '{"firstName":"Zap","email":"zap@audit.invalid","message":"scan"}'
+      - url: "${TARGET}/api/studio/auth/login"
+        method: POST
+        headers: ["Content-Type: application/json"]
+        data: '{"email":"nobody@audit.invalid","password":"not-the-password"}'
+  - type: spider
+    parameters: { maxDuration: 2, maxDepth: 4, maxChildren: 60 }
+  - type: passiveScan-wait
+    parameters: { maxDuration: 3 }
+  - type: activeScan
+    parameters: { maxRuleDurationInMins: 2, maxScanDurationInMins: 12, threadPerHost: 2, delayInMs: 50 }
+    policyDefinition:
+      defaultStrength: low
+      defaultThreshold: medium
+  - type: passiveScan-wait
+    parameters: { maxDuration: 2 }
+  - type: report
+    parameters: { template: traditional-json, reportDir: /zap/wrk, reportFile: zap, reportTitle: OpenPortrait authenticated scan }
+  - type: report
+    parameters: { template: traditional-html, reportDir: /zap/wrk, reportFile: zap, reportTitle: OpenPortrait authenticated scan }

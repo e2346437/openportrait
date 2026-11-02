@@ -4,3 +4,5 @@ dist/
 .env
 /data/
 coverage/
+security/reports/*
+!security/reports/.gitkeep

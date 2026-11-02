@@ -71,6 +71,13 @@
       "when": 1793577992389,
       "tag": "0009_dry_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793579048583,
+      "tag": "0010_hesitant_stellaris",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,8 @@ import { addDays, isYmd, ymdIn } from "./time.js";
 
 const { order, orderLine, paymentSchedule, payment, counter, contact } = tables;
 
+export type OrderRow = typeof order.$inferSelect;
+
 export const METHODS = ["cash", "check", "card", "venmo", "zelle", "paypal", "bank", "other"] as const;
 export type Method = (typeof METHODS)[number];
 
@@ -58,9 +60,8 @@ const label = (o: { kind: string; quoteNumber: number | null; invoiceNumber: num
 
 // ---- reading ----
 
-type OrderRow = typeof order.$inferSelect;
 
-function paidOf(ctx: ServiceContext, orderId: string): number {
+export function paidOf(ctx: ServiceContext, orderId: string): number {
   return ctx.db.select({ n: sql<number>`coalesce(sum(${payment.amountCents}), 0)` }).from(payment).where(eq(payment.orderId, orderId)).get()?.n ?? 0;
 }
 
@@ -325,16 +326,22 @@ export function recordPayment(ctx: ServiceContext, id: string, input: PaymentInp
   if (o.kind !== "invoice" || o.status !== "sent") throw new DomainError("invalid", "Payments can be recorded on a sent invoice.");
   if (!METHODS.includes(input.method)) throw new DomainError("invalid", "Choose how it was paid.");
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) throw new DomainError("invalid", "Enter the amount received.");
+  if (source.provider && source.providerRef) {
+    // A processor can tell us about the same payment twice (the client returning and a webhook). Record it once.
+    const seen = ctx.db.select({ id: payment.id }).from(payment).where(and(eq(payment.provider, source.provider), eq(payment.providerRef, source.providerRef))).get();
+    if (seen) return getOrder(ctx, id);
+  }
   const paid = paidOf(ctx, id);
   const balance = o.totalCents - paid;
-  if (input.amountCents > balance) throw new DomainError("invalid", `That's more than the ${money(ctx, balance)} still owed.`);
+  // Money a processor already took is recorded even if the balance changed meanwhile; only hand-typed amounts are limited.
+  if (!source.provider && input.amountCents > balance) throw new DomainError("invalid", `That's more than the ${money(ctx, balance)} still owed.`);
   const paymentId = newId();
   ctx.db
     .insert(payment)
     .values({ id: paymentId, orderId: id, amountCents: input.amountCents, method: input.method, provider: source.provider ?? "manual", providerRef: source.providerRef ?? null, note: input.note?.trim().slice(0, 500) || null, paidAt: new Date(input.paidAt ?? Date.now()), recordedBy: ctx.actorId })
     .run();
   logActivity(ctx, { contactId: o.contactId, kind: "payment.received", summary: `${money(ctx, input.amountCents)} received for ${label(o)} (${input.method})`, shootId: o.shootId });
-  const left = balance - input.amountCents;
+  const left = Math.max(0, balance - input.amountCents);
   notifyClient(ctx, o, `Receipt: ${money(ctx, input.amountCents)} for ${o.title}`, [`Thank you. I received ${money(ctx, input.amountCents)} for ${label(o)}.`, left > 0 ? `The balance is ${money(ctx, left)}.` : "It's paid in full."], { label: "View your invoice", url: linkTo(ctx, `/o/${o.token}`) }, "payment.receipt");
   return getOrder(ctx, id);
 }
@@ -350,9 +357,28 @@ export function refundPayment(ctx: ServiceContext, id: string, input: { amountCe
   return getOrder(ctx, id);
 }
 
+/** A refund the processor reports (made from PayPal's own screens). Recorded once per refund id. */
+export function recordProcessorRefund(ctx: ServiceContext, orderId: string, input: { amountCents: number; method: Method; provider: string; providerRef: string }) {
+  const o = rowOf(ctx, orderId);
+  const seen = ctx.db.select({ id: payment.id }).from(payment).where(and(eq(payment.provider, input.provider), eq(payment.providerRef, input.providerRef))).get();
+  if (seen) return;
+  ctx.db.insert(payment).values({ id: newId(), orderId, amountCents: -input.amountCents, method: input.method, provider: input.provider, providerRef: input.providerRef, note: "Refunded by the payment processor", paidAt: new Date() }).run();
+  logActivity(ctx, { contactId: o.contactId, kind: "payment.refunded", summary: `${money(ctx, input.amountCents)} refunded on ${label(o)} (${input.method})`, shootId: o.shootId });
+}
+
+/** What the next payment on the schedule still needs, capped at the balance. Zero when nothing is owed. */
+export function nextDueCents(ctx: ServiceContext, o: OrderRow): number {
+  const paid = paidOf(ctx, o.id);
+  const balance = Math.max(0, o.totalCents - paid);
+  if (balance === 0) return 0;
+  const sched = ctx.db.select().from(paymentSchedule).where(eq(paymentSchedule.orderId, o.id)).orderBy(asc(paymentSchedule.position)).all();
+  const next = installments(sched, paid, today(ctx)).find((s) => s.status !== "paid");
+  return next ? Math.min(balance, next.amountCents - next.paidCents) : balance;
+}
+
 // ---- what the client sees ----
 
-function byToken(ctx: ServiceContext, token: string): OrderRow {
+export function byToken(ctx: ServiceContext, token: string): OrderRow {
   const o = ctx.db.select().from(order).where(eq(order.token, token)).get();
   if (!o || o.status === "draft") throw notFound("This page");
   return o;

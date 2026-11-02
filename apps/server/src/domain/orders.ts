@@ -38,6 +38,8 @@ export interface OrderInput {
   discountCents?: number;
   /** A coupon code to apply. Empty or omitted means none. */
   couponCode?: string | null;
+  /** The booking page this document comes from. Lets a coupon limited to that page apply. */
+  schedulerId?: string | null;
   validUntil?: string | null;
   lines: OrderLineInput[];
   /** Omit for one payment of the whole amount, due on acceptance. */
@@ -189,7 +191,7 @@ function clean(ctx: ServiceContext, input: OrderInput, taxBps: number, existing?
   const discount = input.discountCents ?? 0;
   if (!Number.isInteger(discount) || discount < 0) throw new DomainError("invalid", "The discount must be zero or more.");
   const code = input.couponCode?.trim();
-  const coupon = code ? evaluateCoupon(ctx, code, lines, { orderId: existing?.id, keepCouponId: existing?.couponId, manualDiscountCents: discount }) : null;
+  const coupon = code ? evaluateCoupon(ctx, code, lines, { orderId: existing?.id, keepCouponId: existing?.couponId, manualDiscountCents: discount, schedulerId: input.schedulerId }) : null;
   const totals = totalsFor(lines, discount + (coupon?.cents ?? 0), taxBps);
   if (totals.totalCents < 0) throw new DomainError("invalid", "The total can't be below zero.");
   if (input.validUntil && !isYmd(input.validUntil)) throw new DomainError("invalid", "Enter the “valid until” date as year-month-day.");
@@ -447,6 +449,52 @@ export function acceptQuote(ctx: ServiceContext, token: string, input: { name: s
   logActivity(ctx, { contactId: a.contactId, kind: "quote.accepted", summary: `${name} accepted Quote ${a.quoteNumber}; it is now Invoice ${a.invoiceNumber} (${money(ctx, a.totalCents)})`, shootId: a.shootId, leadId: a.leadId });
   notifyStudio(ctx, `Quote ${a.quoteNumber} accepted`, `${name} accepted ${a.title} for ${money(ctx, a.totalCents)}. It is now Invoice ${a.invoiceNumber}.`);
   notifyClient(ctx, a, `Thank you: ${a.title}`, [`Thank you for accepting ${a.title}. Your invoice is ${label(a)}, ${money(ctx, a.totalCents)}.`], { label: "View your invoice", url: linkTo(ctx, `/o/${a.token}`) }, "quote.accepted");
+  return publicView(ctx, token);
+}
+
+/**
+ * Shifts a payment schedule to a new total. Fixed amounts the client already agreed to stay as they are for as long
+ * as possible: a smaller total comes off the last payment first (the balance), a larger one lands on the last payment.
+ * Payments that shrink to nothing are dropped, and there is always at least one.
+ */
+export function rebalance(rows: Array<{ label: string; amountCents: number; dueDate: string | null }>, totalCents: number) {
+  const out = rows.map((r) => ({ ...r }));
+  let diff = totalCents - out.reduce((n, r) => n + r.amountCents, 0);
+  if (diff > 0) out[out.length - 1]!.amountCents += diff;
+  for (let i = out.length - 1; i >= 0 && diff < 0; i--) {
+    const take = Math.min(out[i]!.amountCents, -diff);
+    out[i]!.amountCents -= take;
+    diff += take;
+  }
+  const kept = out.filter((r) => r.amountCents > 0);
+  return kept.length ? kept : [{ ...out[out.length - 1]!, amountCents: totalCents }];
+}
+
+/**
+ * The client types a coupon code on a quote they haven't accepted yet. The discount and total are recalculated and the
+ * payment schedule follows: the deposit stays the same and the balance absorbs the change. A code that would give less
+ * than the discount the quote already has is refused, so entering a code can only help the client.
+ */
+export function applyQuoteCoupon(ctx: ServiceContext, token: string, rawCode: string) {
+  const o = byToken(ctx, token);
+  if (o.kind !== "quote" || o.status !== "sent") throw new DomainError("invalid", "A coupon can only be added to a quote that is waiting for your answer.");
+  if (o.validUntil && o.validUntil < today(ctx)) throw new DomainError("expired", "This quote has expired. Please ask for a new one.");
+  if (!rawCode.trim()) throw new DomainError("invalid", "Type your coupon code.");
+  const lines = ctx.db.select().from(orderLine).where(eq(orderLine.orderId, o.id)).orderBy(asc(orderLine.position)).all();
+  const manual = o.discountCents - o.couponCents;
+  const applied = evaluateCoupon(ctx, rawCode, lines, { orderId: o.id, keepCouponId: o.couponId, manualDiscountCents: manual });
+  if (o.couponId === applied.couponId) throw new DomainError("invalid", `${applied.code} is already on this quote.`);
+  if (o.couponId && applied.cents <= o.couponCents) throw new DomainError("invalid", `This quote already has ${o.couponCode}, which takes off ${money(ctx, o.couponCents)}. ${applied.code} wouldn't save you more.`);
+  const totals = totalsFor(lines, manual + applied.cents, o.taxBps);
+  const rows = ctx.db.select().from(paymentSchedule).where(eq(paymentSchedule.orderId, o.id)).orderBy(asc(paymentSchedule.position)).all();
+  const schedule = rebalance(rows, totals.totalCents);
+  ctx.db.transaction((tx) => {
+    tx.update(order).set({ couponId: applied.couponId, couponCode: applied.code, couponCents: applied.cents, discountCents: totals.discountCents, taxCents: totals.taxCents, totalCents: totals.totalCents, updatedAt: new Date() }).where(eq(order.id, o.id)).run();
+    tx.delete(paymentSchedule).where(eq(paymentSchedule.orderId, o.id)).run();
+    schedule.forEach((r, i) => tx.insert(paymentSchedule).values({ id: newId(), orderId: o.id, position: i, label: r.label, amountCents: r.amountCents, dueDate: r.dueDate }).run());
+  });
+  logActivity(ctx, { contactId: o.contactId, kind: "quote.coupon", summary: `Client applied coupon ${applied.code} to Quote ${o.quoteNumber}: ${money(ctx, applied.cents)} off`, shootId: o.shootId, leadId: o.leadId });
+  notifyStudio(ctx, `Coupon ${applied.code} used on Quote ${o.quoteNumber}`, `The client added coupon ${applied.code} to ${o.title}. It takes off ${money(ctx, applied.cents)}; the new total is ${money(ctx, totals.totalCents)}.`);
   return publicView(ctx, token);
 }
 

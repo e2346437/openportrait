@@ -199,6 +199,8 @@ interface CouponRowData {
   value: number;
   itemId: string | null;
   itemName: string | null;
+  schedulerId: string | null;
+  schedulerName: string | null;
   expiresOn: string | null;
   maxUses: number | null;
   uses: number;
@@ -223,7 +225,7 @@ function CouponsPanel() {
   return (
     <Panel
       title="Coupon codes"
-      description="Give a discount with a code, like SPRING25. Add it when you write a quote, and it shows on the client's copy."
+      description="Give a discount with a code, like SPRING25. Add it to a quote, or let clients type it on a sent quote or a booking page."
       actions={owner ? <Button variant="primary" size="sm" icon="plus" onClick={() => setEditing("new")}>Add</Button> : null}
       flush
     >
@@ -261,18 +263,19 @@ function CouponsPanel() {
 function CouponDialog({ target, onClose, onSaved }: { target: CouponRowData | "new" | null; onClose: () => void; onSaved: () => void }) {
   const cur = useLoad<MoneyState>("/money/settings").data?.currency ?? "USD";
   const items = useLoad<{ items: Item[] }>("/catalog?archived=false").data?.items ?? [];
-  const [f, setF] = useState({ code: "", description: "", kind: "percent" as "percent" | "fixed", value: "", itemId: "", expiresOn: "", maxUses: "", active: true });
+  const pages = useLoad<{ items: Array<{ id: string; name: string }> }>("/schedulers").data?.items ?? [];
+  const [f, setF] = useState({ code: "", description: "", kind: "percent" as "percent" | "fixed", value: "", itemId: "", schedulerId: "", expiresOn: "", maxUses: "", active: true });
   useEffect(() => {
     if (!target) return;
     const t = target === "new" ? null : target;
-    setF({ code: t?.code ?? "", description: t?.description ?? "", kind: t?.kind ?? "percent", value: t ? (t.kind === "percent" ? String(t.value / 100) : moneyInput(t.value)) : "", itemId: t?.itemId ?? "", expiresOn: t?.expiresOn ?? "", maxUses: t?.maxUses ? String(t.maxUses) : "", active: t?.active ?? true });
+    setF({ code: t?.code ?? "", description: t?.description ?? "", kind: t?.kind ?? "percent", value: t ? (t.kind === "percent" ? String(t.value / 100) : moneyInput(t.value)) : "", itemId: t?.itemId ?? "", schedulerId: t?.schedulerId ?? "", expiresOn: t?.expiresOn ?? "", maxUses: t?.maxUses ? String(t.maxUses) : "", active: t?.active ?? true });
   }, [target]);
   const editing = target && target !== "new" ? target : null;
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const { busy, error, submit } = useSubmit(() => {
     const n = f.kind === "percent" ? Number(f.value) : parseMoney(f.value);
     if (n === null || !Number.isFinite(n) || n <= 0) throw new Error(f.kind === "percent" ? "Enter the percentage, like 10." : "Enter the amount off, like 50.00.");
-    const body = { code: f.code, description: f.description || null, kind: f.kind, value: f.kind === "percent" ? Math.round(n * 100) : n, itemId: f.itemId || null, expiresOn: f.expiresOn || null, maxUses: f.maxUses ? Number(f.maxUses) : null, active: f.active };
+    const body = { code: f.code, description: f.description || null, kind: f.kind, value: f.kind === "percent" ? Math.round(n * 100) : n, itemId: f.itemId || null, schedulerId: f.schedulerId || null, expiresOn: f.expiresOn || null, maxUses: f.maxUses ? Number(f.maxUses) : null, active: f.active };
     return editing ? api(`/coupons/${editing.id}`, { method: "PUT", body }) : api("/coupons", { body });
   });
   const go = async (e: FormEvent) => {
@@ -293,7 +296,7 @@ function CouponDialog({ target, onClose, onSaved }: { target: CouponRowData | "n
     >
       <form id="coupon-form" onSubmit={go} noValidate className="form-grid">
         {error ? <div className="span-2"><Callout tone="bad">{error}</Callout></div> : null}
-        <Field className="span-2" label="Code" hint="Letters and numbers. Clients never have to type it; you add it to their quote.">{(p) => <TextInput {...p} autoFocus autoCapitalize="characters" spellCheck={false} value={f.code} onChange={set("code")} />}</Field>
+        <Field className="span-2" label="Code" hint="Letters and numbers. You can add it to a quote, or clients can type it on a quote or booking page.">{(p) => <TextInput {...p} autoFocus autoCapitalize="characters" spellCheck={false} value={f.code} onChange={set("code")} />}</Field>
         <div className="span-2 seg" role="radiogroup" aria-label="Type of discount">
           {(["percent", "fixed"] as const).map((k) => (
             <button key={k} type="button" role="radio" aria-checked={f.kind === k} className={f.kind === k ? "on" : ""} onClick={() => setF((x) => ({ ...x, kind: k }))}>
@@ -307,6 +310,14 @@ function CouponDialog({ target, onClose, onSaved }: { target: CouponRowData | "n
             <select {...p} className="input" value={f.itemId} onChange={set("itemId")}>
               <option value="">Everything on the quote</option>
               {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field className="span-2" label="Works on" hint="Optional. Limit it to one booking page, such as a mini-session promotion.">
+          {(p) => (
+            <select {...p} className="input" value={f.schedulerId} onChange={set("schedulerId")}>
+              <option value="">Quotes and all booking pages</option>
+              {pages.map((i) => <option key={i.id} value={i.id}>Only on “{i.name}”</option>)}
             </select>
           )}
         </Field>

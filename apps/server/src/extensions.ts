@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { requireOwner } from "./auth.js";
+import { financialReport, resolveRange, type FinancialReport } from "./domain/reports.js";
 import { VERSION, type AppContext } from "./app.js";
 import { incomingSubfolderHooks } from "./extension-hooks.js";
 import { defineTool, grantCapability, lockCapability, revokeCapability } from "./ai/registry.js";
@@ -54,6 +55,29 @@ export interface SettingsCard {
     fields?: Array<{ name: string; label: string; hint?: string; secret?: boolean; optionsKey?: string; optional?: boolean }>;
     confirm?: string;
   }>;
+}
+
+/**
+ * A section an extension adds to the Reports page. The page calls `route` (a GET under the extension's routes) with
+ * `?from=YYYY-MM-DD&to=YYYY-MM-DD` and draws the answer, a {@link ReportData}, so extensions need no UI code.
+ */
+export interface ReportSection {
+  title: string;
+  description?: string;
+  route: string;
+}
+
+export interface ReportData {
+  stats?: Array<{ label: string; value: number | string; format?: "money" | "number" | "text"; tone?: "ok" | "warn" | "bad" | "neutral"; hint?: string }>;
+  /** Horizontal bars, such as income by category. Money values are cents. */
+  bars?: Array<{ title: string; format?: "money" | "number"; rows: Array<{ label: string; value: number }> }>;
+  tables?: Array<{
+    title?: string;
+    columns: Array<{ key: string; label: string; format?: "money" | "number" | "text"; align?: "start" | "end" }>;
+    rows: Array<Record<string, string | number | null>>;
+  }>;
+  /** Shown above the data, for a caveat such as "mileage uses the rate set in Settings". */
+  notice?: string;
 }
 
 /** Gets the file's path inside Incoming, such as "Z9/2026-11-14/DSC_1.NEF". Returns a folder name, or nothing. */
@@ -128,6 +152,10 @@ export interface ExtensionApi {
   revokeCapability(id: string): void;
   /** Shows a card under Settings > Extensions (owner only). */
   settingsCard(card: SettingsCard): void;
+  /** Adds a section to the Reports page (owner only). */
+  reportSection(section: ReportSection): void;
+  /** The studio's income figures for a date range (YYYY-MM-DD), the same ones the Reports page shows. Throws on a bad range. */
+  financialReport(from: string, to: string): FinancialReport;
   /** Shows a card on every shoot's page (owner only). Routes may contain `{shootId}`. */
   shootCard(card: SettingsCard): void;
   /** Creates this extension's own tables. Each named step runs once. Tables must be named `ext_<id>_...`. */
@@ -147,6 +175,7 @@ export interface ExtensionInfo {
   status: "loaded" | "failed";
   error?: string;
   cards: SettingsCard[];
+  reports: ReportSection[];
   shootCards: SettingsCard[];
   pages: ExtensionPage[];
 }
@@ -188,7 +217,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
   for (const file of files) {
     const id = file.replace(/\.mjs$/, "");
     const full = path.join(dir, file);
-    const info: ExtensionInfo = { id, file, sha256: "", status: "failed", cards: [], shootCards: [], pages: [] };
+    const info: ExtensionInfo = { id, file, sha256: "", status: "failed", cards: [], reports: [], shootCards: [], pages: [] };
     infos.push(info);
     try {
       if (!ID.test(id)) throw new Error("file name must be lowercase letters, digits and dashes");
@@ -197,6 +226,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       if (typeof mod.register !== "function") throw new Error("module has no register() export");
       const routes: FastifyPluginAsync[] = [];
       const cards: SettingsCard[] = [];
+      const reports: ReportSection[] = [];
       const shootCards: SettingsCard[] = [];
       const pages: ExtensionPage[] = [];
       await mod.register({
@@ -208,6 +238,11 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         z,
         routes: (plugin) => void routes.push(plugin),
         settingsCard: (card) => void cards.push(card),
+        reportSection: (section) => void reports.push(section),
+        financialReport: (from, to) => {
+          const sctx = { db: ctx.db, settings: ctx.settings, config: ctx.config, actorId: null, publicUrl: ctx.publicUrl };
+          return financialReport(sctx, resolveRange(sctx, from, to));
+        },
         shootCard: (card) => void shootCards.push(card),
         migrate: (name, sql) => runExtensionMigration(ctx, id, name, sql),
         incomingSubfolder: (fn) => {
@@ -234,6 +269,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         );
       }
       info.cards = cards;
+      info.reports = reports;
       info.shootCards = shootCards;
       info.pages = pages;
       info.status = "loaded";

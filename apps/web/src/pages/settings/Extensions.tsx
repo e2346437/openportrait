@@ -21,6 +21,7 @@ export interface ExtensionInfo {
   status: "loaded" | "failed";
   error?: string;
   cards: SettingsCard[];
+  reports?: Array<{ title: string; description?: string; route: string }>;
   shootCards?: SettingsCard[];
 }
 

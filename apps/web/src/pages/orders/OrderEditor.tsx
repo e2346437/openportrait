@@ -51,6 +51,8 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
   const [terms, setTerms] = useState(order?.terms ?? "");
   const [validUntil, setValidUntil] = useState(order?.validUntil ?? "");
   const [discount, setDiscount] = useState(order && order.discountCents ? moneyInput(order.discountCents) : "");
+  const [couponCode, setCouponCode] = useState(order?.couponCode ?? "");
+  const couponList = useLoad<{ items: Array<{ id: string; code: string; kind: "percent" | "fixed"; value: number; itemId: string | null; active: boolean }> }>("/coupons").data?.items;
   const [lines, setLines] = useState<FormLine[]>(() =>
     order ? order.lines.map((l) => ({ key: keySeq++, itemId: l.itemId, description: l.description, detail: l.detail ?? "", quantity: String(l.quantity), price: moneyInput(l.unitCents), taxable: l.taxable })) : [blankLine()],
   );
@@ -64,7 +66,14 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
     [lines],
   );
   const linesOk = parsed.every((p) => Number.isInteger(p.quantity) && p.quantity >= 1 && p.unit !== null);
-  const totals = useMemo(() => totalsFor(parsed.map((p) => ({ quantity: Number.isInteger(p.quantity) ? p.quantity : 0, unitCents: p.unit ?? 0, taxable: p.taxable })), parseMoney(discount) ?? 0, taxBps), [parsed, discount, taxBps]);
+  // A preview of the coupon, worked out the same way the server will. The server has the final say when you save.
+  const couponCents = useMemo(() => {
+    const c = couponList?.find((x) => x.code === couponCode.trim().toUpperCase().replace(/\s+/g, ""));
+    if (!c) return 0;
+    const eligible = lines.reduce((n, l, i) => n + (!c.itemId || l.itemId === c.itemId ? (Number.isInteger(parsed[i]!.quantity) ? parsed[i]!.quantity : 0) * (parsed[i]!.unit ?? 0) : 0), 0);
+    return c.kind === "percent" ? Math.round((eligible * c.value) / 10_000) : Math.min(c.value, eligible);
+  }, [couponList, couponCode, lines, parsed]);
+  const totals = useMemo(() => totalsFor(parsed.map((p) => ({ quantity: Number.isInteger(p.quantity) ? p.quantity : 0, unitCents: p.unit ?? 0, taxable: p.taxable })), (parseMoney(discount) ?? 0) + couponCents, taxBps), [parsed, discount, couponCents, taxBps]);
   const paySum = pays.reduce((n, p) => n + (parseMoney(p.amount) ?? 0), 0);
   const payDiff = totals.totalCents - paySum;
 
@@ -104,6 +113,7 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
       terms,
       validUntil: validUntil || null,
       discountCents,
+      couponCode: couponCode.trim() || null,
       lines: lines.map((l, i) => ({ itemId: l.itemId, description: l.description, detail: l.detail || null, quantity: parsed[i]!.quantity, unitCents: parsed[i]!.unit!, taxable: l.taxable })),
       schedule: splitOn ? pays.map((p) => ({ label: p.label, amountCents: parseMoney(p.amount) ?? NaN, dueDate: p.dueDate || null })) : undefined,
     };
@@ -204,6 +214,15 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
             </dt>
             <dd>
               <input id="discount" className="input sm" inputMode="decimal" placeholder="0.00" value={discount} onChange={(e) => setDiscount(e.target.value)} />
+            </dd>
+          </div>
+          <div className="discount-row">
+            <dt>
+              <label htmlFor="coupon">Coupon code</label>
+            </dt>
+            <dd>
+              <input id="coupon" className="input sm" autoCapitalize="characters" spellCheck={false} placeholder="Optional" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} />
+              {couponCents > 0 ? <small className="coupon-save">Takes off {money(couponCents)}</small> : null}
             </dd>
           </div>
           <div>

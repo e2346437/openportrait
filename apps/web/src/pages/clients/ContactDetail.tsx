@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { Avatar, Button, Callout, Icon, Panel, StatusChip, TextArea, useToast, type IconName } from "@openportrait/ui";
+import { CreditPanel } from "../../components/CreditPanel.js";
 import { ContactDialog } from "../../components/ContactDialog.js";
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
@@ -185,6 +186,8 @@ export function ContactDetailPage() {
               />
             </div>
           </Panel>
+
+          <CreditPanel contactId={c.id} />
 
           <Panel
             flush

@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requireOwner, requireUser } from "../auth.js";
+import * as coupons from "../domain/coupons.js";
+import * as credits from "../domain/credits.js";
 import * as orders from "../domain/orders.js";
 import * as products from "../domain/products.js";
 import { testPayPal } from "../payments/paypal.js";
@@ -24,6 +26,7 @@ const OrderBody = z.object({
   intro: z.string().max(3000).nullish(),
   terms: z.string().max(6000).nullish(),
   discountCents: z.number().optional(),
+  couponCode: z.string().max(40).nullish(),
   validUntil: z.string().max(10).nullish(),
   lines: z.array(Line).max(100),
   schedule: z.array(z.object({ label: z.string().max(100), amountCents: z.number(), dueDate: z.string().max(10).nullish() })).max(24).optional(),
@@ -117,6 +120,33 @@ export async function orderRoutes(app: FastifyInstance) {
     return products.archiveItem(ctx(req), id(req), b.archived);
   });
 
+  // ---- coupons and client credit ----
+  const CouponBody = z.object({ code: z.string().max(40), description: z.string().max(300).nullish(), kind: z.enum(["percent", "fixed"]), value: z.number(), itemId: z.string().nullish(), expiresOn: z.string().max(10).nullish(), maxUses: z.number().nullish(), active: z.boolean().optional() });
+  app.get("/coupons", async (req) => ({ items: coupons.listCoupons(ctx(req)) }));
+  app.post("/coupons", { preHandler: requireOwner }, async (req, reply) => {
+    const b = parse(CouponBody, req.body, reply);
+    if (!b) return;
+    return reply.code(201).send(coupons.createCoupon(ctx(req), b));
+  });
+  app.put("/coupons/:id", { preHandler: requireOwner }, async (req, reply) => {
+    const b = parse(CouponBody, req.body, reply);
+    if (!b) return;
+    return coupons.updateCoupon(ctx(req), id(req), b);
+  });
+  app.delete("/coupons/:id", { preHandler: requireOwner }, async (req) => coupons.deleteCoupon(ctx(req), id(req)));
+  const CreditBody = z.object({ amountCents: z.number(), note: z.string().max(300).nullish() });
+  app.get("/contacts/:id/credit", async (req) => credits.listCredit(ctx(req), id(req)));
+  app.post("/contacts/:id/credit", { preHandler: requireOwner }, async (req, reply) => {
+    const b = parse(CreditBody, req.body, reply);
+    if (!b) return;
+    return credits.grantCredit(ctx(req), id(req), b);
+  });
+  app.post("/contacts/:id/credit/remove", { preHandler: requireOwner }, async (req, reply) => {
+    const b = parse(CreditBody, req.body, reply);
+    if (!b) return;
+    return credits.removeCredit(ctx(req), id(req), b);
+  });
+
   // ---- quotes and invoices ----
   app.get("/orders", async (req, reply) => {
     const q = parse(z.object({ kind: z.enum(["quote", "invoice"]).optional(), contactId: z.string().optional(), shootId: z.string().optional(), q: z.string().max(100).optional() }), req.query, reply);
@@ -129,7 +159,7 @@ export async function orderRoutes(app: FastifyInstance) {
     const { kind, ...input } = b;
     return reply.code(201).send(orders.createOrder(ctx(req), kind, input));
   });
-  app.get("/orders/:id", async (req) => orders.getOrder(ctx(req), id(req)));
+  app.get("/orders/:id", async (req) => ({ ...orders.getOrder(ctx(req), id(req)), creditAvailableCents: credits.creditAvailable(ctx(req), id(req)) }));
   app.put("/orders/:id", async (req, reply) => {
     const b = parse(OrderBody, req.body, reply);
     if (!b) return;
@@ -139,6 +169,12 @@ export async function orderRoutes(app: FastifyInstance) {
   app.post("/orders/:id/send", async (req) => orders.sendOrder(ctx(req), id(req)));
   app.post("/orders/:id/reopen", async (req) => orders.reopenDraft(ctx(req), id(req)));
   app.post("/orders/:id/void", async (req) => orders.voidOrder(ctx(req), id(req)));
+  app.post("/orders/:id/apply-credit", async (req, reply) => {
+    const b = parse(z.object({ amountCents: z.number().optional() }), req.body ?? {}, reply);
+    if (!b) return;
+    credits.applyCredit(ctx(req), id(req), b.amountCents);
+    return { ...orders.getOrder(ctx(req), id(req)), creditAvailableCents: credits.creditAvailable(ctx(req), id(req)) };
+  });
   app.post("/orders/:id/payments", async (req, reply) => {
     const b = parse(z.object({ amountCents: z.number(), method: Method, note: z.string().max(500).nullish(), paidAt: z.number().optional() }), req.body, reply);
     if (!b) return;

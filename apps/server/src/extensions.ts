@@ -16,7 +16,8 @@ import { defineTool, grantCapability, revokeCapability } from "./ai/registry.js"
  */
 /**
  * A settings card an extension can show under Settings > Extensions. The app renders it, so extensions
- * need no UI code. `status.route` is a GET under the extension's routes; its JSON fills the card.
+ * need no UI code. `status.route` is a GET under the extension's routes; its JSON fills the card. An action route may
+ * answer `{ openUrl }` (an https or same-site address) to send the owner there, for connecting an outside service.
  */
 export interface SettingsCard {
   title: string;

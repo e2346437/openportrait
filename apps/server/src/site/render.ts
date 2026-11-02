@@ -177,7 +177,7 @@ export function renderSite(input: RenderInput): RenderResult {
   }
   if (!pages.length) warnings.push("Every page is switched off, so the site would be empty.");
   const extra: ExtraPage[] = [];
-  for (const e of extensions) for (const pg of guard(e.id, "pages", () => e.pages?.(ctxFor(e.id)) ?? [], [] as ExtraPage[])) if (/^[a-z0-9-]{1,40}$/.test(pg.slug)) extra.push(pg);
+  for (const e of extensions) for (const pg of guard(e.id, "pages", () => e.pages?.(ctxFor(e.id)) ?? [], [] as ExtraPage[])) if (/^[a-z0-9-]{1,40}(\/[a-z0-9-]{1,60})?$/.test(pg.slug)) extra.push(pg);
   for (const pg of extra) {
     const at = pg.after ? pages.findIndex((p) => p.id === pg.after) : -1;
     const out: PageOut = { id: `x-${pg.slug}`, path: `${pg.slug}/index.html`, href: `${pg.slug}/`, title: pg.title, nav: pg.nav ?? null, description: pg.description ?? "", blocks: pg.html, overlay: false };
@@ -209,8 +209,8 @@ export function renderSite(input: RenderInput): RenderResult {
     const desc = page.description || config.seo.description;
     const url = absolute(page.href);
     const ogImage = input.share ? absolute(input.share.name) : "";
-    const headExtra = extensions.map((e) => guard(e.id, "head", () => e.head?.(ctxFor(e.id), { path: page.path, title, description: desc }) ?? "", "")).join("\n");
-    const bodyEnd = extensions.map((e) => guard(e.id, "bodyEnd", () => e.bodyEnd?.(ctxFor(e.id)) ?? "", "")).join("\n");
+    const headExtra = extensions.map((e) => guard(e.id, "head", () => e.head?.(ctxFor(e.id), { path: page.path, title, description: desc }) ?? "", "")).join("\n").replaceAll("__BASE__", base);
+    const bodyEnd = extensions.map((e) => guard(e.id, "bodyEnd", () => e.bodyEnd?.(ctxFor(e.id)) ?? "", "")).join("\n").replaceAll("__BASE__", base);
     const header = page.overlay ? "overlay" : template.header === "overlay" ? "split" : template.header;
     return `<!doctype html>
 <html lang="en">
@@ -246,7 +246,7 @@ ${bodyEnd}
   };
 
   const files: SiteFile[] = [];
-  for (const p of pages) files.push({ path: p.path, text: layout(p, p.path === "index.html" ? "" : "../") });
+  for (const p of pages) files.push({ path: p.path, text: layout(p, "../".repeat(p.path.split("/").length - 1)) });
   const notFound: PageOut = { id: "404", path: "404.html", href: "", title: "Page not found", nav: null, description: "", overlay: false, blocks: `<section class="blk center"><div class="wrap"><h1>Page not found</h1><p class="lead">That page doesn't exist. <a href="/">Back to the home page</a>.</p></div></section>` };
   files.push({ path: "404.html", text: layout(notFound, "/", { noindex: true }) });
   files.push({ path: cssName, text: css }, { path: jsName, text: SITE_JS });

@@ -149,7 +149,7 @@ describe("site builder", () => {
   it("lets an extension add a template, a page and a file, and falls back when it goes away", async () => {
     const { registerSiteTemplate, unregisterSiteTemplate, registerSiteExtension, unregisterSiteExtension } = await import("../src/site/registry.js");
     registerSiteTemplate({ id: "xt", name: "XT", description: "", header: "split", gallery: "grid", theme: defaultSite("x").theme, css: ".xt{}", extra: true });
-    registerSiteExtension({ id: "xt", title: "XT", pages: () => [{ slug: "journal", title: "Journal", nav: "Journal", html: "<section class='blk'><div class='wrap'><h1>Hello</h1></div></section>" }], files: () => [{ path: "feed.xml", data: "<rss/>" }] });
+    registerSiteExtension({ id: "xt", title: "XT", pages: () => [{ slug: "journal", title: "Journal", nav: "Journal", html: "<section class='blk'><div class='wrap'><h1>Hello</h1></div></section>" }, { slug: "journal/first", title: "First", html: "<p><a href='__BASE__journal/'>Back</a></p>" }], files: () => [{ path: "feed.xml", data: "<rss/>" }] });
     try {
       const config = (await api("GET", "/")).json().config;
       config.template = "xt";
@@ -159,6 +159,9 @@ describe("site builder", () => {
       expect(home).toContain(">Journal</a>");
       expect((await api("GET", "/preview/journal/")).body).toContain("<h1>Hello</h1>");
       expect((await api("GET", "/preview/feed.xml")).body).toBe("<rss/>");
+      const post = (await api("GET", "/preview/journal/first/")).body;
+      expect(post).toContain('href="../../journal/"');
+      expect(post).toContain('href="../../assets/site-');
     } finally {
       unregisterSiteTemplate("xt");
       unregisterSiteExtension("xt");

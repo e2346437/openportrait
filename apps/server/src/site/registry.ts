@@ -32,7 +32,7 @@ export interface OptionField {
 }
 
 export interface ExtraPage {
-  /** URL folder, such as "journal" (the page is written to journal/index.html). */
+  /** URL folder, such as "journal" or "journal/first-post" (written to <slug>/index.html). Use `__BASE__` in links and image paths; it becomes the path back to the site root. */
   slug: string;
   title: string;
   description?: string;

@@ -39,6 +39,8 @@ export const order = sqliteTable(
     contactId: text()
       .notNull()
       .references(() => contact.id, { onDelete: "restrict" }),
+    /** A contract the client must sign before they can pay this online. Set by booking pages that ask for one. */
+    requiredContractId: text(),
     shootId: text(),
     leadId: text(),
     title: text().notNull(),

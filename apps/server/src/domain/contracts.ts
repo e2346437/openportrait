@@ -128,6 +128,25 @@ export function render(ctx: ServiceContext, text: string, c: { contactId: string
   return out;
 }
 
+/** Fields a booking page's contract may use: only things known before any shoot exists. */
+const BOOKING_FIELDS = new Set(["client.name", "client.firstname", "client.email", "studio.name", "studio.email", "order.title", "order.total", "today"]);
+
+/** Checked when a booking page is saved, so a booking never fails later because a field can't be filled. */
+export function assertBookingTemplate(ctx: ServiceContext, templateId: string) {
+  const t = ctx.db.select().from(contractTemplate).where(eq(contractTemplate.id, templateId)).get();
+  if (!t || t.archivedAt) throw new DomainError("invalid", "Choose a contract template that isn't archived.");
+  const bad = [...new Set([...t.body.matchAll(FIELD)].map((m) => m[1]!.toLowerCase()))].filter((k) => !BOOKING_FIELDS.has(k));
+  if (bad.length) throw new DomainError("invalid", `${t.name} uses ${bad.map((b) => `{{${b}}}`).join(", ")}, which a booking page can't fill in yet. Use client name, client email, studio, order or date fields.`);
+}
+
+/** If the invoice needs a contract that isn't signed yet, says where to sign. Null means nothing stands in the way. */
+export function requiredContract(ctx: ServiceContext, o: { requiredContractId: string | null }) {
+  if (!o.requiredContractId) return null;
+  const c = ctx.db.select().from(contract).where(eq(contract.id, o.requiredContractId)).get();
+  if (!c || c.status === "signed" || c.status === "void") return null;
+  return { title: c.title, url: linkTo(ctx, `/c/${c.token}`) };
+}
+
 function rowOf(ctx: ServiceContext, id: string): ContractRow {
   const c = ctx.db.select().from(contract).where(eq(contract.id, id)).get();
   if (!c) throw notFound("That contract");
@@ -249,6 +268,14 @@ function emailStudio(ctx: ServiceContext, subject: string, text: string) {
   queueEmail(ctx, { to, subject, text: mail.text, html: mail.html, kind: "contract.notice" });
 }
 
+/** Makes a draft signable without emailing it, for callers that put the link in their own email. */
+export function markSent(ctx: ServiceContext, id: string) {
+  const c = rowOf(ctx, id);
+  if (c.status !== "draft") return;
+  ctx.db.update(contract).set({ status: "sent", sentAt: new Date(), updatedAt: new Date() }).where(eq(contract.id, id)).run();
+  logActivity(ctx, { contactId: c.contactId, kind: "contract.sent", summary: `Contract sent with booking: ${c.title}`, shootId: c.shootId });
+}
+
 export function sendContract(ctx: ServiceContext, id: string) {
   const c = rowOf(ctx, id);
   if (c.status !== "draft") throw new DomainError("invalid", "This has already been sent.");
@@ -278,7 +305,10 @@ export function publicView(ctx: ServiceContext, token: string) {
     emailStudio(ctx, `${c.title} was opened`, `${view(ctx, c).contactName} opened ${c.title}.`);
   }
   const v = view(ctx, c);
-  return { studioName: studioName(ctx), title: v.title, state: v.state, body: v.body, contactName: v.contactName, signedAt: v.signedAt, signerName: v.signerName, countersignedAt: v.countersignedAt, countersignedBy: v.countersignedBy, hasPdf: v.hasPdf, consent: CONSENT };
+  // Booking agreements point back to the invoice they were holding, so signing leads straight to paying.
+  const inv = c.orderId ? ctx.db.select({ token: order.token, kind: order.kind, status: order.status }).from(order).where(and(eq(order.id, c.orderId), eq(order.requiredContractId, c.id))).get() : null;
+  const payUrl = inv && inv.kind === "invoice" && inv.status === "sent" ? linkTo(ctx, `/o/${inv.token}`) : null;
+  return { payUrl, studioName: studioName(ctx), title: v.title, state: v.state, body: v.body, contactName: v.contactName, signedAt: v.signedAt, signerName: v.signerName, countersignedAt: v.countersignedAt, countersignedBy: v.countersignedBy, hasPdf: v.hasPdf, consent: CONSENT };
 }
 
 export interface SignInput {

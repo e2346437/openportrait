@@ -24,6 +24,7 @@ export interface Scheduler {
   priceCents: number;
   depositType: "none" | "percent" | "fixed";
   depositValue: number;
+  contractTemplateId: string | null;
   availability: Windows;
   active: boolean;
 }
@@ -49,6 +50,7 @@ const blank = (): Scheduler => ({
   priceCents: 0,
   depositType: "none",
   depositValue: 0,
+  contractTemplateId: null,
   availability: Object.fromEntries(WEEKDAYS.map((d) => [d, [{ start: "09:00", end: "17:00" }]])),
   active: true,
 });
@@ -60,6 +62,7 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
   const [price, setPrice] = useState("");
   const [deposit, setDeposit] = useState("");
   const types = useLoad<{ types: Array<{ id: string; name: string }> }>(target ? "/shoot-types" : null);
+  const templates = useLoad<{ items: Array<{ id: string; name: string }> }>(target ? "/contract-templates" : null);
   useEffect(() => {
     if (!target) return;
     const t = target === "new" ? blank() : { ...target, description: target.description ?? "", location: target.location ?? "" };
@@ -86,6 +89,7 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
       priceCents,
       depositType: priceCents > 0 ? f.depositType : "none",
       depositValue,
+      contractTemplateId: priceCents > 0 ? f.contractTemplateId || null : null,
       active: f.active, description: f.description || null, location: f.location || null, shootTypeId: f.shootTypeId || null, slug: f.slug || undefined };
     return editing ? api(`/schedulers/${editing.id}`, { method: "PATCH", body }) : api("/schedulers", { body });
   });
@@ -201,6 +205,16 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
                 </Field>
               ) : null}
             </>
+          ) : null}
+          {parseMoney(price || "0") && (templates.data?.items.length ?? 0) > 0 ? (
+            <Field label="Agreement to sign first" hint="Sent with the booking email. Clients can't pay online until they've signed. Use only client, studio, order and date fields.">
+              {(p) => (
+                <select {...p} className="input" value={f.contractTemplateId ?? ""} onChange={(e) => setF((x) => ({ ...x, contractTemplateId: e.target.value || null }))}>
+                  <option value="">None</option>
+                  {(templates.data?.items ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              )}
+            </Field>
           ) : null}
         </fieldset>
         <div className="span-2">

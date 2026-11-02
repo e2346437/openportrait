@@ -51,6 +51,10 @@ export const order = sqliteTable(
     totalCents: integer().notNull().default(0),
     /** Tax rate in basis points (825 = 8.25%) fixed when the document is saved, so later rate changes don't rewrite it. */
     taxBps: integer().notNull().default(0),
+    /** A coupon code applied to this document. `couponCents` is the part of the discount it gives; `discountCents` is the total. */
+    couponId: text(),
+    couponCode: text(),
+    couponCents: integer().notNull().default(0),
     /** A quote can be accepted until this date (YYYY-MM-DD). */
     validUntil: text(),
     /** The private link clients use. Anyone with the link can view and accept, so it is long and random. */
@@ -117,7 +121,7 @@ export const payment = sqliteTable(
       .notNull()
       .references(() => order.id, { onDelete: "restrict" }),
     amountCents: integer().notNull(),
-    method: text({ enum: ["cash", "check", "card", "venmo", "zelle", "paypal", "bank", "other"] }).notNull(),
+    method: text({ enum: ["cash", "check", "card", "venmo", "zelle", "paypal", "bank", "credit", "other"] }).notNull(),
     provider: text().notNull().default("manual"),
     /** The processor's id for this payment, so a repeated webhook can't record it twice. */
     providerRef: text(),
@@ -154,4 +158,44 @@ export const paymentAttempt = sqliteTable(
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
   },
   (t) => [uniqueIndex("payment_attempt_provider_idx").on(t.provider, t.providerOrderId), index("payment_attempt_order_idx").on(t.orderId)],
+);
+
+/**
+ * A discount code the studio hands out. `kind` percent stores `value` in basis points (1000 = 10%); fixed stores cents.
+ * When `itemId` is set the coupon only discounts lines for that catalog item. Codes are kept in capitals.
+ */
+export const coupon = sqliteTable(
+  "coupon",
+  {
+    id: text().primaryKey(),
+    code: text().notNull(),
+    description: text(),
+    kind: text({ enum: ["percent", "fixed"] }).notNull(),
+    value: integer().notNull(),
+    itemId: text(),
+    /** The last day (YYYY-MM-DD) it can be applied. */
+    expiresOn: text(),
+    maxUses: integer(),
+    active: integer({ mode: "boolean" }).notNull().default(true),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [uniqueIndex("coupon_code_idx").on(t.code)],
+);
+
+/** Money a studio owes a client: gift cards, prepayments, refunds kept as credit. Positive adds, negative is used. The balance is the sum. */
+export const creditEntry = sqliteTable(
+  "credit_entry",
+  {
+    id: text().primaryKey(),
+    contactId: text()
+      .notNull()
+      .references(() => contact.id, { onDelete: "restrict" }),
+    amountCents: integer().notNull(),
+    kind: text({ enum: ["grant", "applied", "refund", "removed"] }).notNull(),
+    note: text(),
+    orderId: text(),
+    actorId: text(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [index("credit_entry_contact_idx").on(t.contactId, t.createdAt)],
 );

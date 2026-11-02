@@ -545,3 +545,15 @@ button.agenda-row:hover { background: var(--surface-2); }
   .pay-box .form-actions .btn { width: 100%; justify-content: center; }
 }
 .plain-steps code { overflow-wrap: anywhere; word-break: break-all; font-size: 0.9em; }
+
+/* Client credit */
+.credit-balance { display: flex; align-items: baseline; gap: 8px; margin: 0 0 var(--s3); }
+.credit-balance b { font-family: var(--font-display, inherit); font-size: 1.75rem; line-height: 1.1; }
+.credit-balance span { color: var(--ink-3); }
+.credit-log { list-style: none; margin: 0 0 var(--s3); padding: 0; }
+.credit-log li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 0.9rem; }
+.credit-log small { display: block; color: var(--ink-3); }
+.credit-log time { grid-column: 1 / -1; color: var(--ink-3); font-size: 0.8rem; }
+.credit-log .neg { color: var(--ink-2); }
+.coupon-save { display: block; color: var(--ok, #2f6b4f); margin-top: 4px; }
+.catalog-list .cat-main small { white-space: normal; overflow: visible; text-overflow: clip; }

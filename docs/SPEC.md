@@ -389,7 +389,7 @@ Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Dr
 - One `order` row is a quote and then, when the client accepts it, the same row becomes the invoice, so history and the client link stay in one place. Quote and invoice numbers count up from 1001 and are never reused.
 - Money is whole cents in a single studio currency. Each line copies the name and price from the catalog. Tax is a single studio rate fixed on the document when it is saved.
 - A payment schedule (deposit, balance) says when money is due; recorded payments are applied to it in order. Refunds are negative payments. Manual payment methods work with no processor set up.
-- Client pages are `/o/:token`, backed by `/api/public/order/:token`. Details: [`orders.md`](orders.md). PayPal checkout (`domain/checkout.ts`, `payments/paypal.ts`; `payment_attempt` table; webhook at `/api/public/paypal/webhook` verified with the raw body) is built; client credit and coupons follow, behind the same `payment` ledger and the `PaymentProvider` interface.
+- Client pages are `/o/:token`, backed by `/api/public/order/:token`. Details: [`orders.md`](orders.md). PayPal checkout (`domain/checkout.ts`, `payments/paypal.ts`; `payment_attempt` table; webhook at `/api/public/paypal/webhook` verified with the raw body) is built. Coupons (`domain/coupons.ts`; a code gives a share of an order's discount, stored as `coupon_cents`) and client credit (`domain/credits.ts`; an append-only `credit_entry` ledger whose sum is the balance, spent as a `payment` with method `credit`) sit on the same `payment` ledger.
 
 ### Extensions
 

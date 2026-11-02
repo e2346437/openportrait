@@ -55,6 +55,9 @@ export interface OrderDetail extends OrderSummary {
   terms: string | null;
   subtotalCents: number;
   discountCents: number;
+  couponCode: string | null;
+  couponCents: number;
+  creditAvailableCents?: number;
   taxCents: number;
   taxBps: number;
   contactEmail: string | null;

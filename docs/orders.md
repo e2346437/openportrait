@@ -35,7 +35,28 @@ Once connected, and once your public address is set, an unpaid invoice shows **P
 - **Currencies without cents** (such as JPY) aren't supported for PayPal checkout yet. Record those payments by hand.
 - PayPal sits behind a payment provider interface, so other processors can be added later.
 
-Client credit and coupon codes come next and plug into the same invoices.
+## Coupon codes
+
+Create codes in **Settings > Prices > Coupon codes**. A code takes a percentage or a fixed amount off, and can be limited to one product on your price list, an expiry date, or a number of uses. Codes are saved in capitals, so `spring25` and `SPRING25` are the same.
+
+Type the code into **Coupon code** when you write a quote. The editor shows what it takes off, the client's copy shows it as its own line, and tax is worked out on what they actually pay. It sits next to the hand-typed discount; the two add up.
+
+- A code is checked when you add it: it must exist, be switched on, be unexpired and not used up. A quote that already carries a code keeps it as promised, even if the code expires or runs out afterwards.
+- A quote that uses a code counts as one use. Deleting the draft, declining the quote or voiding it gives the use back.
+- If you split the payments into a deposit and balance, adjust the amounts to match the new total. OpenPortrait tells you if they don't add up.
+- A code that has been used can't be removed from your books. Remove switches it off instead.
+
+## Client credit
+
+Credit is money you owe a client: a gift card, a prepayment, or a refund you chose to keep as credit. It lives on the client's page under **Credit**, with a short history.
+
+- **Add or remove credit** (owner only) from the client's page. Removing is for fixing mistakes and can't take the balance below zero.
+- **Use credit on an invoice:** on a sent invoice, press **Use … of their credit**. It is recorded as a payment with the method "Client credit", capped at what is owed.
+- **Clients can do it themselves.** If a client has credit, their invoice page shows **Use … of my credit**.
+- **Refund as credit:** when you record a refund, choose **Keep as client credit**. The invoice shows the refund and the client's balance goes up by the same amount.
+- Credit isn't income when it's added. It becomes a payment on the invoice only when it is used.
+
+For AI assistants, the tools are `coupons_list`, `coupons_create`, `credits_get`, `credits_grant` and `orders_apply_credit`. Creating a coupon, adding credit and using credit change what the studio is paid, so they wait for the owner's approval. `quotes_create_draft` takes an optional `couponCode`.
 
 ## For AI assistants
 

@@ -29,6 +29,7 @@ export function PricesSettingsPage() {
   return (
     <div className="stack">
       <CatalogPanel />
+      <CouponsPanel />
       <MoneyPanel />
     </div>
   );
@@ -187,5 +188,133 @@ function MoneyPanel() {
         ) : null}
       </form>
     </Panel>
+  );
+}
+
+interface CouponRowData {
+  id: string;
+  code: string;
+  description: string | null;
+  kind: "percent" | "fixed";
+  value: number;
+  itemId: string | null;
+  itemName: string | null;
+  expiresOn: string | null;
+  maxUses: number | null;
+  uses: number;
+  active: boolean;
+  summary: string;
+}
+
+/** Discount codes. Apply one when writing a quote; it comes off the total and shows on the client's copy. */
+function CouponsPanel() {
+  const { me } = useSession();
+  const owner = me?.user?.role === "owner";
+  const toast = useToast();
+  const { data, error, loading, reload } = useLoad<{ items: CouponRowData[] }>("/coupons");
+  const [editing, setEditing] = useState<CouponRowData | "new" | null>(null);
+  const items = data?.items ?? [];
+  const remove = async (c: CouponRowData) => {
+    const r = await api<{ removed: boolean }>(`/coupons/${c.id}`, { method: "DELETE" });
+    toast(r.removed ? "Removed" : "It has been used, so it's switched off instead.");
+    reload();
+  };
+  const note = (c: CouponRowData) => [c.description, c.expiresOn ? `expires ${c.expiresOn}` : null, `used ${c.uses}${c.maxUses ? ` of ${c.maxUses}` : ""} ${c.uses === 1 ? "time" : "times"}`].filter(Boolean).join(" · ");
+  return (
+    <Panel
+      title="Coupon codes"
+      description="Give a discount with a code, like SPRING25. Add it when you write a quote, and it shows on the client's copy."
+      actions={owner ? <Button variant="primary" size="sm" icon="plus" onClick={() => setEditing("new")}>Add</Button> : null}
+      flush
+    >
+      {error ? <div className="pad"><Callout tone="bad">{error}</Callout></div> : null}
+      {loading && !data ? <div className="pad"><Spinner label="Loading" /></div> : null}
+      {data && items.length === 0 ? (
+        <EmptyState icon="receipt" title="No coupons yet" action={owner ? <Button variant="primary" icon="plus" onClick={() => setEditing("new")}>Create a coupon</Button> : undefined}>
+          Try 10% off a mini session, or $50 off for referrals. You can limit a code to one product, an expiry date, or a number of uses.
+        </EmptyState>
+      ) : (
+        <ul className="catalog-list">
+          {items.map((c) => (
+            <li key={c.id} className={c.active ? "" : "archived"}>
+              <span className="cat-main">
+                <b>{c.code}</b>
+                <small>{note(c)}</small>
+              </span>
+              {c.active ? null : <StatusChip>Off</StatusChip>}
+              <b>{c.summary}</b>
+              {owner ? (
+                <span className="cat-actions">
+                  <Button size="sm" onClick={() => setEditing(c)}>Edit</Button>
+                  <Button size="sm" variant="ghost" onClick={() => remove(c)}>Remove</Button>
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      <CouponDialog target={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); toast("Saved"); }} />
+    </Panel>
+  );
+}
+
+function CouponDialog({ target, onClose, onSaved }: { target: CouponRowData | "new" | null; onClose: () => void; onSaved: () => void }) {
+  const cur = useLoad<MoneyState>("/money/settings").data?.currency ?? "USD";
+  const items = useLoad<{ items: Item[] }>("/catalog?archived=false").data?.items ?? [];
+  const [f, setF] = useState({ code: "", description: "", kind: "percent" as "percent" | "fixed", value: "", itemId: "", expiresOn: "", maxUses: "", active: true });
+  useEffect(() => {
+    if (!target) return;
+    const t = target === "new" ? null : target;
+    setF({ code: t?.code ?? "", description: t?.description ?? "", kind: t?.kind ?? "percent", value: t ? (t.kind === "percent" ? String(t.value / 100) : moneyInput(t.value)) : "", itemId: t?.itemId ?? "", expiresOn: t?.expiresOn ?? "", maxUses: t?.maxUses ? String(t.maxUses) : "", active: t?.active ?? true });
+  }, [target]);
+  const editing = target && target !== "new" ? target : null;
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const { busy, error, submit } = useSubmit(() => {
+    const n = f.kind === "percent" ? Number(f.value) : parseMoney(f.value);
+    if (n === null || !Number.isFinite(n) || n <= 0) throw new Error(f.kind === "percent" ? "Enter the percentage, like 10." : "Enter the amount off, like 50.00.");
+    const body = { code: f.code, description: f.description || null, kind: f.kind, value: f.kind === "percent" ? Math.round(n * 100) : n, itemId: f.itemId || null, expiresOn: f.expiresOn || null, maxUses: f.maxUses ? Number(f.maxUses) : null, active: f.active };
+    return editing ? api(`/coupons/${editing.id}`, { method: "PUT", body }) : api("/coupons", { body });
+  });
+  const go = async (e: FormEvent) => {
+    e.preventDefault();
+    if ((await submit()) !== undefined) onSaved();
+  };
+  return (
+    <Dialog
+      open={!!target}
+      onClose={onClose}
+      title={editing ? "Edit coupon" : "New coupon"}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" form="coupon-form" type="submit" loading={busy}>Save</Button>
+        </>
+      }
+    >
+      <form id="coupon-form" onSubmit={go} noValidate className="form-grid">
+        {error ? <div className="span-2"><Callout tone="bad">{error}</Callout></div> : null}
+        <Field className="span-2" label="Code" hint="Letters and numbers. Clients never have to type it; you add it to their quote.">{(p) => <TextInput {...p} autoFocus autoCapitalize="characters" spellCheck={false} value={f.code} onChange={set("code")} />}</Field>
+        <div className="span-2 seg" role="radiogroup" aria-label="Type of discount">
+          {(["percent", "fixed"] as const).map((k) => (
+            <button key={k} type="button" role="radio" aria-checked={f.kind === k} className={f.kind === k ? "on" : ""} onClick={() => setF((x) => ({ ...x, kind: k }))}>
+              {k === "percent" ? "Percent off" : `Amount off (${cur})`}
+            </button>
+          ))}
+        </div>
+        <Field label={f.kind === "percent" ? "Percent" : "Amount"}>{(p) => <TextInput {...p} inputMode="decimal" placeholder={f.kind === "percent" ? "10" : "50.00"} value={f.value} onChange={set("value")} />}</Field>
+        <Field label="Only on" hint="Optional.">
+          {(p) => (
+            <select {...p} className="input" value={f.itemId} onChange={set("itemId")}>
+              <option value="">Everything on the quote</option>
+              {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label="Last day" hint="Optional.">{(p) => <TextInput {...p} type="date" value={f.expiresOn} onChange={set("expiresOn")} />}</Field>
+        <Field label="Use limit" hint="Optional. How many quotes can use it.">{(p) => <TextInput {...p} inputMode="numeric" value={f.maxUses} onChange={set("maxUses")} />}</Field>
+        <Field className="span-2" label="Note to yourself" hint="Optional.">{(p) => <TextInput {...p} value={f.description} onChange={set("description")} />}</Field>
+        <div className="span-2"><SwitchRow checked={f.active} onChange={(v) => setF((x) => ({ ...x, active: v }))} label="Active" /></div>
+      </form>
+    </Dialog>
   );
 }

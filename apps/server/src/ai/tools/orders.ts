@@ -1,4 +1,6 @@
 import { z } from "zod";
+import * as coupons from "../../domain/coupons.js";
+import * as credits from "../../domain/credits.js";
 import * as orders from "../../domain/orders.js";
 import * as products from "../../domain/products.js";
 import { formatMoney } from "../../domain/money.js";
@@ -53,9 +55,9 @@ defineTool({
   area: "quotes",
   capability: "invoicing",
   tier: "draft",
-  input: { contactId: z.string(), title: z.string().min(1).max(200), lines: z.array(line).min(1).max(50), shootId: z.string().optional(), discountCents: z.number().int().min(0).optional(), intro: z.string().max(3000).optional() },
+  input: { contactId: z.string(), title: z.string().min(1).max(200), lines: z.array(line).min(1).max(50), shootId: z.string().optional(), discountCents: z.number().int().min(0).optional(), couponCode: z.string().max(40).optional().describe("A coupon code to apply, see coupons_list."), intro: z.string().max(3000).optional() },
   handler: (ctx, a) => {
-    const q = orders.createOrder(svc(ctx), "quote", { contactId: a.contactId, title: a.title, lines: a.lines, shootId: a.shootId, discountCents: a.discountCents, intro: a.intro });
+    const q = orders.createOrder(svc(ctx), "quote", { contactId: a.contactId, title: a.title, lines: a.lines, shootId: a.shootId, discountCents: a.discountCents, couponCode: a.couponCode, intro: a.intro });
     return { orderId: q.id, label: q.label, totalCents: q.totalCents };
   },
 });
@@ -88,4 +90,68 @@ defineTool({
     const o = orders.recordPayment(svc(ctx), a.orderId, { amountCents: a.amountCents, method: a.method, note: a.note });
     return { label: o.label, paidCents: o.paidCents, balanceCents: o.balanceCents, state: o.state };
   },
+});
+
+defineTool({
+  name: "coupons_list",
+  title: "List coupon codes",
+  description: "The studio's coupon codes with what each takes off, its expiry, use limit and how many times it has been used. Percent coupons store basis points (1000 = 10%); fixed coupons store cents.",
+  area: "quotes",
+  capability: "invoicing",
+  tier: "read",
+  input: {},
+  handler: (ctx) => coupons.listCoupons(svc(ctx)).map((c) => ({ id: c.id, code: c.code, summary: c.summary, kind: c.kind, value: c.value, product: c.itemName, expiresOn: c.expiresOn, maxUses: c.maxUses, uses: c.uses, active: c.active })),
+});
+
+defineTool({
+  name: "coupons_create",
+  title: "Create a coupon code",
+  description: "Creates a discount code. Percent: value is basis points (1000 = 10%). Fixed: value is cents. It changes what the studio charges, so it waits for the owner's approval.",
+  area: "quotes",
+  capability: "invoicing",
+  tier: "money",
+  input: { code: z.string().min(3).max(32), kind: z.enum(["percent", "fixed"]), value: z.number().int().min(1), description: z.string().max(300).optional(), itemId: z.string().optional().describe("Limit it to one catalog item."), expiresOn: z.string().optional().describe("Last day, YYYY-MM-DD."), maxUses: z.number().int().min(1).optional() },
+  summarize: (a) => `Create coupon ${a.code.toUpperCase()} (${a.kind === "percent" ? `${a.value / 100}% off` : `${a.value / 100} off`}).`,
+  handler: (ctx, a) => {
+    const c = coupons.createCoupon(svc(ctx), a);
+    return { id: c.id, code: c.code, summary: c.summary };
+  },
+});
+
+defineTool({
+  name: "credits_get",
+  title: "Get a client's credit",
+  description: "A client's credit balance in cents and their recent credit history.",
+  area: "orders",
+  capability: "invoicing",
+  tier: "read",
+  input: { contactId: z.string() },
+  handler: (ctx, a) => {
+    const r = credits.listCredit(svc(ctx), a.contactId);
+    return { balanceCents: r.balanceCents, entries: r.entries.slice(0, 20).map((e) => ({ amountCents: e.amountCents, kind: e.kind, note: e.note, at: e.createdAt })) };
+  },
+});
+
+defineTool({
+  name: "credits_grant",
+  title: "Add credit for a client",
+  description: "Adds credit to a client's balance, for example a gift card or a prepayment. It is money the studio owes the client, so it waits for the owner's approval.",
+  area: "orders",
+  capability: "invoicing",
+  tier: "money",
+  input: { contactId: z.string(), amountCents: z.number().int().min(1), note: z.string().max(300).optional() },
+  summarize: (a) => `Add ${(a.amountCents / 100).toFixed(2)} of credit for contact ${a.contactId}${a.note ? ` (${a.note})` : ""}.`,
+  handler: (ctx, a) => ({ balanceCents: credits.grantCredit(svc(ctx), a.contactId, a).balanceCents }),
+});
+
+defineTool({
+  name: "orders_apply_credit",
+  title: "Pay an invoice from the client's credit",
+  description: "Uses the client's credit toward a sent invoice. Without an amount it uses as much as it can. It records a payment, so it waits for the owner's approval.",
+  area: "orders",
+  capability: "invoicing",
+  tier: "money",
+  input: { orderId: z.string(), amountCents: z.number().int().min(1).optional() },
+  summarize: (a) => `Pay invoice ${a.orderId} from the client's credit${a.amountCents ? ` (${(a.amountCents / 100).toFixed(2)})` : ""}.`,
+  handler: (ctx, a) => credits.applyCredit(svc(ctx), a.orderId, a.amountCents),
 });

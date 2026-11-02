@@ -10,7 +10,7 @@ import { useLoad } from "../../lib/useLoad.js";
 import { OrderEditor } from "./OrderEditor.js";
 import type { PickedContact } from "../../components/ContactPicker.js";
 
-const METHODS: Array<[string, string]> = [["cash", "Cash"], ["check", "Check"], ["venmo", "Venmo"], ["zelle", "Zelle"], ["card", "Card"], ["bank", "Bank transfer"], ["paypal", "PayPal"], ["other", "Other"]];
+const METHODS: Array<[string, string]> = [["credit", "Client credit"],["cash", "Cash"], ["check", "Check"], ["venmo", "Venmo"], ["zelle", "Zelle"], ["card", "Card"], ["bank", "Bank transfer"], ["paypal", "PayPal"], ["other", "Other"]];
 
 /** One page for a quote or invoice: an editor while it's a draft, a record of what happened afterwards. */
 export function OrderPage() {
@@ -117,6 +117,21 @@ function OrderRecord({ order: o, onChanged, onEdit }: { order: OrderDetail; onCh
       toast(e instanceof Error ? e.message : "That didn't work.");
     }
   };
+  const [creditBusy, setCreditBusy] = useState(false);
+  const applyCredit = {
+    busy: creditBusy,
+    run: async () => {
+      setCreditBusy(true);
+      try {
+        onChanged(await api<OrderDetail>(`/orders/${o.id}/apply-credit`, { body: {} }));
+        toast("Credit applied");
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "That didn't work.");
+      } finally {
+        setCreditBusy(false);
+      }
+    },
+  };
   const open = o.kind === "invoice" && o.state !== "void";
 
   return (
@@ -171,6 +186,7 @@ function OrderRecord({ order: o, onChanged, onEdit }: { order: OrderDetail; onCh
             <dl className="totals pad">
               <div><dt>Subtotal</dt><dd>{money(o.subtotalCents)}</dd></div>
               {o.discountCents ? <div><dt>Discount</dt><dd>−{money(o.discountCents)}</dd></div> : null}
+              {o.couponCents ? <div><dt>Coupon {o.couponCode}</dt><dd>−{money(o.couponCents)}</dd></div> : null}
               {o.taxCents ? <div><dt>Tax</dt><dd>{money(o.taxCents)}</dd></div> : null}
               <div className="grand"><dt>Total</dt><dd>{money(o.totalCents)}</dd></div>
               {open ? <div><dt>Paid</dt><dd>{money(o.paidCents)}</dd></div> : null}
@@ -229,6 +245,9 @@ function OrderRecord({ order: o, onChanged, onEdit }: { order: OrderDetail; onCh
             <div className="stack-tight">
               {o.kind === "quote" && (o.state === "sent" || o.state === "expired" || o.state === "declined") ? (
                 <Button block onClick={() => act("reopen", "Back to a draft.")}>Take back to draft</Button>
+              ) : null}
+              {o.kind === "invoice" && (o.creditAvailableCents ?? 0) > 0 ? (
+                <Button block onClick={applyCredit.run} loading={applyCredit.busy}>Use {money(o.creditAvailableCents!)} of their credit</Button>
               ) : null}
               {o.state === "partial" || o.state === "paid" ? owner ? <Button block onClick={() => setPaying("refund")}>Record a refund</Button> : null : null}
               {o.state !== "void" && o.paidCents === 0 ? (
@@ -303,7 +322,7 @@ function PaymentDialog({ mode, order, cur, onClose, onDone }: { mode: "pay" | "r
         <Field label="How">
           {(p) => (
             <select {...p} className="input" value={method} onChange={(e) => setMethod(e.target.value)}>
-              {METHODS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+              {METHODS.filter(([k]) => refund || k !== "credit").map(([k, label]) => <option key={k} value={k}>{k === "credit" ? "Keep as client credit" : label}</option>)}
             </select>
           )}
         </Field>

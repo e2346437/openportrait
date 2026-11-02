@@ -117,6 +117,48 @@ describe("extension hooks for shoots and storage", () => {
   });
 });
 
+describe("limiting a login to certain shoots", () => {
+  it("lets a limited staff login see only its shoots and nothing else", async () => {
+    const cookie = await boot({
+      "scope.mjs": `export function register(api) {
+        let allowed = [];
+        api.limitUsersToShoots((u) => (u.role === "staff" ? allowed : null));
+        api.routes(async (r) => {
+          r.post("/staff", async (req) => { const s = await api.createStaffLogin({ email: "sam@example.com", name: "Sam" }); return s; });
+          r.post("/allow", async (req) => { allowed = req.body.ids; return {}; });
+        });
+      }`,
+    });
+    const owner = { cookie };
+    const post = (url: string, payload: object, headers: object = owner) => app!.inject({ method: "POST", url, payload, headers: headers as Record<string, string> });
+    const contact = (await post("/api/studio/contacts", { firstName: "Ann", email: "ann@example.com" })).json();
+    const type = (await app!.inject({ method: "GET", url: "/api/studio/shoot-types", headers: owner })).json().types[0];
+    const mk = async (subject: string) => (await post("/api/studio/shoots", { primaryContactId: contact.id, shootTypeId: type.id, subject })).json().shoot.id as string;
+    const mine = await mk("Mine");
+    const other = await mk("Other");
+
+    const created = (await post("/api/studio/extensions/scope/staff", {})).json();
+    expect(created.password.length).toBeGreaterThan(12);
+    expect((await post("/api/studio/extensions/scope/staff", {})).statusCode).toBe(500); // email already used
+    await post("/api/studio/extensions/scope/allow", { ids: [mine] });
+
+    const login = await post("/api/studio/auth/login", { email: "sam@example.com", password: created.password }, {});
+    expect(login.statusCode).toBe(200);
+    const sam = { cookie: `op_session=${login.cookies.find((c) => c.name === "op_session")!.value}` };
+    const get = (url: string) => app!.inject({ method: "GET", url, headers: sam });
+
+    expect((await get("/api/studio/auth/me")).json().user.scoped).toBe(true);
+    expect((await get("/api/studio/shoots")).json().items.map((s: { subject: string }) => s.subject)).toEqual(["Mine"]);
+    expect((await get(`/api/studio/shoots/${mine}`)).statusCode).toBe(200);
+    for (const url of [`/api/studio/shoots/${other}`, "/api/studio/contacts", "/api/studio/galleries", "/api/studio/settings", "/api/studio/extensions"]) {
+      expect((await get(url)).statusCode, url).toBe(403);
+    }
+    expect((await app!.inject({ method: "PATCH", url: `/api/studio/shoots/${mine}`, payload: { notes: "x" }, headers: sam.cookie ? sam : owner })).statusCode).toBe(403);
+    // The owner is unaffected.
+    expect((await app!.inject({ method: "GET", url: "/api/studio/contacts", headers: owner })).statusCode).toBe(200);
+  });
+});
+
 describe("extension mail sender", () => {
   it("sends studio email through an extension's mailbox while it is ready, and reports it", async () => {
     const cookie = await boot({

@@ -135,7 +135,7 @@ export async function crmRoutes(app: FastifyInstance) {
   app.get("/shoots", async (req, reply) => {
     const q = parse(ShootList, req.query, reply);
     if (!q) return;
-    return shoots.listShoots(ctx(req), q);
+    return shoots.listShoots(ctx(req), { ...q, ids: req.shootScope ?? undefined });
   });
   app.post("/shoots", async (req, reply) => {
     const body = parse(

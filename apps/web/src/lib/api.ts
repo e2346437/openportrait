@@ -35,7 +35,7 @@ async function request<T>(base: string, path: string, init: Init): Promise<T> {
 }
 
 export interface Me {
-  user: { id: string; email: string; name: string; role: "owner" | "staff" | "assistant" } | null;
+  user: { id: string; email: string; name: string; role: "owner" | "staff" | "assistant"; scoped?: boolean } | null;
   studio: { name: string; timezone: string };
 }
 

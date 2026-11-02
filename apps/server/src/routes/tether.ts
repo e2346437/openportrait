@@ -2,7 +2,6 @@ import fs from "node:fs";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { requireUser } from "../auth.js";
-import { lanAddresses } from "../app.js";
 import { DomainError } from "../domain/context.js";
 import { folderSettings, getShoot, listShoots } from "../domain/shoots.js";
 import { resolveInside } from "../domain/folders.js";
@@ -55,7 +54,7 @@ export async function tetherRoutes(app: FastifyInstance) {
     return {
       incoming: { label: "Incoming", description: "Everything your camera uploads before it's sorted into a shoot." },
       shoots: list.items.filter((s) => s.folderPath).map((s) => ({ id: s.id, subject: s.subject, shootType: s.shootType, client: s.client, startsAt: s.startsAt })),
-      lan: { addresses: lanAddresses(), port: config.port },
+      lan: app.ctx.lan(),
     };
   });
 

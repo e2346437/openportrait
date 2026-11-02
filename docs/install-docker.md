@@ -56,6 +56,7 @@ The first visit opens a two-step setup: your studio's name and time zone, then t
 | `UMASK` | `022` | Permission mask for new files. `002` lets the group write too. |
 | `TZ` | `UTC` | Time zone for logs. Booking times use the studio time zone from Settings. |
 | `CLOUDFLARE_TUNNEL_TOKEN` | empty | Starts the built-in Cloudflare Tunnel. Can be set in the app instead. |
+| `LAN_URL` | empty | This server's address on your home network with the mapped port, such as `http://192.168.1.20:8090`. Used by Tethering and camera upload. Can be set in Settings > Internet access instead. |
 | `APP_URL` | empty | Public address such as `https://studio.example.com`. Taken from the tunnel when empty. |
 | `PORT` | `8080` | Port inside the container. |
 | `SFTP_PORT`, `FTP_PORT` | `2222`, `2121` | Camera upload ports inside the container. See [camera-upload.md](camera-upload.md). |

@@ -42,7 +42,8 @@ export interface UploadManagerDeps {
   db: Db;
   settings: Settings;
   log: ServerHooks["log"];
-  lanAddresses: () => string[];
+  /** Hosts a camera on the home network can use to reach this server, best first. */
+  lanHosts: () => string[];
 }
 
 /**
@@ -219,12 +220,12 @@ export class UploadManager {
       if (protocol === "sftp") {
         this.server = new SftpServer(hooks, { port: config.sftpPort, hostKey: this.hostKey.pem });
       } else {
-        const tls = protocol === "ftps" ? await ensureFtpsCert(config.configDir, [this.passiveHost(), ...this.deps.lanAddresses()]) : undefined;
+        const tls = protocol === "ftps" ? await ensureFtpsCert(config.configDir, [this.passiveHost(), ...this.deps.lanHosts()]) : undefined;
         this.server = new FtpUploadServer(hooks, {
           port: config.ftpPort,
           passiveMin: config.ftpPassiveMin,
           passiveMax: config.ftpPassiveMax,
-          passiveHost: () => this.passiveHost() || this.deps.lanAddresses()[0] || "127.0.0.1",
+          passiveHost: () => this.passiveHost() || this.deps.lanHosts()[0] || "127.0.0.1",
           tls: tls ? { cert: tls.cert, key: tls.key } : undefined,
         });
       }

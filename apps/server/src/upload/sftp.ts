@@ -13,7 +13,17 @@ const { STATUS_CODE, OPEN_MODE } = utils.sftp;
 export function loadHostKey(configDir: string): { pem: string; fingerprint: string } {
   const file = path.join(configDir, "sftp_host_ed25519_key");
   if (!fs.existsSync(file)) {
-    const { private: privateKey } = utils.generateKeyPairSync("ed25519");
+    // ssh2 occasionally writes a key it can't read back (about 1 in 150), so check each one before keeping it.
+    let privateKey = "";
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const candidate = utils.generateKeyPairSync("ed25519").private;
+      const parsed = utils.parseKey(candidate);
+      if (!(parsed instanceof Error) && !(Array.isArray(parsed) && parsed[0] instanceof Error)) {
+        privateKey = candidate;
+        break;
+      }
+    }
+    if (!privateKey) throw new Error("Couldn't create an SSH host key. Try starting the container again.");
     fs.writeFileSync(file, privateKey, { mode: 0o600, flag: "wx" });
   }
   const pem = fs.readFileSync(file, "utf8");

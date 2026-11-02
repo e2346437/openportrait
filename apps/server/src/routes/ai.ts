@@ -6,7 +6,6 @@ import { AREAS, allTools } from "../ai/registry.js";
 import { createConnection, listConnections, revokeConnection } from "../ai/connections.js";
 import "../ai/tools/index.js";
 import { decide, listApprovals, pendingCount } from "../ai/approvals.js";
-import { lanAddresses } from "../app.js";
 import { requireOwner } from "../auth.js";
 import { parse } from "../validate.js";
 
@@ -21,13 +20,19 @@ const CreateBody = z.object({
 export async function aiRoutes(app: FastifyInstance) {
   const { settings, db, config, tunnel } = app.ctx;
 
+  const lanMcpUrl = () => {
+    const lan = app.ctx.lan();
+    if (lan.url) return `${lan.url}/mcp`;
+    return lan.addresses[0] ? `http://${lan.addresses[0]}:${config.port}/mcp` : null;
+  };
+
   const status = () => {
     const base = app.ctx.publicUrl();
     const connections = listConnections(db);
     return {
       enabled: settings.get("ai.enabled") ?? false,
       paused: settings.get("ai.paused") ?? false,
-      urls: { public: base ? `${base}/mcp` : null, lan: lanAddresses().map((ip) => `http://${ip}:${config.port}/mcp`)[0] ?? null },
+      urls: { public: base ? `${base}/mcp` : null, lan: lanMcpUrl() },
       online: tunnel.getStatus().state === "connected",
       areas: AREAS,
       toolCount: allTools().length,

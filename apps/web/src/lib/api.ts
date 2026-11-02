@@ -53,7 +53,7 @@ export interface InternetStatus {
   publicUrl: string;
   publicUrlSource: "settings" | "template" | "tunnel" | null;
   trustCloudflare: boolean;
-  lan: { addresses: string[]; port: number };
+  lan: { url: string | null; source: "settings" | "template" | null; host: string | null; addresses: string[]; port: number };
   platform: "unraid" | "docker";
 }
 

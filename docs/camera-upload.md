@@ -51,7 +51,7 @@ SFTP logins can also use an SSH key. This is for computers and apps, because cam
 
 ### FTP and FTPS: passive connections
 
-FTP sends each photo over a second connection, so the server has to tell the camera where to connect. Set **Address cameras connect back to** to your server's address on your network (for example `192.168.1.20`). The container must publish the passive port range (`30000-30009` by default, which you can change with `FTP_PASSIVE_MIN` and `FTP_PASSIVE_MAX`). Keep the host and container ranges identical.
+FTP sends each photo over a second connection, so the server has to tell the camera where to connect. Set **Address cameras connect back to** to your server's address on your network (it starts from the home network address in Settings > Internet access, when you've saved one) (for example `192.168.1.20`). The container must publish the passive port range (`30000-30009` by default, which you can change with `FTP_PASSIVE_MIN` and `FTP_PASSIVE_MAX`). Keep the host and container ranges identical.
 
 ### Power saving and reconnects
 

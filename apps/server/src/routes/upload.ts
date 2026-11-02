@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
 import { requireOwner, requireUser } from "../auth.js";
-import { lanAddresses } from "../app.js";
+import { isLocalHostName, lanHosts } from "../lan.js";
 import { DomainError } from "../domain/context.js";
 import { parse } from "../validate.js";
 import { scheduleProblem } from "../upload/schedule.js";
@@ -82,7 +82,8 @@ export async function uploadRoutes(app: FastifyInstance) {
       })),
       events: uploads.recentEvents(15),
       connect: {
-        hosts: [...new Set([hostHint, ...lanAddresses()].filter(Boolean))],
+        hosts: [...new Set([...lanHosts(settings, config), isLocalHostName(hostHint) ? hostHint : ""].filter(Boolean))],
+        lanConfigured: app.ctx.lan().url !== null,
         sftpPort: config.sftpPort,
         ftpPort: config.ftpPort,
         passiveMin: config.ftpPassiveMin,

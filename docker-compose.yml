@@ -22,6 +22,9 @@ services:
       # Optional: the token for the built-in Cloudflare Tunnel. You can paste it in
       # Settings > Internet access instead, which stores it encrypted.
       CLOUDFLARE_TUNNEL_TOKEN: ""
+      # Optional: this server's address on your home network, with the mapped port. Tethering and camera
+      # upload show it, because a container can't see its host's address. Can also be set in Settings.
+      LAN_URL: ""
       # Optional: your public address. Filled in from the tunnel when left empty.
       APP_URL: ""
     volumes:

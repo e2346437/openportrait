@@ -20,6 +20,8 @@ export interface AppConfig {
   webDir: string;
   /** Public base URL, e.g. https://studio.example.com. Empty means "derive it". */
   appUrl: string;
+  /** This server's address on the home network, such as http://192.168.1.20:8090. Inside Docker the app can't know the host's address or mapped port, so it is set here or in Settings. */
+  lanUrl: string;
   /** Token for the built-in cloudflared. Can also be set in Settings. */
   tunnelToken: string;
   logLevel: "fatal" | "error" | "warn" | "info" | "debug" | "trace";
@@ -62,17 +64,17 @@ function oneOf<T extends string>(value: string | undefined, allowed: readonly T[
   return v as T;
 }
 
-function url(value: string | undefined): string {
+function url(value: string | undefined, name = "APP_URL"): string {
   const v = (value ?? "").trim().replace(/\/+$/, "");
   if (v === "") return "";
   let parsed: URL;
   try {
     parsed = new URL(v);
   } catch {
-    throw new Error(`APP_URL must be a full URL such as https://studio.example.com, got "${v}"`);
+    throw new Error(`${name} must be a full URL such as ${name === "APP_URL" ? "https://studio.example.com" : "http://192.168.1.20:8080"}, got "${v}"`);
   }
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-    throw new Error(`APP_URL must start with https://, got "${v}"`);
+    throw new Error(`${name} must start with http:// or https://, got "${v}"`);
   }
   return v;
 }
@@ -95,6 +97,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     cacheDir: dir("CACHE_DIR", "/cache", "cache"),
     webDir: path.resolve(env.WEB_DIR ?? path.join(process.cwd(), "apps/web/dist")),
     appUrl: url(env.APP_URL),
+    lanUrl: url(env.LAN_URL, "LAN_URL"),
     tunnelToken: (env.CLOUDFLARE_TUNNEL_TOKEN ?? "").trim(),
     logLevel: level as AppConfig["logLevel"],
     watchRescanMinutes: int(env.WATCH_RESCAN_MINUTES, 5, "WATCH_RESCAN_MINUTES"),

@@ -12,6 +12,8 @@ export interface SettingTypes {
   "studio.logoVersion": number;
   "internet.publicUrl": string;
   "internet.trustCloudflare": boolean;
+  /** The server's address on the home network (host IP and the port mapped to the container). */
+  "internet.lanUrl": string;
   "tunnel.token": string; // secret
   "backup.lastAt": number;
   /** Delivery folder inside each shoot folder; its subfolders are gallery sets. */

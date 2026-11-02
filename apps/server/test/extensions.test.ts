@@ -67,3 +67,23 @@ describe("extensions", () => {
     expect(visible()).toBe(false);
   });
 });
+
+describe("extension hooks for shoots and storage", () => {
+  it("runs a migration once, refuses foreign tables, and lists shoot cards", async () => {
+    const cookie = await boot({
+      "multi.mjs": `export function register(api) {
+        api.migrate("1", "CREATE TABLE IF NOT EXISTS ext_multi_thing (id TEXT PRIMARY KEY); INSERT INTO ext_multi_thing (id) VALUES ('a');");
+        api.migrate("1", "INSERT INTO ext_multi_thing (id) VALUES ('b');");
+        api.shootCard({ title: "Who", status: { route: "/s/{shootId}" }, actions: [] });
+        api.routes(async (r) => { r.get("/count", async () => ({ n: api.ctx.db.$client.prepare("SELECT COUNT(*) AS n FROM ext_multi_thing").get().n })); });
+      }`,
+      "evil.mjs": `export function register(api) { api.migrate("1", "DROP TABLE user"); }`,
+    });
+    const count = await app!.inject({ method: "GET", url: "/api/studio/extensions/multi/count", headers: { cookie } });
+    expect(count.json()).toEqual({ n: 1 });
+    const list = (await app!.inject({ method: "GET", url: "/api/studio/extensions", headers: { cookie } })).json().extensions;
+    const by = Object.fromEntries(list.map((e: { id: string }) => [e.id, e]));
+    expect(by.multi.shootCards[0].title).toBe("Who");
+    expect(by.evil.status).toBe("failed");
+  });
+});

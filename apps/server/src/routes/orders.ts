@@ -121,7 +121,7 @@ export async function orderRoutes(app: FastifyInstance) {
   });
 
   // ---- coupons and client credit ----
-  const CouponBody = z.object({ code: z.string().max(40), description: z.string().max(300).nullish(), kind: z.enum(["percent", "fixed"]), value: z.number(), itemId: z.string().nullish(), expiresOn: z.string().max(10).nullish(), maxUses: z.number().nullish(), active: z.boolean().optional() });
+  const CouponBody = z.object({ code: z.string().max(40), description: z.string().max(300).nullish(), kind: z.enum(["percent", "fixed"]), value: z.number(), itemId: z.string().nullish(), schedulerId: z.string().nullish(), expiresOn: z.string().max(10).nullish(), maxUses: z.number().nullish(), active: z.boolean().optional() });
   app.get("/coupons", async (req) => ({ items: coupons.listCoupons(ctx(req)) }));
   app.post("/coupons", { preHandler: requireOwner }, async (req, reply) => {
     const b = parse(CouponBody, req.body, reply);

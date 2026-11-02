@@ -53,13 +53,37 @@ describe("SEC-002 first-run setup", () => {
     const res = await d.app.inject({ method: "POST", url: "/api/studio/setup", payload: { studioName: "x", ownerName: "x", email: "second@audit.invalid", password: "synthetic-Pass-12345", timezone: "UTC" } });
     expect(res.statusCode).toBe(409);
   });
-  // The open part (an anonymous visitor can claim a brand-new install) is covered by the live suite, because it needs a fresh database.
+  control("SEC-002", "a brand-new install can't be claimed without the setup code", async () => {
+    const fresh = await boot("fresh", {}, { requireSetupCode: "ABCDE-FGHJK" });
+    try {
+      const body = { studioName: "x", ownerName: "x", email: "claim@audit.invalid", password: "synthetic-Pass-12345", timezone: "UTC" };
+      expect(((await fresh.app.inject("/api/studio/setup")).json() as { setupCodeRequired: boolean }).setupCodeRequired).toBe(true);
+      expect((await fresh.app.inject({ method: "POST", url: "/api/studio/setup", payload: body })).statusCode).toBe(403);
+      expect((await fresh.app.inject({ method: "POST", url: "/api/studio/setup", payload: { ...body, setupCode: "WRONG-CODE1" } })).statusCode).toBe(403);
+      expect(((await fresh.app.inject("/api/studio/setup")).json() as { needsSetup: boolean }).needsSetup).toBe(true);
+      const ok = await fresh.app.inject({ method: "POST", url: "/api/studio/setup", payload: { ...body, setupCode: "abcde-fghjk" } });
+      expect(ok.statusCode).toBe(200);
+    } finally {
+      await fresh.close();
+    }
+  });
 });
 
 describe("SEC-003 state-changing requests are not tied to the site that sent them", () => {
-  openFinding("SEC-003", "a cookie-authenticated POST that declares a different site (Origin / Sec-Fetch-Site) is refused", async () => {
+  control("SEC-003", "a cookie-authenticated POST that declares a different site (Origin / Sec-Fetch-Site) is refused", async () => {
     const res = await d.app.inject({ method: "PUT", url: "/api/studio/ai", headers: hdr({ origin: "https://evil.example", "sec-fetch-site": "cross-site" }), payload: { paused: true } });
     expect(res.statusCode).toBeGreaterThanOrEqual(400);
+  });
+  control("SEC-003b", "Origin alone (no Fetch-Metadata) is checked: a sibling subdomain is refused, the app's own host works, and scripts with neither header work", async () => {
+    const put = (h: Record<string, string>) => d.app.inject({ method: "PUT", url: "/api/studio/ai", headers: hdr({ host: "studio.example.com", ...h }), payload: { paused: false } });
+    expect((await put({ origin: "https://blog.example.com" })).statusCode).toBe(403);
+    expect((await put({ origin: "null" })).statusCode).toBe(403);
+    expect((await put({ origin: "https://studio.example.com" })).statusCode).toBe(200);
+    expect((await put({})).statusCode).toBe(200);
+  });
+  control("SEC-003d", "public forms may still be posted from the studio's own marketing site", async () => {
+    const res = await d.app.inject({ method: "POST", url: "/api/public/inquiry", headers: { origin: "https://www.example.com", "sec-fetch-site": "cross-site", "content-type": "application/json" }, payload: {} });
+    expect(res.statusCode).not.toBe(403);
   });
   control("SEC-003c", "the same request from the app's own origin works", async () => {
     const res = await d.app.inject({ method: "PUT", url: "/api/studio/ai", headers: hdr({ origin: "http://localhost:8080", host: "localhost:8080", "sec-fetch-site": "same-origin" }), payload: { paused: false } });

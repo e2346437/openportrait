@@ -29,7 +29,7 @@ export interface Deployment {
 }
 
 /** Builds an app and records every route it registers (Fastify announces the instance on a diagnostics channel). */
-export async function boot(name = "a", env: Record<string, string> = {}): Promise<Deployment> {
+export async function boot(name = "a", env: Record<string, string> = {}, opts: { requireSetupCode?: string } = {}): Promise<Deployment> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `op-sec-${name}-`));
   const routes: Array<{ method: string; url: string }> = [];
   const onInit = (msg: unknown) => {
@@ -43,13 +43,14 @@ export async function boot(name = "a", env: Record<string, string> = {}): Promis
   let app: FastifyInstance;
   try {
     const config = loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web"), ...env });
-    app = await buildApp({ config, startBackground: false, logger: false });
+    app = await buildApp({ config, startBackground: false, setupCode: opts.requireSetupCode ?? null, logger: false });
   } finally {
     ch.unsubscribe(onInit);
   }
   await app.ready();
-  const res = await app.inject({ method: "POST", url: "/api/studio/setup", payload: { ...OWNER, email: `owner-${name}@audit.invalid` } });
-  const c = res.cookies.find((x) => x.name === "op_session");
+  // A deployment that requires a setup code is left un-set-up so the test can exercise the first-run flow.
+  const res = opts.requireSetupCode ? null : await app.inject({ method: "POST", url: "/api/studio/setup", payload: { ...OWNER, email: `owner-${name}@audit.invalid` } });
+  const c = res?.cookies.find((x) => x.name === "op_session");
   return {
     app,
     root,

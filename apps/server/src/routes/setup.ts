@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { count } from "drizzle-orm";
 import { z } from "zod";
@@ -12,14 +13,35 @@ const SetupBody = z.object({
   email,
   password,
   timezone,
+  setupCode: z.string().max(100).optional(),
 });
+
+const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const makeCode = () => Array.from(randomBytes(10), (b) => ALPHABET[b % ALPHABET.length]).join("").replace(/(.{5})(.{5})/, "$1-$2");
+const same = (a: string, b: string) => {
+  const x = Buffer.from(a.trim().toUpperCase()), y = Buffer.from(b.trim().toUpperCase());
+  return x.length === y.length && timingSafeEqual(x, y);
+};
 
 export async function setupRoutes(app: FastifyInstance) {
   const { db, settings, config } = app.ctx;
   const needsSetup = () => (db.select({ n: count() }).from(tables.user).get()?.n ?? 0) === 0;
 
+  // A brand-new install must prove the caller can read the container's log or settings, so the first visitor to an
+  // exposed port can't claim the studio (SEC-002). Not needed once an owner exists.
+  let code: string | null = app.ctx.setupCode === undefined ? null : app.ctx.setupCode;
+  if (app.ctx.setupCode === undefined && needsSetup()) {
+    code = makeCode();
+    app.log.warn(`First-run setup code: ${code}  (enter it on the setup page; it changes each time the container starts)`);
+    // Also printed plainly so it is easy to find in the Unraid log viewer.
+    console.warn(`\n==== OpenPortrait setup code: ${code} ====\n`);
+  } else if (code && needsSetup()) {
+    app.log.warn("First-run setup code comes from SETUP_CODE.");
+  }
+
   app.get("/", async () => ({
     needsSetup: needsSetup(),
+    setupCodeRequired: needsSetup() && !!code,
     platform: config.isUnraid ? "unraid" : "docker",
     suggestedTimezone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone,
   }));
@@ -27,6 +49,9 @@ export async function setupRoutes(app: FastifyInstance) {
   app.post("/", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {
     const body = parse(SetupBody, req.body, reply);
     if (!body) return;
+    if (code && !same(body.setupCode ?? "", code)) {
+      return reply.code(403).send({ error: "setup_code", field: "setupCode", message: "That setup code isn't right. You'll find it in the container's log." });
+    }
     const passwordHash = await hashPassword(body.password);
     const userId = crypto.randomUUID();
     const created = db.transaction((tx) => {

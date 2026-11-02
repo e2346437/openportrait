@@ -90,7 +90,7 @@ describe("tether routes", () => {
   beforeEach(async () => {
     const config = loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web") });
     fs.mkdirSync(config.incomingDir, { recursive: true });
-    app = await buildApp({ config, startBackground: false, logger: false });
+    app = await buildApp({ config, startBackground: false, setupCode: null, logger: false });
     const res = await app.inject({ method: "POST", url: "/api/studio/setup", payload: { studioName: "T", ownerName: "Pat", email: "p@example.com", password: "correct horse battery", timezone: "UTC" } });
     cookie = `op_session=${res.cookies.find((c) => c.name === "op_session")!.value}`;
     await app.listen({ port: 0, host: "127.0.0.1" });

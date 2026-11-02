@@ -165,6 +165,11 @@ describe("resumable uploads", () => {
       app.inject({ method: "PATCH", url: `/api/studio/uploads/${uploadId}`, payload: chunk, headers: { cookie: staff, "content-type": "application/offset+octet-stream", "upload-offset": String(offset) } });
 
     expect((await studio("POST", "/uploads", { galleryId: id, filename: "notes.txt", size: 10 })).statusCode).toBe(415);
+    // Names a browser sends for real photos must start an upload: case, .jpeg, underscore-leading, and any/no MIME (the server only reads the filename).
+    for (const filename of ["_DSC5098.jpg", "IMG_1.JPG", "IMG_2.jpeg", "IMG_3.JpG"]) {
+      const r = await studio("POST", "/uploads", { galleryId: id, set: "Extras", filename, size: 10, lastModified: modified });
+      expect(r.statusCode, filename).toBe(200);
+    }
 
     const first = (await start()).json();
     expect(first.offset).toBe(0);
@@ -314,6 +319,10 @@ describe("folder discovery", () => {
     expect(isImageFile("IMG_1.jpg.part")).toBe(false);
     expect(isImageFile("._IMG_1.jpg")).toBe(false);
     expect(isImageFile("IMG_1.NEF")).toBe(false);
+    // Camera names, any extension case, and underscore-leading files (Nikon Adobe RGB) are photos.
+    for (const n of ["_DSC5098.jpg", "_DSC5098.JPG", "_DSC5098.jpeg", "DSC_1.Jpeg", "photo.jpg"]) expect(isImageFile(n), n).toBe(true);
+    expect(isImageFile(".hidden.jpg")).toBe(false);
+    expect(isImageFile("Thumbs.db")).toBe(false);
     expect(() => resolveInside(share, "../etc/passwd")).toThrow();
     expect(titleFromFolder("2026-11-14 Family - Smith Family")).toBe("Smith Family");
     expect(titleFromFolder("Jones Wedding")).toBe("Jones Wedding");

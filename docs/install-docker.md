@@ -55,7 +55,7 @@ The first visit opens a two-step setup: your studio's name and time zone, then t
 | Variable | Default | What it does |
 |---|---|---|
 | `PUID` / `PGID` | `1000` / `1000` (`99` / `100` on Unraid) | Owner of the files OpenPortrait writes. Use `id -u` and `id -g` to find yours. |
-| `UMASK` | `022` | Permission mask for new files. `002` lets the group write too. |
+| `UMASK` | `022` | Permission mask for new files. `002` lets the group write; on Unraid use `000` so SMB users can edit and delete. |
 | `TZ` | `UTC` | Time zone for logs. Booking times use the studio time zone from Settings. |
 | `CLOUDFLARE_TUNNEL_TOKEN` | empty | Starts the built-in Cloudflare Tunnel. Can be set in the app instead. |
 | `LAN_URL` | empty | This server's address on your home network with the mapped port, such as `http://192.168.1.20:8090`. Used by Tethering and camera upload. Can be set in Settings > Internet access instead. |

@@ -32,6 +32,7 @@ import { catalogRoutes } from "./routes/catalog.js";
 import { calendarRoutes } from "./routes/calendar.js";
 import { googleRoutes } from "./routes/google.js";
 import { bookingRoutes } from "./routes/booking.js";
+import { orderRoutes } from "./routes/orders.js";
 import { publicRoutes } from "./routes/public.js";
 import { registerEmailJob } from "./domain/email.js";
 import { registerGoogleSyncJob } from "./google/job.js";
@@ -168,6 +169,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   await app.register(calendarRoutes, { prefix: "/api/studio" });
   await app.register(googleRoutes, { prefix: "/api/studio/google" });
   await app.register(bookingRoutes, { prefix: "/api/studio" });
+  await app.register(orderRoutes, { prefix: "/api/studio" });
   // Clients reach these without signing in, so they sit outside /api/studio and its access rule.
   await app.register(publicRoutes, { prefix: "/api/public" });
 

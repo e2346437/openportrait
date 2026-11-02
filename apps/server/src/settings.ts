@@ -57,6 +57,14 @@ export interface SettingTypes {
   "inquiry.intro": string;
   "inquiry.thanks": string;
   "inquiry.notify": boolean;
+  /** Quotes, invoices and payments. Amounts are whole cents in one currency. */
+  "money.currency": string;
+  /** Default sales tax in basis points (825 = 8.25%). */
+  "money.taxBps": number;
+  "money.terms": string;
+  /** How to pay by hand (Venmo handle, check address). Shown on invoices. */
+  "money.paymentInstructions": string;
+  "money.quoteValidDays": number;
   /** Camera upload server (see upload/). The ports come from the environment; these are the studio's choices. */
   "upload.protocol": "sftp" | "ftp" | "ftps";
   "upload.mode": "on_demand" | "scheduled" | "always_on";

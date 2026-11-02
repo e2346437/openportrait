@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull, lt, sql } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import { displayName } from "../domain/contacts.js";
+import { awaitingAutoSend } from "../domain/questionnaires.js";
 import { defineAutomation, type WorkItem } from "./registry.js";
 
 const { lead, leadStage, contact, shoot, shootEvent } = tables;
@@ -83,4 +84,19 @@ defineAutomation({
         since: now,
       }));
   },
+});
+
+defineAutomation({
+  id: "questionnaire-send",
+  title: "Send questionnaires",
+  description: "Booked shoots whose type has a questionnaire set to go out on booking, but where the client hasn't been sent one.",
+  items: (ctx) =>
+    awaitingAutoSend(ctx).map<WorkItem>((r) => ({
+      id: `questionnaire-send:${r.id}`,
+      automation: "questionnaire-send",
+      title: `Send the questionnaire for ${r.subject}`,
+      detail: "This shoot type has a questionnaire that goes out when a shoot is booked. Use shoots_get to see it, then questionnaires_send.",
+      ref: { type: "shoot", id: r.id },
+      since: r.createdAt.getTime(),
+    })),
 });

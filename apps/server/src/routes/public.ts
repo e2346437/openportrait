@@ -6,6 +6,7 @@ import * as checkout from "../domain/checkout.js";
 import * as credits from "../domain/credits.js";
 import * as orders from "../domain/orders.js";
 import { verifyWebhook } from "../payments/paypal.js";
+import * as qn from "../domain/questionnaires.js";
 import * as sched from "../domain/scheduler.js";
 import { parse } from "../validate.js";
 
@@ -134,6 +135,14 @@ export async function publicRoutes(app: FastifyInstance) {
     const body = parse(z.object({ reason: z.string().max(500).optional() }), req.body ?? {}, reply);
     if (!body) return;
     return orders.declineQuote(ctx(req), orderToken(req), body.reason);
+  });
+
+  // Questionnaires: like order links, the private link is the key.
+  app.get("/questionnaire/:token", { config: limit(60) }, async (req) => qn.publicView(ctx(req), token(req)));
+  app.post("/questionnaire/:token", { config: limit(10) }, async (req, reply) => {
+    const body = parse(z.object({ answers: z.record(z.string().max(60), z.union([z.string().max(8100), z.boolean(), z.array(z.string().max(200)).max(60)])) }), req.body, reply);
+    if (!body) return;
+    return qn.submit(ctx(req), token(req), body.answers);
   });
 
   // PayPal calls this. The signature is checked against the body exactly as it arrived, so this scope keeps the raw text.

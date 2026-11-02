@@ -391,6 +391,10 @@ Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Dr
 - A payment schedule (deposit, balance) says when money is due; recorded payments are applied to it in order. Refunds are negative payments. Manual payment methods work with no processor set up.
 - Client pages are `/o/:token`, backed by `/api/public/order/:token`. Details: [`orders.md`](orders.md). PayPal checkout (`domain/checkout.ts`, `payments/paypal.ts`; `payment_attempt` table; webhook at `/api/public/paypal/webhook` verified with the raw body) is built; client credit and coupons follow, behind the same `payment` ledger and the `PaymentProvider` interface.
 
+### Extensions
+
+OpenPortrait can load optional extension modules. An extension is an ES module (`name.mjs`) in the `extensions` folder of the config directory (or `OPENPORTRAIT_EXTENSIONS_DIR`) that exports `register(api)`. Through `api` it can define MCP tools (`defineTool`), mount owner-only routes under `/api/studio/extensions/<name>/`, switch capability groups on and off (`grantCapability`, `revokeCapability`), and run code on shutdown. Core can mark a capability group as provided by an extension (`lockCapability`); its tools stay hidden until an extension grants it. A module that fails to load is skipped and logged, and the app always boots. The loaded modules and their SHA-256 hashes are listed at `GET /api/studio/extensions`. Loading code from the folder has the same trust as the container itself, so keep it writable only by the app user.
+
 ## 11. Milestones
 
 1. **Spec** (this document).

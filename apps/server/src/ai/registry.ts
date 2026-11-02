@@ -54,6 +54,21 @@ const TIERS: Record<Level, Tier[]> = { read: ["read"], assist: ["read", "draft",
 export const needsApproval = (t: Pick<ToolDef, "tier">) => t.tier === "outward" || t.tier === "money";
 
 const disabledCapabilities = new Set<string>();
+const lockedCapabilities = new Set<string>();
+const grantedCapabilities = new Set<string>();
+
+/** Marks a group as available only once an extension grants it. Core calls this at startup for groups that extensions provide. */
+export function lockCapability(id: string): void {
+  lockedCapabilities.add(id);
+}
+/** Extensions call these through their API to switch a locked group on or off. */
+export function grantCapability(id: string): void {
+  grantedCapabilities.add(id);
+}
+export function revokeCapability(id: string): void {
+  grantedCapabilities.delete(id);
+}
+export const isCapabilityAvailable = (id: string) => !disabledCapabilities.has(id) && (!lockedCapabilities.has(id) || grantedCapabilities.has(id));
 /** Switches a whole group of tools off (or back on). Tools without a capability are always available. */
 export function setCapabilityEnabled(id: string, enabled: boolean): void {
   if (enabled) disabledCapabilities.delete(id);
@@ -61,7 +76,7 @@ export function setCapabilityEnabled(id: string, enabled: boolean): void {
 }
 
 export function toolsFor(caller: Pick<Caller, "level" | "areas">): ToolDef[] {
-  return allTools().filter((t) => TIERS[caller.level].includes(t.tier) && caller.areas.includes(t.area) && !(t.capability && disabledCapabilities.has(t.capability)));
+  return allTools().filter((t) => TIERS[caller.level].includes(t.tier) && caller.areas.includes(t.area) && !(t.capability && !isCapabilityAvailable(t.capability)));
 }
 
 export const findTool = (name: string) => tools.get(name);

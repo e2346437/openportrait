@@ -160,7 +160,7 @@ describe("upload servers", () => {
         FTP_PASSIVE_MIN: String(Math.max(passiveMin, 1024)),
         FTP_PASSIVE_MAX: String(Math.max(passiveMin, 1024) + 8),
       }),
-      startBackground: false,
+      startBackground: false, setupCode: null,
       logger: false,
     });
     incoming = app.ctx.config.incomingDir;
@@ -365,7 +365,7 @@ describe("home network address", () => {
   let cookie: string;
   beforeEach(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "op-lan-"));
-    app = await buildApp({ config: loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web"), OPENPORTRAIT_PLATFORM: "unraid" }), startBackground: false, logger: false });
+    app = await buildApp({ config: loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web"), OPENPORTRAIT_PLATFORM: "unraid" }), startBackground: false, setupCode: null, logger: false });
     const res = await app.inject({ method: "POST", url: "/api/studio/setup", payload: { studioName: "S", ownerName: "Pat", email: "pat@example.com", password: "correct horse battery", timezone: "UTC" } });
     cookie = `op_session=${res.cookies.find((c) => c.name === "op_session")!.value}`;
   });
@@ -397,7 +397,7 @@ describe("home network address", () => {
 
   it("uses the template variable until a saved address overrides it", async () => {
     await app.close();
-    app = await buildApp({ config: loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web"), LAN_URL: "http://10.0.0.9:8080", OPENPORTRAIT_PLATFORM: "unraid" }), startBackground: false, logger: false });
+    app = await buildApp({ config: loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web"), LAN_URL: "http://10.0.0.9:8080", OPENPORTRAIT_PLATFORM: "unraid" }), startBackground: false, setupCode: null, logger: false });
     const login = await app.inject({ method: "POST", url: "/api/studio/auth/login", payload: { email: "pat@example.com", password: "correct horse battery" } });
     cookie = `op_session=${login.cookies.find((c) => c.name === "op_session")!.value}`;
     expect((await app.inject({ method: "GET", url: "/api/studio/internet", headers: { cookie } })).json().lan).toMatchObject({ url: "http://10.0.0.9:8080", source: "template" });

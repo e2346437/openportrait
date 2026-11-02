@@ -22,6 +22,8 @@ The template uses Unraid's usual `99`/`100` (nobody:users) owner, so files OpenP
 
 ## Docker Compose
 
+The compose file runs the container hardened: all capabilities dropped except the four the start-up script needs, `no-new-privileges`, a read-only root filesystem and a process limit. If you write your own `docker run` command, keep the same flags (`--cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add FOWNER --security-opt no-new-privileges --read-only --tmpfs /tmp:rw,noexec,nosuid,size=256m --pids-limit 512`).
+
 ```sh
 mkdir openportrait && cd openportrait
 curl -O https://raw.githubusercontent.com/e2346437/openportrait/main/docker-compose.yml
@@ -46,7 +48,7 @@ docker run -d --name openportrait --restart unless-stopped \
 
 ## First run
 
-The first visit opens a two-step setup: your studio's name and time zone, then the owner account. After that, **Settings > Internet access** connects your domain through Cloudflare.
+The first visit opens a two-step setup: your studio's name and time zone, then the owner account. Because a new install is open to whoever reaches it first, the second step asks for a **setup code**. Find it in the container's log (`docker logs openportrait`, or the Logs button on Unraid): it looks like `==== OpenPortrait setup code: ABCDE-FGHJK ====` and changes each time the container starts until setup is done. To choose your own, set `SETUP_CODE`. After that, **Settings > Internet access** connects your domain through Cloudflare.
 
 ## Settings
 
@@ -57,6 +59,8 @@ The first visit opens a two-step setup: your studio's name and time zone, then t
 | `TZ` | `UTC` | Time zone for logs. Booking times use the studio time zone from Settings. |
 | `CLOUDFLARE_TUNNEL_TOKEN` | empty | Starts the built-in Cloudflare Tunnel. Can be set in the app instead. |
 | `LAN_URL` | empty | This server's address on your home network with the mapped port, such as `http://192.168.1.20:8090`. Used by Tethering and camera upload. Can be set in Settings > Internet access instead. |
+| `SETUP_CODE` | empty | Optional code for the first-run setup screen. Left empty, a random one is printed to the log. Not needed once the owner exists. |
+| `TRUSTED_PROXIES` | empty | Only if cloudflared runs in a separate container: its address (comma-separated IPs or IPv4 CIDRs, for example `172.18.0.0/16`). The built-in tunnel needs nothing. Without it, rate limits see every visitor as that container. |
 | `APP_URL` | empty | Public address such as `https://studio.example.com`. Taken from the tunnel when empty. |
 | `PORT` | `8080` | Port inside the container. |
 | `SFTP_PORT`, `FTP_PORT` | `2222`, `2121` | Camera upload ports inside the container. See [camera-upload.md](camera-upload.md). |

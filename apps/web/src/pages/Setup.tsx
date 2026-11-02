@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { Button, Callout, Field, Icon, TextInput } from "@openportrait/ui";
 import { api } from "../lib/api.js";
@@ -28,6 +28,11 @@ export function SetupPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [studioName, setStudioName] = useState("");
   const [timezone, setTimezone] = useState(browserTimezone());
+  const [setupCode, setSetupCode] = useState("");
+  const [codeRequired, setCodeRequired] = useState(false);
+  useEffect(() => {
+    api<{ setupCodeRequired?: boolean }>("/setup").then((r) => setCodeRequired(!!r.setupCodeRequired)).catch(() => undefined);
+  }, []);
   const [ownerName, setOwnerName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,7 +40,7 @@ export function SetupPage() {
   const strength = score(password);
 
   const { busy, error, fieldErrors, submit, setFieldErrors } = useSubmit(() =>
-    api("/setup", { body: { studioName, timezone, ownerName, email, password } }),
+    api("/setup", { body: { studioName, timezone, ownerName, email, password, setupCode: setupCode || undefined } }),
   );
 
   const next = (e: FormEvent) => {
@@ -47,6 +52,7 @@ export function SetupPage() {
 
   const finish = async (e: FormEvent) => {
     e.preventDefault();
+    if (codeRequired && !setupCode.trim()) return setFieldErrors({ setupCode: "Enter the setup code from the container log." });
     if (password.length < 10) return setFieldErrors({ password: "Use at least 10 characters." });
     if ((await submit()) === undefined) return;
     setStep(3);
@@ -98,6 +104,11 @@ export function SetupPage() {
           </div>
           <form onSubmit={finish} noValidate>
             {error ? <Callout tone="bad">{error}</Callout> : null}
+            {codeRequired ? (
+              <Field label="Setup code" error={fieldErrors.setupCode} hint="Printed in the container's log when it started (on Unraid, click the container's icon, then Logs). It proves you own this server.">
+                {(p) => <TextInput {...p} value={setupCode} onChange={(e) => setSetupCode(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="XXXXX-XXXXX" />}
+              </Field>
+            ) : null}
             <Field label="Your name" error={fieldErrors.ownerName}>
               {(p) => <TextInput {...p} value={ownerName} onChange={(e) => setOwnerName(e.target.value)} autoComplete="name" autoFocus />}
             </Field>

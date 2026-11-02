@@ -54,10 +54,33 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     return password || register ? { password, register } : null;
   };
 
+  // Guessing gallery links: each visitor address gets a handful of misses a minute, then 429 (SEC-005).
+  const misses = new Map<string, { n: number; resetAt: number }>();
+  const MISS_LIMIT = 20;
+  const tooManyMisses = (ip: string): number => {
+    const now = Date.now();
+    if (misses.size > 5000) for (const [k, v] of misses) if (v.resetAt < now) misses.delete(k);
+    const m = misses.get(ip);
+    return m && m.resetAt > now && m.n >= MISS_LIMIT ? Math.ceil((m.resetAt - now) / 1000) : 0;
+  };
+  const recordMiss = (ip: string) => {
+    const now = Date.now();
+    const m = misses.get(ip);
+    if (!m || m.resetAt < now) misses.set(ip, { n: 1, resetAt: now + 60_000 });
+    else m.n += 1;
+  };
+
   /** Finds a gallery a visitor may see: live and not expired, or any gallery for signed-in staff (preview). */
   const load = (req: FastifyRequest<{ Params: { slug: string } }>, reply: FastifyReply): Gallery | null => {
+    const ip = app.ctx.ip(req);
+    const wait = req.user ? 0 : tooManyMisses(ip);
+    if (wait) {
+      void reply.code(429).header("retry-after", String(wait)).send({ error: "rate_limited", message: "Too many tries. Wait a minute and check the link." });
+      return null;
+    }
     const g = db.select().from(gallery).where(eq(gallery.slug, req.params.slug.toLowerCase())).get();
     if (!g || (g.status !== "live" && !req.user)) {
+      recordMiss(ip);
       void reply.code(404).send({ error: "not_found", message: "This gallery isn't available. Check the link, or ask your photographer for a new one." });
       return null;
     }
@@ -87,7 +110,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     };
   };
 
-  app.get<{ Params: { slug: string } }>("/:slug", async (req, reply) => {
+  app.get<{ Params: { slug: string } }>("/:slug", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (req, reply) => {
     const g = load(req, reply);
     if (!g) return;
     const who = clientEmail(req);

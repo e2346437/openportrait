@@ -1,9 +1,53 @@
-import { useState, type FormEvent } from "react";
+import { Fragment, useState, type FormEvent } from "react";
 import { Button, Callout, Field, Panel, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
 import { useSubmit } from "../../lib/useForm.js";
+import { useLoad } from "../../lib/useLoad.js";
 import { TwoStepPanel } from "./TwoStep.js";
+
+/** Which build is running, and which add-ons are installed (owners only). Handy when reporting a problem. */
+function AboutPanel() {
+  const { me } = useSession();
+  const toast = useToast();
+  const build = me?.build;
+  const owner = me?.user?.role === "owner";
+  const ext = useLoad<{ extensions: Array<{ id: string; version?: string; status: string }> }>(owner ? "/extensions" : null);
+  if (!build) return null;
+  const summary = `OpenPortrait ${build.version}${build.commit ? ` (${build.commit})` : ""}${build.channel !== "release" ? `, ${build.channel}` : ""}`;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(summary);
+      toast("Version copied.");
+    } catch {
+      toast("Couldn't copy. Select the text instead.");
+    }
+  };
+  return (
+    <Panel title="About" description="Include this when you ask for help or report a problem." actions={<Button size="sm" onClick={() => void copy()}>Copy</Button>}>
+      <dl className="kv">
+        <dt>Version</dt>
+        <dd>{build.version}</dd>
+        <dt>Build</dt>
+        <dd>{build.commit ?? "Not stamped (running from source)"}</dd>
+        <dt>Channel</dt>
+        <dd>{build.channel === "release" ? "Release" : build.channel === "dev" ? "Development" : `${build.channel} (rolling image)`}</dd>
+        {build.builtAt ? (
+          <>
+            <dt>Built</dt>
+            <dd>{new Date(build.builtAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</dd>
+          </>
+        ) : null}
+        {ext.data?.extensions.map((x) => (
+          <Fragment key={x.id}>
+            <dt>Add-on: {x.id}</dt>
+            <dd>{x.status === "loaded" ? (x.version ?? "Installed") : "Failed to load"}</dd>
+          </Fragment>
+        ))}
+      </dl>
+    </Panel>
+  );
+}
 
 export function AccountSettingsPage() {
   const { me } = useSession();
@@ -63,6 +107,7 @@ export function AccountSettingsPage() {
         </Panel>
       </form>
       <TwoStepPanel />
+      <AboutPanel />
     </>
   );
 }

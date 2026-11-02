@@ -122,6 +122,13 @@ export function Shell() {
             </div>
           ))}
         </nav>
+        {me?.build ? (
+          <NavLink to="/studio/settings/account" className="sidebar-ver" title="About this version">
+            <span>v{me.build.version}</span>
+            <span aria-hidden="true">·</span>
+            <span>{me.build.commit ?? me.build.channel}</span>
+          </NavLink>
+        ) : null}
         {user ? (
           <div className="sidebar-foot">
             <span className="avatar" aria-hidden="true">

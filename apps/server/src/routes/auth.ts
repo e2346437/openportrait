@@ -14,6 +14,7 @@ import {
   verifyPassword,
 } from "../auth.js";
 import { parse, password } from "../validate.js";
+import { BUILD } from "../app.js";
 import { hashRecoveryCode, newRecoveryCodes, newTotpSecret, otpauthUri, verifyTotp } from "../totp.js";
 
 const LoginBody = z.object({ email: z.string().trim().toLowerCase().min(1, "Enter your email."), password: z.string().min(1, "Enter your password.") });
@@ -122,6 +123,8 @@ export async function authRoutes(app: FastifyInstance) {
   app.get("/me", async (req) => ({
     user: req.user ? { ...req.user, scoped: req.shootScope !== null } : null,
     studio: { name: settings.get("studio.name") ?? "", timezone: settings.get("studio.timezone") ?? "UTC" },
+    // Only to signed-in users: the sign-in page doesn't need to say which build is running.
+    build: req.user ? BUILD : null,
   }));
 
   app.post("/password", { preHandler: requireUser }, async (req, reply) => {

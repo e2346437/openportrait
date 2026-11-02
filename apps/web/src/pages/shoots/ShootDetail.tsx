@@ -8,6 +8,7 @@ import { SHOOT_STATUS, type ShootDetail, type ShootEvent, type ShootStatus, type
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { ShootQuestionnaires } from "./ShootQuestionnaires.js";
+import { ExtensionCard, type ExtensionInfo } from "../settings/Extensions.js";
 
 export function ShootDetailPage() {
   const { id = "" } = useParams();
@@ -192,6 +193,8 @@ export function ShootDetailPage() {
             )}
           </Panel>
 
+          <ShootExtensionCards shootId={shoot.id} />
+
           <Panel title="Client">
             <div className="facts" style={{ flexDirection: "column", margin: 0 }}>
               <Link to={`/studio/clients/${shoot.primary.id}`} style={{ fontWeight: 600 }}>
@@ -372,3 +375,16 @@ function EditShootDialog({ open, shoot, onClose, onSaved }: { open: boolean; sho
   );
 }
 
+
+/** Cards that installed extensions add to every shoot. Draws nothing when there are none. */
+function ShootExtensionCards({ shootId }: { shootId: string }) {
+  const { data } = useLoad<{ extensions: ExtensionInfo[] }>("/extensions");
+  const cards = (data?.extensions ?? []).flatMap((e) => (e.shootCards ?? []).map((card) => ({ id: e.id, card })));
+  return (
+    <>
+      {cards.map(({ id, card }) => (
+        <ExtensionCard key={`${id}/${card.title}`} id={id} card={card} vars={{ shootId }} />
+      ))}
+    </>
+  );
+}

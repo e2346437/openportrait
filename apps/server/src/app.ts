@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
@@ -43,6 +42,7 @@ import { tetherRoutes } from "./routes/tether.js";
 import { incomingRoutes } from "./routes/incoming.js";
 import { uploadRoutes } from "./routes/upload.js";
 import { UploadManager } from "./upload/manager.js";
+import { lanHosts, lanInfo, type LanInfo } from "./lan.js";
 
 const PACKAGE_VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version as string;
 /** The image tag when running the published image (set at build time), otherwise the package version. */
@@ -59,6 +59,8 @@ export interface AppContext {
   galleries: GalleryIngest;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
   publicUrl(): string;
+  /** This server's address on the home network (see lan.ts). */
+  lan(): LanInfo;
   ip(req: import("fastify").FastifyRequest): string;
 }
 
@@ -91,7 +93,7 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   const jobs = new JobRunner(db, { logger: app.log });
   const galleries = new GalleryIngest({ db, settings, galleriesDir: config.galleriesDir, settleSeconds: config.ingestSettleSeconds, logger: app.log });
   registerDerivativesJob(config);
-  const uploads = new UploadManager({ config, db, settings, log: app.log, lanAddresses });
+  const uploads = new UploadManager({ config, db, settings, log: app.log, lanHosts: () => lanHosts(settings, config) });
 
   const ctx: AppContext = {
     config,
@@ -102,6 +104,9 @@ export async function buildApp({ config, startBackground = true, logger }: Build
     uploads,
     jobs,
     galleries,
+    lan() {
+      return lanInfo(settings, config);
+    },
     publicUrl() {
       const host = tunnel.getStatus().hostnames[0];
       return settings.get("internet.publicUrl") || config.appUrl || (host ? `https://${host}` : "");
@@ -228,10 +233,4 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   return app;
 }
 
-/** Best guess at the server's LAN address, for "open it locally" hints. */
-export function lanAddresses(): string[] {
-  return Object.values(os.networkInterfaces())
-    .flat()
-    .filter((i): i is os.NetworkInterfaceInfo => !!i && i.family === "IPv4" && !i.internal)
-    .map((i) => i.address);
-}
+export { lanAddresses } from "./lan.js";

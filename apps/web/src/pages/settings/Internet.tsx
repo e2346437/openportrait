@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button, Callout, CopyValue, Field, Icon, Panel, Spinner, StatusChip, Switch, TextArea, TextInput, useToast, type IconName } from "@openportrait/ui";
 import { api, type InternetStatus } from "../../lib/api.js";
+import { isLocalHost } from "../../lib/tether.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { tunnelSummary, useInternet } from "../../lib/useInternet.js";
 
@@ -107,9 +108,21 @@ export function InternetSettingsPage() {
   const [check, setCheck] = useState<CheckResult | null>(null);
   const [checking, setChecking] = useState(false);
   const [urlDraft, setUrlDraft] = useState<string | null>(null);
+  const [lanDraft, setLanDraft] = useState<string | null>(null);
 
   const saveToken = useSubmit(() => api<InternetStatus>("/internet/token", { method: "PUT", body: { token } }));
   const saveUrl = useSubmit(() => api<InternetStatus>("/internet/public-url", { method: "PUT", body: { url: urlDraft ?? "" } }));
+
+  const saveLan = useSubmit(() => api<InternetStatus>("/internet/lan-url", { method: "PUT", body: { url: lanDraft ?? "" } }));
+  const onLan = async (e: FormEvent) => {
+    e.preventDefault();
+    const next = await saveLan.submit();
+    if (!next) return;
+    setStatus(next);
+    setLanDraft(null);
+    toast(next.lan.url ? "Home address saved" : "Home address cleared");
+  };
+  const browserOnLan = isLocalHost(window.location.hostname);
 
   const runCheck = async () => {
     setChecking(true);
@@ -314,18 +327,32 @@ export function InternetSettingsPage() {
             <Switch label="Use visitor addresses from Cloudflare" checked={status?.trustCloudflare ?? true} onChange={setTrust} />
           </div>
 
-          <div>
-            <b style={{ fontSize: 14 }}>On your home network</b>
-            <p className="hint" style={{ marginBottom: 8 }}>
-              If the tunnel is ever down, you can still open OpenPortrait from home using the server's address and the port mapped in your container settings.
-            </p>
-            <div className="lan-list">
-              {status?.platform === "unraid" ? <span className="hint">In Unraid, use the WebUI link on the Docker tab.</span> : null}
-              {status?.lan.addresses.map((a) => (
-                <StatusChip key={a}>{a}</StatusChip>
-              ))}
-            </div>
-          </div>
+          <form onSubmit={onLan} noValidate>
+            <Field
+              label="On your home network"
+              hint={
+                status?.platform === "unraid" || status?.lan.addresses.length === 0
+                  ? "OpenPortrait runs in a container, so it can't see its own address on your network. Enter your server's address and the port you mapped, such as http://192.168.4.5:8090. Tethering and camera upload use it. In Unraid it's the WebUI link on the Docker tab."
+                  : "The address you use to open OpenPortrait from home. Tethering and camera upload use it."
+              }
+              error={saveLan.fieldErrors.url ?? saveLan.error}
+            >
+              {(p) => (
+                <div className="input-row">
+                  <TextInput {...p} value={lanDraft ?? (status?.lan.source === "settings" ? (status.lan.url ?? "") : "")} placeholder={status?.lan.url || "http://192.168.4.5:8090"} onChange={(e) => setLanDraft(e.target.value)} inputMode="url" spellCheck={false} />
+                  {browserOnLan && window.location.origin !== (lanDraft ?? status?.lan.url) ? (
+                    <Button type="button" onClick={() => setLanDraft(window.location.origin)}>
+                      Use {window.location.host}
+                    </Button>
+                  ) : null}
+                  <Button type="submit" loading={saveLan.busy} disabled={lanDraft === null}>
+                    Save
+                  </Button>
+                </div>
+              )}
+            </Field>
+            {status?.lan.source === "template" && lanDraft === null ? <p className="hint">Currently set by the container's LAN_URL variable. Saving here overrides it.</p> : null}
+          </form>
 
           <div>
             <b style={{ fontSize: 14 }}>Use your own cloudflared</b>

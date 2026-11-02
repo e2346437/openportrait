@@ -134,3 +134,24 @@ export const counter = sqliteTable("counter", {
   name: text().primaryKey(),
   value: integer().notNull(),
 });
+
+/**
+ * A payment someone started online but that may not be finished. When the processor confirms it, a `payment` row is
+ * written. Keeping the attempt lets a returning client and a webhook both complete it without recording it twice.
+ */
+export const paymentAttempt = sqliteTable(
+  "payment_attempt",
+  {
+    id: text().primaryKey(),
+    orderId: text()
+      .notNull()
+      .references(() => order.id, { onDelete: "cascade" }),
+    provider: text().notNull(),
+    /** The processor's own id for the checkout (PayPal's order id). */
+    providerOrderId: text().notNull(),
+    amountCents: integer().notNull(),
+    status: text({ enum: ["started", "paid", "failed"] }).notNull().default("started"),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [uniqueIndex("payment_attempt_provider_idx").on(t.provider, t.providerOrderId), index("payment_attempt_order_idx").on(t.orderId)],
+);

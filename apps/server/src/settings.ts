@@ -67,6 +67,11 @@ export interface SettingTypes {
   /** How to pay by hand (Venmo handle, check address). Shown on invoices. */
   "money.paymentInstructions": string;
   "money.quoteValidDays": number;
+  /** PayPal Checkout. The studio's own app credentials; the secret is encrypted at rest. */
+  "paypal.clientId": string;
+  "paypal.clientSecret": string; // secret
+  "paypal.mode": "sandbox" | "live";
+  "paypal.webhookId": string;
   /** Camera upload server (see upload/). The ports come from the environment; these are the studio's choices. */
   "upload.protocol": "sftp" | "ftp" | "ftps";
   "upload.mode": "on_demand" | "scheduled" | "always_on";
@@ -79,7 +84,7 @@ export interface SettingTypes {
   "upload.passiveHost": string;
 }
 
-const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token", "google.clientSecret", "google.refreshToken", "email.password"]);
+const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token", "google.clientSecret", "google.refreshToken", "email.password", "paypal.clientSecret"]);
 
 export class Settings {
   constructor(

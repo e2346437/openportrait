@@ -32,6 +32,7 @@ import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { OrdersPage } from "./pages/orders/Orders.js";
 import { OrderPage } from "./pages/orders/Order.js";
 import { PricesSettingsPage } from "./pages/settings/Prices.js";
+import { PaymentsSettingsPage } from "./pages/settings/Payments.js";
 import { OrderViewPage } from "./pages/public/Order.js";
 import { NotFoundPage } from "./pages/NotFound.js";
 import { GalleriesListPage } from "./pages/galleries/GalleriesList.js";
@@ -106,6 +107,7 @@ export function App() {
                     <Route path="shoots" element={<ShootSettingsPage />} />
                     <Route path="calendar" element={<CalendarSettingsPage />} />
                     <Route path="prices" element={<PricesSettingsPage />} />
+                    <Route path="payments" element={<PaymentsSettingsPage />} />
                     <Route path="email" element={<EmailSettingsPage />} />
                     <Route path="camera-upload" element={<CameraUploadSettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />

@@ -27,6 +27,11 @@ export function SettingsLayout() {
           <Icon name="receipt" /> Prices
         </NavLink>
         {owner ? (
+          <NavLink to="payments">
+            <Icon name="receipt" /> Payments
+          </NavLink>
+        ) : null}
+        {owner ? (
           <NavLink to="email">
             <Icon name="mail" /> Email
           </NavLink>

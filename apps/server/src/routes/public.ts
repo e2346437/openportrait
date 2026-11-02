@@ -2,7 +2,9 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { DomainError, type ServiceContext } from "../domain/context.js";
 import * as inquiry from "../domain/inquiry.js";
+import * as checkout from "../domain/checkout.js";
 import * as orders from "../domain/orders.js";
+import { verifyWebhook } from "../payments/paypal.js";
 import * as sched from "../domain/scheduler.js";
 import { parse } from "../validate.js";
 
@@ -82,7 +84,18 @@ export async function publicRoutes(app: FastifyInstance) {
 
   // Quotes and invoices: the private link is the key, so these are rate limited and never cached.
   const orderToken = token;
-  app.get("/order/:token", { config: limit(60) }, async (req) => orders.publicView(ctx(req), orderToken(req)));
+  app.get("/order/:token", { config: limit(60) }, async (req) => ({ ...orders.publicView(ctx(req), orderToken(req)), pay: checkout.onlineOptions(ctx(req), orderToken(req)) }));
+  app.post("/order/:token/pay", { config: limit(10) }, async (req, reply) => {
+    const body = parse(z.object({ amount: z.enum(["due", "balance"]) }), req.body, reply);
+    if (!body) return;
+    return checkout.startCheckout(ctx(req), orderToken(req), body);
+  });
+  app.post("/order/:token/pay/capture", { config: limit(20) }, async (req, reply) => {
+    const body = parse(z.object({ providerOrderId: z.string().min(1).max(100) }), req.body, reply);
+    if (!body) return;
+    const { outcome, view } = await checkout.finishCheckout(ctx(req), orderToken(req), body.providerOrderId);
+    return { outcome, ...view, pay: checkout.onlineOptions(ctx(req), orderToken(req)) };
+  });
   app.post("/order/:token/accept", { config: limit(10) }, async (req, reply) => {
     const body = parse(z.object({ name: z.string().max(120) }), req.body, reply);
     if (!body) return;
@@ -92,5 +105,31 @@ export async function publicRoutes(app: FastifyInstance) {
     const body = parse(z.object({ reason: z.string().max(500).optional() }), req.body ?? {}, reply);
     if (!body) return;
     return orders.declineQuote(ctx(req), orderToken(req), body.reason);
+  });
+
+  // PayPal calls this. The signature is checked against the body exactly as it arrived, so this scope keeps the raw text.
+  await app.register(async (hookApp) => {
+    hookApp.addContentTypeParser("application/json", { parseAs: "string", bodyLimit: 262_144 }, (_req, body, done) => done(null, body));
+    hookApp.post("/paypal/webhook", { config: limit(120) }, async (req, reply) => {
+      const raw = typeof req.body === "string" ? req.body : "";
+      const h = req.headers;
+      const one = (k: string) => (typeof h[k] === "string" ? (h[k] as string) : undefined);
+      const c = ctx(req);
+      const ok = await verifyWebhook(c, { authAlgo: one("paypal-auth-algo"), certUrl: one("paypal-cert-url"), transmissionId: one("paypal-transmission-id"), transmissionSig: one("paypal-transmission-sig"), transmissionTime: one("paypal-transmission-time") }, raw);
+      if (!ok) return reply.code(401).send({ error: "unverified" });
+      let event: { event_type?: string; resource?: Record<string, unknown> };
+      try {
+        event = JSON.parse(raw);
+      } catch {
+        return reply.code(400).send({ error: "bad body" });
+      }
+      try {
+        await checkout.handleWebhookEvent(c, event);
+      } catch (err) {
+        app.log.warn({ err }, "paypal webhook handling failed");
+        return reply.code(500).send({ error: "retry" }); // PayPal retries on non-2xx
+      }
+      return { ok: true };
+    });
   });
 }

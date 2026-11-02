@@ -1,5 +1,7 @@
 # Docker and infrastructure hardening
 
+**Status: the hardened profile is now the shipped default** (`docker-compose.yml` and the Unraid template's ExtraParams), the runtime image no longer contains npm, corepack or yarn, set-uid/set-gid bits are stripped, the base image is pinned by digest, and Unraid's default ids (99:100) have an account in the image so a read-only root works. Verified by `run-local.sh` and a manual start at PUID 99 / PGID 100. The tables below describe the image as audited, before those changes.
+
 Facts first (observed on the image built from `1601f66`), then the profile that was verified, then what an operator who hosts
 several studios must add. Run `security/scripts/run-local.sh` to repeat every check.
 

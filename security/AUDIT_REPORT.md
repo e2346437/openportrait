@@ -4,6 +4,15 @@
 **Date:** 2026-11-02. **Method:** source review, automated analysis, and active testing against local sandbox containers
 with synthetic accounts, photos and credentials. **Production was not touched** and no real client data was used.
 
+## 0. Update after remediation (owner-approved top five)
+
+SEC-001, SEC-002, SEC-003, SEC-005 and SEC-008 were fixed on the same branch and re-verified: the in-process suite (233
+passed, 5 expected-fail for the findings still open), the live suite against hardened containers (26 checks: 19 pass,
+6 open, 1 info, 0 failed) and the isolation checks. Each fix flipped its test from an open finding to a control. The
+sections below keep the original evidence; the status column shows the current state. Still open: SEC-004, 006, 007,
+009 to 012, 014 to 016. SEC-014 is only partly fixed (npm, corepack and yarn are gone from the runtime image; the Go
+dependencies inside `cloudflared` and `gosu` need upstream releases), so the release gate still blocks on it.
+
 ## 1. Verdict
 
 OpenPortrait is **not ready to be exposed to the public internet by an unattended installer yet, but it is close.** The
@@ -43,14 +52,14 @@ were deliberately not calculated. **Confirmed** = observed on the running sandbo
 
 | ID | Severity | Status | Title |
 |---|---|---|---|
-| SEC-001 | **High** | Confirmed | Rate limits key on an address the caller controls |
-| SEC-002 | Medium | Confirmed | A new install can be claimed by the first visitor |
-| SEC-003 | Medium | Confirmed | No Origin / Fetch-Metadata check on state-changing requests |
+| SEC-001 | **High** | **Fixed** (verified) | Rate limits key on an address the caller controls |
+| SEC-002 | Medium | **Fixed** (verified) | A new install can be claimed by the first visitor |
+| SEC-003 | Medium | **Fixed** (verified) | No Origin / Fetch-Metadata check on state-changing requests |
 | SEC-004 | Medium | Confirmed | Signed photo URLs never expire and outlive unpublishing |
-| SEC-005 | Medium | Confirmed | Gallery link entropy ~31 bits; public gallery endpoints unthrottled |
+| SEC-005 | Medium | **Fixed** (verified) | Gallery link entropy ~31 bits; public gallery endpoints unthrottled |
 | SEC-006 | Medium | Confirmed | AI untrusted-text wrapper can be closed early; names not wrapped |
 | SEC-007 | Low | Confirmed | Camera logins can overwrite existing photos |
-| SEC-008 | Medium | Confirmed | Container runs with Docker defaults (root entrypoint, default caps) |
+| SEC-008 | Medium | **Fixed** (verified) | Container runs with Docker defaults (root entrypoint, default caps) |
 | SEC-009 | Low | Confirmed | No CSP, HSTS or Permissions-Policy |
 | SEC-010 | Low | Confirmed | OAuth/MCP discovery URLs built from the Host header |
 | SEC-011 | Low | Confirmed | MCP endpoint ignores Origin; anonymous OAuth client registration with any name |

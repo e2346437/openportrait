@@ -1,7 +1,7 @@
 # Remediation plan
 
-Ordered by risk (exploitability × impact × exposure). **Nothing below that changes authentication, deployment behaviour or a
-public URL/API has been implemented.** Those need the owner's approval first; the "Needs approval" column says which. Each
+Ordered by risk (exploitability × impact × exposure). Items 1 to 4 and 7 (SEC-001, 002, 003, 008, 005) were approved by the owner and are **implemented and verified**; the rest
+need approval first, as the "Needs approval" column says. Each
 fix comes with its regression test already in the repository, so the work is: make the change, flip the test from
 `openFinding` to `control` (vitest reports the `it.fails` as a failure the moment the fix works, which is the prompt to do so),
 and update `findings.json`.
@@ -10,13 +10,13 @@ and update `findings.json`.
 
 | Order | Finding | Change | Size | Needs approval | Breaks anything? |
 |---|---|---|---|---|---|
-| 1 | SEC-001 | One `clientIp()` that trusts `CF-Connecting-IP` only from loopback (+ optional `TRUSTED_PROXIES`); use it as the key for every rate limit; per-account failure delay | ~60 lines | **Yes** (auth) | Anyone running cloudflared in a *separate* container must set `TRUSTED_PROXIES`; documented in the install guide |
-| 2 | SEC-002 | Setup code printed to the container log at first start (or `SETUP_CODE` env for automated installs); required by `POST /setup` and shown in the wizard | ~50 lines + UI field | **Yes** (first-run flow) | Wizard gains one field |
-| 3 | SEC-003 | Fetch-Metadata / Origin check on non-GET studio requests | ~30 lines | **Yes** (public API behaviour) | Scripts that call the API with a cookie from another origin stop working; same-origin browser use is unaffected |
-| 4 | SEC-008 | Hardened defaults in `docker-compose.yml` and the Unraid template (`ExtraParams`); delete `npm`/`corepack` and set-uid bits from the runtime image; pin base by digest | Config + 5 Dockerfile lines | **Yes** (deployment) | Verified to start and pass the live suite. Read-only root needs `/tmp` as tmpfs |
+| 1 ✅ | SEC-001 | One `clientIp()` that trusts `CF-Connecting-IP` only from loopback (+ optional `TRUSTED_PROXIES`); use it as the key for every rate limit; per-account failure delay | ~60 lines | **Yes** (auth) | Anyone running cloudflared in a *separate* container must set `TRUSTED_PROXIES`; documented in the install guide |
+| 2 ✅ | SEC-002 | Setup code printed to the container log at first start (or `SETUP_CODE` env for automated installs); required by `POST /setup` and shown in the wizard | ~50 lines + UI field | **Yes** (first-run flow) | Wizard gains one field |
+| 3 ✅ | SEC-003 | Fetch-Metadata / Origin check on non-GET studio requests | ~30 lines | **Yes** (public API behaviour) | Scripts that call the API with a cookie from another origin stop working; same-origin browser use is unaffected |
+| 4 ✅ | SEC-008 | Hardened defaults in `docker-compose.yml` and the Unraid template (`ExtraParams`); delete `npm`/`corepack` and set-uid bits from the runtime image; pin base by digest | Config + 5 Dockerfile lines | **Yes** (deployment) | Verified to start and pass the live suite. Read-only root needs `/tmp` as tmpfs |
 | 5 | SEC-014 | Remove npm/corepack from runtime; bump cloudflared and gosu when fixed builds exist; weekly rebuild; Dependabot | Small | No | No |
 | 6 | SEC-004 | Time-limited media signatures + gallery-state check; shorter cache | ~40 lines | **Yes** (URL format) | Pages cache URLs for an hour, not a year; first view after expiry re-fetches the gallery JSON |
-| 7 | SEC-005 | 128-bit slugs for new galleries, keep old; throttle unknown-slug 404s; warn on short custom slugs | ~30 lines | **Yes** (URL format) | Existing links keep working |
+| 7 ✅ | SEC-005 | 128-bit slugs for new galleries, keep old; throttle unknown-slug 404s; warn on short custom slugs | ~30 lines | **Yes** (URL format) | Existing links keep working |
 
 ## Before the first outside users
 

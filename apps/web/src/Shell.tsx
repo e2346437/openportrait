@@ -23,6 +23,7 @@ const groups: Array<{ label?: string; items: NavItem[] }> = [
       { to: "/studio/booking", label: "Booking", icon: "clock" },
       { to: "/studio/clients", label: "Clients", icon: "users" },
       { to: "/studio/orders", label: "Orders", icon: "receipt" },
+      { to: "/studio/contracts", label: "Contracts", icon: "note" },
     ],
   },
   {

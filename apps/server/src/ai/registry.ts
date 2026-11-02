@@ -2,7 +2,7 @@ import type { z } from "zod";
 import type { AppContext } from "../app.js";
 
 /** Areas a connection can be limited to. Feature modules add their own when they register tools. */
-export const AREAS = ["studio", "contacts", "leads", "shoots", "calendar", "quotes", "orders", "galleries", "email"] as const;
+export const AREAS = ["studio", "contacts", "leads", "shoots", "calendar", "quotes", "orders", "contracts", "galleries", "email"] as const;
 export type Area = (typeof AREAS)[number];
 
 /** What a tool can do, in increasing order of consequence (see SPEC section 10). */

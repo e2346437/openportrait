@@ -210,3 +210,43 @@ describe("schedulers and booking pages", () => {
     expect((await staff("DELETE", `/schedulers/${s.id}`)).status).toBe(400); // has an upcoming booking
   });
 });
+
+describe("special dates and daily limits", () => {
+  const make = async (extra: object = {}) => (await staff("POST", "/schedulers", { name: "Mini", durationMinutes: 60, stepMinutes: 60, minNoticeHours: 0, approval: "auto", availability: mondayHours, ...extra })).body;
+  const slotsOn = async (slug: string, day: string) => ((await pub("GET", `/book/${slug}/slots?from=${day}&to=${day}`)).body.days[day] ?? []) as Array<{ startsAt: number }>;
+  const hours = (day: string, ...t: string[]) => t.map((x) => atTime(day, x, TZ));
+
+  it("closes a day, or opens one with different hours, instead of the weekly hours", async () => {
+    const day = monday();
+    const off = addDays(day, 7);
+    const sat = addDays(day, 5);
+    const s = await make({ dateOverrides: { [off]: [], [sat]: [{ start: "10:00", end: "12:00" }] } });
+    expect((await slotsOn(s.slug, day)).map((x) => x.startsAt)).toEqual(hours(day, "09:00", "10:00", "11:00"));
+    expect(await slotsOn(s.slug, off)).toEqual([]);
+    expect((await slotsOn(s.slug, sat)).map((x) => x.startsAt)).toEqual(hours(sat, "10:00", "11:00"));
+  });
+
+  it("checks special dates when saving", async () => {
+    const bad = await staff("POST", "/schedulers", { name: "X", durationMinutes: 30, availability: {}, dateOverrides: { "next friday": [] } });
+    expect(bad.status).toBe(400);
+    const worse = await staff("POST", "/schedulers", { name: "X", durationMinutes: 30, availability: {}, dateOverrides: { "2099-01-02": [{ start: "12:00", end: "10:00" }] } });
+    expect(worse.body.message).toMatch(/end after it starts/);
+  });
+
+  it("stops offering a day once its limit is reached, and frees it when someone cancels", async () => {
+    const day = monday();
+    const s = await make({ maxPerDay: 2 });
+    const book = (n: number, h: string) => pub("POST", `/book/${s.slug}`, { startsAt: atTime(day, h, TZ), firstName: `P${n}`, email: `p${n}@example.com` });
+    const a = await book(1, "09:00");
+    expect(a.status).toBe(201);
+    expect((await book(2, "10:00")).status).toBe(201);
+    expect(await slotsOn(s.slug, day)).toEqual([]);
+    expect((await book(3, "11:00")).status).toBe(409);
+    await pub("POST", `/book-cancel/${a.body.cancelToken}`);
+    expect((await slotsOn(s.slug, day)).length).toBe(2);
+  });
+
+  it("rejects a negative or silly daily limit", async () => {
+    expect((await staff("POST", "/schedulers", { name: "X", durationMinutes: 30, availability: {}, maxPerDay: -1 })).status).toBe(400);
+  });
+});

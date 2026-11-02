@@ -55,6 +55,10 @@ export const scheduler = sqliteTable(
     /** The deposit asked up front. "percent" stores `depositValue` in basis points (2500 = 25%); "fixed" stores cents. */
     depositType: text({ enum: ["none", "percent", "fixed"] }).notNull().default("none"),
     depositValue: integer().notNull().default(0),
+    /** Most bookings taken on one day. Zero means no limit. */
+    maxPerDay: integer().notNull().default(0),
+    /** Special days that replace the weekly hours: { "2027-03-14": [] } is closed, a list of windows is different hours. */
+    dateOverrides: text({ mode: "json" }).$type<Record<string, Array<{ start: string; end: string }>>>().notNull().default({}),
     /** A contract template the client must sign before they can pay online. Empty means no contract. */
     contractTemplateId: text(),
     /** Weekly hours: { "1": [{ "start": "09:00", "end": "17:00" }], ... } with 0 = Sunday. */

@@ -652,3 +652,8 @@ button.agenda-row:hover { background: var(--surface-2); }
 .row-gap.wrap { flex-wrap: wrap; }
 @media (max-width: 640px) { .map-grid { grid-template-columns: minmax(0, 1fr); } .import-rows li { padding-inline: var(--s4); } }
 .map-details > summary { cursor: pointer; font-weight: 600; font-size: 14px; margin-bottom: var(--s4); }
+
+/* Special dates in the booking page editor: date, closed switch, hours and remove sit on one line when there is room. */
+.override-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.override-row > input[type="date"] { width: auto; min-width: 0; }
+.override-row > .btn.icon { margin-left: auto; }

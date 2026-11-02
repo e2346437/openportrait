@@ -13,9 +13,41 @@
 
 Brand assets (logo, icons, colors) live in [`docs/brand`](docs/brand/README.md).
 
-## Status
+## What's in it
 
-Early development. The foundation is in place: first-run setup, sign-in, studio settings, the built-in Cloudflare Tunnel with a guided setup, nightly database backups, and the Docker image and Unraid template. Leads, shoots, calendar, booking, orders, contracts and galleries come next. See the [product spec and roadmap](docs/SPEC.md).
+- **Clients and leads:** one record per client, a lead pipeline, and an inquiry form for your website.
+- **Shoots and calendar:** shoot types, a studio calendar, and two-way Google Calendar sync.
+- **Booking pages:** clients pick a session and a time from your availability. Special dates, daily limits and deposits are built in, and a confirmed booking can become a shoot automatically.
+- **Questionnaires:** send a form by hand, or automatically when a shoot is booked.
+- **Contracts and e-signatures:** write templates, have clients sign online, and keep a signed PDF with an audit trail. A booking can require a signed agreement before it is paid.
+- **Quotes, invoices and payments:** a price list, deposits and balances, manual payments, PayPal checkout, coupon codes and client credit.
+- **Galleries:** photos from your own storage, client galleries with favorites and downloads, and an optional payment lock on downloads.
+- **Camera upload:** cameras send photos over SFTP, FTP or FTPS, and SFTP tethering shows a live view while you shoot.
+- **Import:** bring in clients, shoots and invoices from a CSV or JSON file.
+- **Connect your AI:** a built-in MCP server for an AI assistant. It is off until you turn it on, and anything that reaches a client or moves money waits for your approval by default.
+- **Extensions:** optional modules that add tools, settings and sidebar pages.
+
+Still in progress: see the [product spec and roadmap](docs/SPEC.md).
+
+## Guides
+
+| Guide | What it covers |
+|---|---|
+| [Install with Docker, Compose or Unraid](docs/install-docker.md) | Running the container and the Unraid template |
+| [Internet access with Cloudflare Tunnel](docs/cloudflare-tunnel.md) | Reaching your studio from outside your network |
+| [Email, inquiry form and booking pages](docs/booking.md) | Outgoing email, the inquiry form, and booking pages |
+| [Questionnaires](docs/questionnaires.md) | Building forms and sending them to clients |
+| [Contracts and e-signatures](docs/contracts.md) | Templates, signing, and signing before payment |
+| [Quotes, invoices and coupons](docs/orders.md) | Price lists, quotes, payments, and coupon codes |
+| [Galleries](docs/GALLERIES.md) | Folder ingest, client galleries, and payment locks |
+| [Camera upload](docs/camera-upload.md) | Sending photos from the camera over SFTP, FTP or FTPS |
+| [Tethering](docs/tethering.md) | Live view while shooting tethered |
+| [Google Calendar](docs/google-calendar.md) | Two-way calendar sync |
+| [Importing your data](docs/import.md) | Bringing clients, shoots and invoices in from a file |
+| [Connect your AI](docs/ai-access.md) | Connecting an AI assistant through MCP, with approvals |
+| [Extensions](docs/extensions.md) | Writing an extension module |
+
+The [product spec and architecture](docs/SPEC.md) describes the design and the roadmap.
 
 ## Install
 

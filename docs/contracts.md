@@ -50,7 +50,6 @@ Once the client has signed, the owner can **Countersign as the studio**. The PDF
 
 - The PDF uses standard PDF fonts, so unusual characters outside Western European languages may not print.
 - Electronic signatures are widely accepted, but the rules differ by country. This isn't legal advice.
-- Requiring a signed contract before a booking's deposit is not built yet.
 
 ## For AI assistants
 

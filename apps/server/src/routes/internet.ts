@@ -23,7 +23,7 @@ const LanBody = z.object({
     .string()
     .trim()
     .transform((u) => (u === "" || /^https?:\/\//.test(u) ? u : `http://${u}`).replace(/\/+$/, ""))
-    .refine((u) => u === "" || URL.canParse(u), "Enter an address like http://192.168.4.5:8090."),
+    .refine((u) => u === "" || URL.canParse(u), "Enter an address like http://192.168.1.20:8090."),
 });
 const TrustBody = z.object({ trustCloudflare: z.boolean() });
 

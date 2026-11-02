@@ -44,8 +44,8 @@ describe("loadConfig", () => {
   });
 
   it("reads the home network address and rejects a bare IP", () => {
-    expect(loadConfig({ LAN_URL: "http://192.168.4.5:8090/" }).lanUrl).toBe("http://192.168.4.5:8090");
+    expect(loadConfig({ LAN_URL: "http://192.168.1.20:8090/" }).lanUrl).toBe("http://192.168.1.20:8090");
     expect(loadConfig({}).lanUrl).toBe("");
-    expect(() => loadConfig({ LAN_URL: "192.168.4.5:8090" })).toThrow(/LAN_URL/);
+    expect(() => loadConfig({ LAN_URL: "192.168.1.20:8090" })).toThrow(/LAN_URL/);
   });
 });

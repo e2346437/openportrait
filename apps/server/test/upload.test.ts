@@ -382,15 +382,15 @@ describe("home network address", () => {
   });
 
   it("serves the saved home address to tethering, camera upload and the AI connect page", async () => {
-    const saved = await app.inject({ method: "PUT", url: "/api/studio/internet/lan-url", headers: { cookie }, payload: { url: "192.168.4.5:8090/" } });
-    expect(saved.json().lan).toMatchObject({ url: "http://192.168.4.5:8090", host: "192.168.4.5", source: "settings" });
+    const saved = await app.inject({ method: "PUT", url: "/api/studio/internet/lan-url", headers: { cookie }, payload: { url: "192.168.1.20:8090/" } });
+    expect(saved.json().lan).toMatchObject({ url: "http://192.168.1.20:8090", host: "192.168.1.20", source: "settings" });
     const sources = (await app.inject({ method: "GET", url: "/api/studio/tether/sources", headers: { cookie } })).json();
-    expect(sources.lan.url).toBe("http://192.168.4.5:8090");
+    expect(sources.lan.url).toBe("http://192.168.1.20:8090");
     // A public host name (such as the tunnel) is never offered to a camera; the home address is.
     const cam = (await app.inject({ method: "GET", url: "/api/studio/upload", headers: { cookie, host: "studio.example.com" } })).json();
-    expect(cam.connect.hosts).toEqual(["192.168.4.5"]);
+    expect(cam.connect.hosts).toEqual(["192.168.1.20"]);
     const ai = (await app.inject({ method: "GET", url: "/api/studio/ai", headers: { cookie } })).json();
-    expect(ai.urls.lan).toBe("http://192.168.4.5:8090/mcp");
+    expect(ai.urls.lan).toBe("http://192.168.1.20:8090/mcp");
     const cleared = await app.inject({ method: "PUT", url: "/api/studio/internet/lan-url", headers: { cookie }, payload: { url: "" } });
     expect(cleared.json().lan.url).toBeNull();
   });
@@ -401,7 +401,7 @@ describe("home network address", () => {
     const login = await app.inject({ method: "POST", url: "/api/studio/auth/login", payload: { email: "pat@example.com", password: "correct horse battery" } });
     cookie = `op_session=${login.cookies.find((c) => c.name === "op_session")!.value}`;
     expect((await app.inject({ method: "GET", url: "/api/studio/internet", headers: { cookie } })).json().lan).toMatchObject({ url: "http://10.0.0.9:8080", source: "template" });
-    expect((await app.inject({ method: "PUT", url: "/api/studio/internet/lan-url", headers: { cookie }, payload: { url: "http://192.168.4.5:8090" } })).json().lan.source).toBe("settings");
+    expect((await app.inject({ method: "PUT", url: "/api/studio/internet/lan-url", headers: { cookie }, payload: { url: "http://192.168.1.20:8090" } })).json().lan.source).toBe("settings");
   });
 
   it("rejects something that isn't an address", async () => {

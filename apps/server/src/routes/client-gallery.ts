@@ -376,17 +376,24 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
 /** Signed thumbnails and previews: /media/:photoId/:version/:variant?s=... */
 export async function mediaRoutes(app: FastifyInstance) {
   const { db, secrets, config, settings } = app.ctx;
-  app.get<{ Params: { photoId: string; version: string; variant: string }; Querystring: { s?: string } }>("/media/:photoId/:version/:variant", async (req, reply) => {
+  app.get<{ Params: { photoId: string; version: string; variant: string }; Querystring: { s?: string; e?: string } }>("/media/:photoId/:version/:variant", async (req, reply) => {
     const { photoId, version, variant } = req.params;
     // "thumb", "preview", or either with "-wm-<fingerprint>" for the watermarked flavor shown while a gallery is locked.
     const m = /^(thumb|preview)(?:-wm-([a-f0-9]{8}))?$/.exec(variant);
-    if (!m || !req.query.s || !secrets.verify("media", `${photoId}:${version}:${variant}`, req.query.s)) {
+    const expires = Number(req.query.e);
+    if (!m || !req.query.s || !req.query.e || !Number.isInteger(expires) || expires * 1000 < Date.now() || !secrets.verify("media", `${photoId}:${version}:${variant}:${req.query.e}`, req.query.s)) {
       return reply.code(404).send({ error: "not_found" });
     }
     const base = m[1] as "thumb" | "preview";
     const marked = !!m[2];
     const p = db.select().from(photo).where(eq(photo.id, photoId)).get();
     if (!p || String(p.version) !== version) return reply.code(404).send({ error: "not_found" });
+    // A signed URL isn't a standing right to the photo: the gallery must still be published and unexpired, and the photo
+    // not hidden. Signed-in staff keep working so previews and the admin grid are unaffected.
+    if (!req.user) {
+      const g = db.select().from(gallery).where(eq(gallery.id, p.galleryId)).get();
+      if (!g || g.status !== "live" || (g.expiresAt && g.expiresAt.getTime() < Date.now()) || p.hidden) return reply.code(404).send({ error: "not_found" });
+    }
     let file = derivativePath(config.cacheDir, p.galleryId, p.id, p.version, base);
     try {
       if (!fs.existsSync(file)) {
@@ -403,7 +410,8 @@ export async function mediaRoutes(app: FastifyInstance) {
       return reply.code(404).send({ error: "not_found" });
     }
     reply.header("Content-Type", "image/webp");
-    reply.header("Cache-Control", "public, max-age=31536000, immutable");
+    // Cached only as long as the URL itself is good, and never by shared caches (the photo is not public).
+    reply.header("Cache-Control", `private, max-age=${Math.max(0, Math.min(86400, Math.floor(expires - Date.now() / 1000)))}`);
     return reply.send(fs.createReadStream(file));
   });
 }

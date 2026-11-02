@@ -1,3 +1,4 @@
+import { foreignOrigin } from "../csrf.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { FastifyInstance } from "fastify";
@@ -47,12 +48,14 @@ export async function mcpRoutes(app: FastifyInstance) {
 
   // resource_metadata tells OAuth-capable clients (Claude, ChatGPT) where to start signing in.
   const unauthorized = (req: import("fastify").FastifyRequest, reply: import("fastify").FastifyReply, message: string) => {
-    const b = ctx.publicUrl() || `${(req.headers["x-forwarded-proto"] as string) ?? "http"}://${req.headers.host}`;
+    const b = ctx.baseUrl();
     return reply.code(401).header("WWW-Authenticate", `Bearer realm="OpenPortrait", resource_metadata="${b}/.well-known/oauth-protected-resource"`).send({ error: "unauthorized", message });
   };
 
   app.post("/mcp", async (req, reply) => {
     if (!ctx.settings.get("ai.enabled")) return reply.code(404).send({ error: "not_found" });
+    // AI apps call from a server and send no Origin. A browser page naming another site's origin is not one (SEC-011).
+    if (foreignOrigin(req, ctx.ownHosts())) return reply.code(403).send({ error: "forbidden_origin", message: "This request came from another website." });
     if (ctx.settings.get("ai.paused")) return reply.code(503).send({ error: "paused", message: "AI access is paused by the studio owner." });
     const header = req.headers.authorization ?? "";
     const caller = header.startsWith("Bearer ") ? authenticate(ctx.db, header.slice(7).trim()) : null;

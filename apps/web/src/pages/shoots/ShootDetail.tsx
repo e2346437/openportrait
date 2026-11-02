@@ -7,6 +7,7 @@ import { formatDate, formatTime, ms, msToZoned, zonedToMs } from "../../lib/time
 import { SHOOT_STATUS, type ShootDetail, type ShootEvent, type ShootStatus, type ShootType } from "../../lib/types.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { TaskList } from "../../components/TaskList.js";
 import { ShootQuestionnaires } from "./ShootQuestionnaires.js";
 import { ExtensionCard, type ExtensionInfo } from "../settings/Extensions.js";
 
@@ -138,6 +139,10 @@ export function ShootDetailPage() {
                 ))}
               </div>
             )}
+          </Panel>
+
+          <Panel title="To do" description="Tasks for this shoot. Only you see them.">
+            <TaskList shootId={id} />
           </Panel>
 
           <ShootQuestionnaires shootId={id} clientEmail={shoot.primary.email} />

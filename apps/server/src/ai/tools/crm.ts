@@ -2,6 +2,7 @@ import { z } from "zod";
 import { addNote, getContact, listContacts } from "../../domain/contacts.js";
 import { board, createLead, getLead, moveLead } from "../../domain/leads.js";
 import { SHOOT_STATUSES, createShoot, getShoot, listShoots } from "../../domain/shoots.js";
+import { addTask, listTasks, updateTask } from "../../domain/tasks.js";
 import { defineTool } from "../registry.js";
 import { iso, plain, svc, untrusted } from "./util.js";
 
@@ -191,5 +192,45 @@ defineTool({
     const events = args.startsAt ? [{ startsAt: Date.parse(args.startsAt), endsAt: Date.parse(args.endsAt ?? args.startsAt) + (args.endsAt ? 0 : 3_600_000), location: args.location }] : [];
     const r = createShoot(svc(ctx), { primaryContactId: args.contactId, shootTypeId: args.shootTypeId, subject: args.subject, leadId: args.leadId, notes: args.notes, events });
     return { shootId: r.shoot.id, folder: r.shoot.folder?.path ?? null, folderError: r.folderError };
+  },
+});
+
+// ---- shoot tasks ----
+
+defineTool({
+  name: "tasks_list",
+  title: "List to-dos",
+  description: "Open to-dos across shoots, soonest due first. Use dueBy (YYYY-MM-DD) to see what is due by a day, or shootId for one shoot. Task names are written by the studio.",
+  area: "shoots",
+  tier: "read",
+  input: { dueBy: z.string().optional(), shootId: z.string().optional(), done: z.boolean().optional(), limit: z.number().int().min(1).max(100).optional() },
+  handler: (ctx, args) => ({
+    tasks: listTasks(svc(ctx), { status: args.done ? "done" : "open", dueBy: args.dueBy, shootId: args.shootId, limit: args.limit ?? 50 }).map((t) => ({ id: t.id, title: plain(t.title), dueDate: t.dueDate, overdue: t.overdue, shoot: { id: t.shoot.id, subject: plain(t.shoot.subject), type: t.shoot.type } })),
+  }),
+});
+
+defineTool({
+  name: "tasks_add",
+  title: "Add a to-do to a shoot",
+  description: "Adds a to-do to a shoot, optionally with a due date (YYYY-MM-DD). Only the studio sees it.",
+  area: "shoots",
+  tier: "draft",
+  input: { shootId: id("The shoot's id."), title: z.string().min(1).max(200), dueDate: z.string().optional() },
+  handler: (ctx, args) => {
+    const t = addTask(svc(ctx), args.shootId, { title: args.title, dueDate: args.dueDate });
+    return { taskId: t.id, dueDate: t.dueDate };
+  },
+});
+
+defineTool({
+  name: "tasks_complete",
+  title: "Tick off a to-do",
+  description: "Marks a to-do done, or open again with done: false.",
+  area: "shoots",
+  tier: "draft",
+  input: { taskId: id("The task's id from tasks_list."), done: z.boolean().optional() },
+  handler: (ctx, args) => {
+    const t = updateTask(svc(ctx), args.taskId, { done: args.done ?? true });
+    return { taskId: t.id, done: t.done };
   },
 });

@@ -40,6 +40,7 @@ import { QuestionnairesSettingsPage } from "./pages/settings/Questionnaires.js";
 import { QuestionnairePage } from "./pages/public/Questionnaire.js";
 import { ImportSettingsPage } from "./pages/settings/Import.js";
 import { PricesSettingsPage } from "./pages/settings/Prices.js";
+import { ExtensionPageView } from "./pages/extensions/ExtensionPage.js";
 import { ExtensionsSettingsPage } from "./pages/settings/Extensions.js";
 import { PaymentsSettingsPage } from "./pages/settings/Payments.js";
 import { OrderViewPage } from "./pages/public/Order.js";
@@ -112,6 +113,7 @@ export function App() {
                   <Route path="incoming" element={<IncomingPage />} />
                   <Route path="tether" element={<TetherSetupPage />} />
                   <Route path="approvals" element={<ApprovalsPage />} />
+                  <Route path="x/:extension/:slug" element={<ExtensionPageView />} />
                   <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<Navigate to="studio" replace />} />
                     <Route path="studio" element={<StudioSettingsPage />} />

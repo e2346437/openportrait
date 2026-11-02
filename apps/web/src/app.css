@@ -672,3 +672,29 @@ button.agenda-row:hover { background: var(--surface-2); }
 .task-add { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s4); }
 .task-add > :first-child { flex: 1 1 220px; }
 .task-add input[type="date"] { width: auto; }
+
+/* Pages added by extensions */
+.ext-toolbar { margin-bottom: var(--s4); }
+.ext-toolbar .grow { flex: 1; }
+.ext-filter { display: inline-flex; align-items: center; gap: var(--s2); font-size: 14px; color: var(--ink-2); }
+.ext-filter .input { width: auto; min-width: 110px; }
+.ext-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--s3); margin-bottom: var(--s4); }
+.ext-tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s5); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ext-tile span { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); font-weight: 600; }
+.ext-tile b { font-size: 24px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.ext-table-wrap { overflow: hidden; padding: 0; }
+.ext-table tr.clickable { cursor: pointer; }
+.ext-table tbody tr.clickable:hover { background: var(--surface-2); }
+.ext-link { background: none; border: 0; padding: 0; font-weight: 600; text-align: left; cursor: pointer; color: inherit; }
+.ext-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+@media (max-width: 720px) {
+  .ext-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .ext-table, .ext-table tbody, .ext-table tr, .ext-table td { display: block; width: 100%; }
+  .ext-table tr { padding: 12px var(--s4); border-bottom: 1px solid var(--line); }
+  .ext-table tr:last-child { border-bottom: 0; }
+  .ext-table td, .panel .ext-table td:first-child, .panel .ext-table td:last-child { padding: 3px 0; border: 0; display: flex; justify-content: space-between; gap: var(--s4); text-align: right; }
+  .ext-table td:first-child { font-size: 16px; text-align: left; }
+  .ext-table td:not(:first-child)::before { content: attr(data-label); color: var(--ink-3); font-size: 13px; text-align: left; }
+  .ext-table td small { display: none; }
+  .ext-table td .num { text-align: right; }
+}

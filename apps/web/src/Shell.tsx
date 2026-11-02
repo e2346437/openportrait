@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { Button, Icon, Mark, type IconName } from "@openportrait/ui";
 import { useApprovalSummary } from "./lib/useApprovals.js";
 import { useSession } from "./lib/session.js";
+import { useExtensionPages } from "./lib/extensionPages.js";
 
 interface NavItem {
   to: string;
@@ -38,6 +39,9 @@ const groups: Array<{ label?: string; items: NavItem[] }> = [
   { label: "Studio", items: [{ to: "/studio/settings", label: "Settings", icon: "gear" }] },
 ];
 
+/** Icons an extension page may ask for. Anything else gets a generic one. */
+const NAV_ICONS: Record<string, true> = Object.fromEntries(["receipt", "pin", "note", "tag", "calendar", "camera", "folder", "image", "users", "clock", "globe", "building", "key", "sparkle", "heart", "send", "mail", "phone", "grid", "gear", "home", "inbox", "lan", "cloud", "shield", "lead", "palette", "crosshair"].map((n) => [n, true]));
+
 const approvalsItem: NavItem = { to: "/studio/approvals", label: "Approvals", icon: "shield" };
 
 function initials(name: string): string {
@@ -61,7 +65,14 @@ export function Shell() {
 
   const approvals = useApprovalSummary(me?.user?.role === "owner");
   const showApprovals = approvals.enabled || approvals.pending > 0;
-  const navGroups = groups.map((g) => (g.label === "Studio" && showApprovals ? { ...g, items: [approvalsItem, ...g.items] } : g));
+  const { pages: extPages } = useExtensionPages();
+  const extGroups = [...new Set(extPages.map((p) => p.page.group ?? "More"))].map((label) => ({
+    label,
+    items: extPages.filter((p) => (p.page.group ?? "More") === label).map((p): NavItem => ({ to: `/studio/x/${p.extension}/${p.page.slug}`, label: p.page.title, icon: (p.page.icon && p.page.icon in NAV_ICONS ? p.page.icon : "grid") as IconName })),
+  }));
+  const base = groups.map((g) => (g.label === "Studio" && showApprovals ? { ...g, items: [approvalsItem, ...g.items] } : g));
+  // Extension pages sit just above the Studio group (Settings).
+  const navGroups = [...base.slice(0, -1), ...extGroups, ...base.slice(-1)];
 
   const studioName = me?.studio.name || "Your studio";
   const user = me?.user;

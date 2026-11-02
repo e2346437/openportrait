@@ -7,7 +7,7 @@ fix comes with its regression test already in the repository, so the work is: ma
 and update `findings.json`.
 
 > Update: SEC-004, 006, 007, 010, 011, 015 (tag length) and 017 are also fixed and tested. SEC-009 (CSP) and SEC-012
-> (visitor email proof, when email is set up) are fixed on follow-up branches. Still open: SEC-016 (MFA).
+> (visitor email proof, when email is set up) are fixed on follow-up branches. SEC-016 (MFA): authenticator-app sign-in is built; passkeys and an idle timeout remain.
 
 ## Before a public launch (blocks release)
 
@@ -29,7 +29,7 @@ and update `findings.json`.
 | 9 | SEC-007 ✅ | Never overwrite in camera folders; byte cap per camera; free-space floor | No |
 | 10 | SEC-009 | CSP in report-only, then enforce; HSTS when HTTPS | **Yes** (UI risk) |
 | 11 ✅ | SEC-012 | Email confirmation for favorites; apply the password gate to identify/list routes | **Yes** (gallery flow) |
-| 12 | SEC-016 | TOTP/passkey for the owner; idle timeout | **Yes** (auth feature) |
+| 12 | SEC-016 (TOTP done) | Passkey for the owner; idle timeout | **Yes** (auth feature) |
 
 ## Hygiene (no approval needed)
 

@@ -254,7 +254,10 @@
       "status": "open",
       "confirmed": true,
       "cvss4": "n/a (missing control)",
-      "tests": [],
+      "tests": [
+        "apps/server/test/mfa.test.ts"
+      ],
+      "note": "Authenticator-app (TOTP) sign-in with recovery codes is implemented and tested. Still open: passkeys and an idle timeout.",
       "needsApproval": "authentication feature",
       "deployments": [
         "all deployments"

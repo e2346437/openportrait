@@ -35,7 +35,7 @@ export async function oauthRoutes(app: FastifyInstance) {
   const ctx = app.ctx;
   const { db, settings } = ctx;
 
-  const base = (req: FastifyRequest) => ctx.publicUrl() || `${(req.headers["x-forwarded-proto"] as string) ?? "http"}://${req.headers.host}`;
+  const base = (req: FastifyRequest) => ctx.baseUrl();
   const enabled = (reply: FastifyReply) => (settings.get("ai.enabled") ? true : (void reply.code(404).send({ error: "not_found" }), false));
 
   // Form-encoded bodies, which the token endpoint receives.
@@ -92,7 +92,7 @@ export async function oauthRoutes(app: FastifyInstance) {
     if ((db.select({ n: sql<number>`count(*)` }).from(tables.oauthClient).get()?.n ?? 0) >= MAX_CLIENTS) return oauthError(reply, "temporarily_unavailable", "Too many registered apps. Try again later.", 503);
     const client = db
       .insert(tables.oauthClient)
-      .values({ id: `opc_${rnd(16)}`, name: body.data.client_name || "AI assistant", redirectUris: body.data.redirect_uris })
+      .values({ id: `opc_${rnd(16)}`, name: (body.data.client_name ?? "").replace(/[\u0000-\u001f<>]/g, " ").trim().slice(0, 60) || "AI assistant", redirectUris: body.data.redirect_uris })
       .returning()
       .get();
     return reply.code(201).header("Cache-Control", "no-store").send({

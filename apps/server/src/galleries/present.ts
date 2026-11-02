@@ -8,9 +8,21 @@ type Gallery = typeof tables.gallery.$inferSelect;
 type GallerySet = typeof tables.gallerySet.$inferSelect;
 type Photo = typeof tables.photo.$inferSelect;
 
-/** Signed, versioned media URL. The version changes on every re-export, so responses can be cached forever. */
-export function mediaUrl(secrets: Secrets, p: Pick<Photo, "id" | "version">, variant: Variant | string): string {
-  return `/media/${p.id}/${p.version}/${variant}?s=${secrets.sign("media", `${p.id}:${p.version}:${variant}`)}`;
+/**
+ * Signed, versioned media URL that expires (SEC-004). The expiry is rounded to a fixed window, so the same photo gets
+ * the same URL for hours and browsers can cache it; after it lapses the page fetches fresh URLs, which stop being
+ * issued once the gallery is unpublished or expired. A URL is therefore good for 6 to 12 hours at most.
+ */
+export const MEDIA_WINDOW_SECONDS = 6 * 3600;
+export function mediaExpiry(now = Date.now()): number {
+  return (Math.floor(now / 1000 / MEDIA_WINDOW_SECONDS) + 2) * MEDIA_WINDOW_SECONDS;
+}
+export function mediaSignature(secrets: Secrets, photoId: string, version: number | string, variant: string, expires: number | string): string {
+  return secrets.sign("media", `${photoId}:${version}:${variant}:${expires}`);
+}
+export function mediaUrl(secrets: Secrets, p: Pick<Photo, "id" | "version">, variant: Variant | string, now = Date.now()): string {
+  const e = mediaExpiry(now);
+  return `/media/${p.id}/${p.version}/${variant}?e=${e}&s=${mediaSignature(secrets, p.id, p.version, variant, e)}`;
 }
 
 export function designOf(g: Pick<Gallery, "design">): GalleryDesign {

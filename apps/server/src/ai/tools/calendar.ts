@@ -3,7 +3,7 @@ import * as calendar from "../../domain/calendar.js";
 import * as catalog from "../../domain/catalog.js";
 import * as sched from "../../domain/scheduler.js";
 import { defineTool } from "../registry.js";
-import { svc, untrusted } from "./util.js";
+import { plain, svc, untrusted } from "./util.js";
 
 // Calendar, booking pages and booking requests. Contacts, leads and shoots live in crm.ts.
 
@@ -54,7 +54,7 @@ defineTool({
   area: "calendar",
   tier: "read",
   input: { status: z.enum(["pending", "confirmed", "declined", "cancelled"]).optional() },
-  handler: (ctx, a) => sched.listBookings(svc(ctx), { status: a.status, upcomingOnly: !a.status }).map((b) => ({ ...b, message: untrusted(b.message), email: b.email, phone: b.phone })),
+  handler: (ctx, a) => sched.listBookings(svc(ctx), { status: a.status, upcomingOnly: !a.status }).map((b) => ({ ...b, name: plain((b as { name?: string }).name), message: untrusted(b.message), email: plain(b.email), phone: plain(b.phone) })),
 });
 
 defineTool({

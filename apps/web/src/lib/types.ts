@@ -43,6 +43,8 @@ export interface ContactDetail extends ContactFields {
   leads: Array<{ id: string; createdAt: Ts; stage: string; stageKind: "open" | "won" | "lost"; shootType: string | null; eventDate: string | null; convertedShootId: string | null }>;
   shoots: Array<{ id: string; subject: string; status: ShootStatus; shootType: string; startsAt: Ts | null }>;
   timeline: TimelineItem[];
+  /** The household this contact is in, with the other members. Null when they aren't in one. */
+  household: { id: string; name: string; members: Array<{ id: string; name: string; email: string | null; phone: string | null }> } | null;
 }
 
 export interface ShootType {

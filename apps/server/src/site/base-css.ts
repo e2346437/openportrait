@@ -18,7 +18,7 @@ p{margin:0 0 1em}
 .site-header{position:relative;z-index:10}
 .site-header .wrap{display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:22px;padding-bottom:22px;flex-wrap:wrap}
 .brand{font-family:var(--font-h);font-size:1.55rem;color:var(--text);text-decoration:none;letter-spacing:var(--h-tracking,-.01em);line-height:1}
-.brand img{height:44px;width:auto}
+.brand img{height:44px;width:auto;max-width:min(220px,50vw);object-fit:contain}
 .menu{display:flex;gap:clamp(14px,2.4vw,32px);flex-wrap:wrap}
 .menu a{color:var(--text);text-decoration:none;font-size:.95rem;padding:6px 0;border-bottom:2px solid transparent}
 .menu a:hover,.menu a[aria-current=page]{border-bottom-color:var(--accent)}

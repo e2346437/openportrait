@@ -490,6 +490,7 @@ describe("gallery emails", () => {
 
   it("emails the link, lists what was sent, and tells the studio when favorites arrive", async () => {
     const sent: Array<{ to: unknown; subject: string; text: string }> = [];
+    let verified!: Awaited<ReturnType<typeof app.inject>>;
     setTransportFactory(() => ({ sendMail: async (m: { to: unknown; subject: string; text: string }) => (sent.push({ to: m.to, subject: m.subject, text: m.text }), {} as never) }));
     try {
       await jpeg(path.join(share, "Vega/Gallery/a.jpg"), red);
@@ -514,22 +515,62 @@ describe("gallery emails", () => {
 
       // A registered visitor becomes a suggested recipient.
       await studio("PATCH", `/galleries/${id}`, { registration: "email_name" });
-      await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "Lee@Example.com", name: "Lee Park" } });
+      // With email set up, the address is proven by a code first (SEC-012).
+      const asked = await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "Lee@Example.com", name: "Lee Park" } });
+      expect(asked.statusCode).toBe(202);
+      expect(asked.json()).toMatchObject({ verify: true });
+      await app.ctx.jobs.drain();
+      const code = /is (\d{6})\./.exec(sent.at(-1)!.text)?.[1];
+      expect(code).toBeTruthy();
+      expect((await app.inject({ method: "POST", url: `/api/g/${slug}/verify`, payload: { email: "Lee@Example.com", name: "Lee Park", code: code === "000000" ? "111111" : "000000" } })).statusCode).toBe(401);
+      const ok = await app.inject({ method: "POST", url: `/api/g/${slug}/verify`, payload: { email: "Lee@Example.com", name: "Lee Park", code } });
+      expect(ok.statusCode).toBe(200);
+      expect(ok.cookies.some((c) => c.name === "op_client")).toBe(true);
+      verified = ok;
       const panel = (await studio("GET", `/galleries/${id}/email`)).json();
       expect(panel.recipients).toEqual([{ name: "Lee Park", email: "lee@example.com", contactId: null }]);
-      expect(panel.sent).toMatchObject([{ to: "kim@example.com", kind: "gallery.share", status: "sent" }]);
+      expect(panel.sent.filter((m: { kind: string }) => m.kind === "gallery.share")).toMatchObject([{ to: "kim@example.com", kind: "gallery.share", status: "sent" }]);
 
       // Sending favorites notifies the studio.
       const detail = (await studio("GET", `/galleries/${id}`)).json();
       const listId = detail.lists[0].id;
-      const who = await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "Lee@Example.com", name: "Lee Park" } });
-      const cookie = `op_client=${who.cookies.find((c) => c.name === "op_client")!.value}`;
+      const cookie = `op_client=${verified.cookies.find((c) => c.name === "op_client")!.value}`;
       await app.inject({ method: "PUT", url: `/api/g/${slug}/lists/${listId}/photos/${detail.photos[0].id}`, headers: { cookie }, payload: {} });
       await app.inject({ method: "POST", url: `/api/g/${slug}/lists/${listId}/submit`, headers: { cookie } });
       await app.ctx.jobs.drain();
       const note = sent.find((m) => m.to === "owner@example.com");
       expect(note?.subject).toMatch(/sent favorites/);
       expect(note?.text).toContain(`/studio/galleries/${id}?tab=favorites`);
+    } finally {
+      setTransportFactory(null);
+    }
+  });
+});
+
+describe("visitor email proof (SEC-012)", () => {
+  it("won't let a visitor act as an address they can't read, and locks out guessing", async () => {
+    const smtp = { host: "smtp.example.com", port: 587, security: "starttls", user: "u", password: "pw-secret", fromName: "Test Studio", fromAddress: "hello@example.com" };
+    const sent: Array<{ text: string }> = [];
+    setTransportFactory(() => ({ sendMail: async (m: { text: string }) => (sent.push({ text: m.text }), {} as never) }));
+    try {
+      await jpeg(path.join(share, "Ortiz/Gallery/a.jpg"), red);
+      const { id, slug } = await galleryFromShare();
+      await studio("PUT", "/email", smtp);
+      await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
+      const identify = () => app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email: "victim@example.com" } });
+      const verify = (code: string) => app.inject({ method: "POST", url: `/api/g/${slug}/verify`, payload: { email: "victim@example.com", code } });
+
+      const asked = await identify();
+      expect(asked.statusCode).toBe(202);
+      expect(asked.cookies.some((c) => c.name === "op_client")).toBe(false);
+      // No cookie means no favorites: the visitor is still anonymous.
+      expect((await app.inject({ method: "GET", url: `/api/g/${slug}` })).json().me.email).toBeNull();
+      await app.ctx.jobs.drain();
+      const code = /is (\d{6})\./.exec(sent.at(-1)!.text)![1]!;
+      const bad = code === "123456" ? "654321" : "123456";
+      for (let i = 0; i < 5; i++) expect((await verify(bad)).statusCode).toBe(401);
+      // After five wrong tries even the right code is refused for a while.
+      expect((await verify(code)).statusCode).toBe(429);
     } finally {
       setTransportFactory(null);
     }

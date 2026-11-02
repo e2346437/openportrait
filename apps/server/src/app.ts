@@ -82,6 +82,26 @@ declare module "fastify" {
   }
 }
 
+/**
+ * Content-Security-Policy for the whole app (SEC-009). The pages load only their own scripts, styles, fonts and
+ * images; inline styles are allowed because the UI sets some. PayPal checkout is a redirect, so no PayPal script
+ * runs here. Nothing may frame the app except itself, and forms can only post back to it.
+ */
+export const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "media-src 'self' blob:",
+  "connect-src 'self'",
+  "frame-src 'self'",
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join("; ");
+
 export interface BuildOptions {
   config: AppConfig;
   /** Tests pass false to skip timers and child processes. */
@@ -172,7 +192,12 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     req.user = token ? lookupSession(db, token) : null;
   });
 
-  app.addHook("onSend", async (_req, reply, payload) => {
+  app.addHook("onSend", async (req, reply, payload) => {
+    reply.header("Content-Security-Policy", CSP);
+    reply.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+    // HSTS only over HTTPS (a plain-HTTP response can't set it) and never for subdomains: the studio often shares its
+    // parent domain with other sites.
+    if (req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" || typeof req.headers["cf-ray"] === "string") reply.header("Strict-Transport-Security", "max-age=15552000");
     reply.header("X-Content-Type-Options", "nosniff");
     reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
     reply.header("X-Frame-Options", "SAMEORIGIN");

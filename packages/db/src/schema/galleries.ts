@@ -108,6 +108,8 @@ export const photo = sqliteTable(
     state: text({ enum: ["pending", "ready", "missing", "unsupported", "error"] }).notNull().default("pending"),
     error: text(),
     missingSince: integer({ mode: "timestamp_ms" }),
+    /** Set when an extension has moved the original out of the gallery folder. Previews stay local. */
+    remoteKey: text(),
     /** Bumped whenever derivatives must be rebuilt; part of media URLs so caches never go stale. */
     version: integer().notNull().default(1),
     sort: integer().notNull().default(0),

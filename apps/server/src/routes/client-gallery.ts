@@ -5,7 +5,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
 import { derivativePath, renderVariant, renderWatermarked, VARIANTS, watermarkedPath } from "../galleries/derivatives.js";
-import { newId, resolveInside } from "../galleries/files.js";
+import { newId } from "../galleries/files.js";
 import { designOf, downloadState, isWatermarked, loadSetsAndPhotos, photoJson, previewUrl, watermarkText } from "../galleries/present.js";
 import { watermarkHash } from "../galleries/derivatives.js";
 import { verifyPassword } from "../auth.js";
@@ -14,6 +14,7 @@ import { email, parse } from "../validate.js";
 import { notifyFavorites } from "../galleries/mail.js";
 import { composeEmail, emailConfigured, queueEmail } from "../domain/email.js";
 import crypto from "node:crypto";
+import type { Readable } from "node:stream";
 
 const { gallery, gallerySet, photo, favoriteList, favoriteSelection, favoriteItem, galleryView, galleryVisitor, downloadEvent } = tables;
 
@@ -375,7 +376,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     const chosen = parts[part - 1]!;
     db.insert(downloadEvent).values({ galleryId: g.id, photoId: null, scope: scope.kind === "gallery" ? "gallery" : scope.kind, variant: g.downloadSize === "web" ? "web" : "full", clientEmail: who, ip: app.ctx.ip(req) }).run();
     const name = zipFilename(label, part, parts.length);
-    const archive = streamZip({ galleriesDir: app.ctx.config.galleriesDir, cacheDir: app.ctx.config.cacheDir, gallery: g, entries: chosen, onError: (err) => app.log.warn({ err: String(err) }, "zip entry failed") });
+    const archive = streamZip({ originals: app.ctx.originals, cacheDir: app.ctx.config.cacheDir, gallery: g, entries: chosen, onError: (err) => app.log.warn({ err: String(err) }, "zip entry failed") });
     req.raw.on("close", () => {
       if (!reply.raw.writableEnded) archive.abort();
     });
@@ -400,22 +401,39 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     if (!state.allowed) {
       return reply.code(403).send({ error: state.reason, message: state.reason === "off" ? "Downloads are turned off for this gallery." : "Downloads open once the gallery is paid for." });
     }
-    let file: string;
+    let body: Readable;
+    let size: number;
+    let type: string;
     let name = p.filename;
-    if (g.downloadSize === "web") {
-      file = derivativePath(app.ctx.config.cacheDir, g.id, p.id, p.version, "web");
-      if (!fs.existsSync(file)) await renderVariant(path.join(app.ctx.config.galleriesDir, p.relPath), file, "web");
-      name = name.replace(/\.[^.]+$/, "") + ".jpg";
-    } else {
-      file = resolveInside(app.ctx.config.galleriesDir, p.relPath);
+    try {
+      if (g.downloadSize === "web") {
+        const file = derivativePath(app.ctx.config.cacheDir, g.id, p.id, p.version, "web");
+        if (!fs.existsSync(file)) {
+          const src = await app.ctx.originals.materialize(p);
+          try {
+            await renderVariant(src.file, file, "web");
+          } finally {
+            src.cleanup();
+          }
+        }
+        name = name.replace(/\.[^.]+$/, "") + ".jpg";
+        body = fs.createReadStream(file);
+        size = fs.statSync(file).size;
+        type = contentType(file);
+      } else {
+        ({ stream: body, size } = await app.ctx.originals.open(p));
+        type = contentType(p.relPath);
+      }
+    } catch (err) {
+      app.log.warn({ err: String(err), photo: p.id }, "original unavailable");
+      return reply.code(503).send({ error: "unavailable", message: "That photo can't be downloaded right now. Please try again in a little while." });
     }
     db.insert(downloadEvent).values({ galleryId: g.id, photoId: p.id, scope: "photo", variant: g.downloadSize === "web" ? "web" : "full", clientEmail: who, ip: app.ctx.ip(req) }).run();
-    const stat = fs.statSync(file);
-    reply.header("Content-Type", contentType(file));
-    reply.header("Content-Length", stat.size);
+    reply.header("Content-Type", type);
+    reply.header("Content-Length", size);
     reply.header("Content-Disposition", `attachment; filename="${name.replace(/["\\\r\n]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(name)}`);
     reply.header("Cache-Control", "private, no-store");
-    return reply.send(fs.createReadStream(file));
+    return reply.send(body);
   });
 }
 
@@ -444,7 +462,12 @@ export async function mediaRoutes(app: FastifyInstance) {
     try {
       if (!fs.existsSync(file)) {
         // The cache was cleared (it is safe to delete): rebuild this one on demand.
-        await renderVariant(path.join(config.galleriesDir, p.relPath), file, base);
+        const src = await app.ctx.originals.materialize(p);
+        try {
+          await renderVariant(src.file, file, base);
+        } finally {
+          src.cleanup();
+        }
       }
       if (marked) {
         const text = watermarkText(settings);

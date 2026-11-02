@@ -6,7 +6,7 @@ import { z } from "zod";
 import { tables } from "@openportrait/db";
 import { hashPassword, requireOwner, requireUser } from "../auth.js";
 import { fillCovers } from "../galleries/derivatives.js";
-import { newId, resolveInside, titleFromFolder } from "../galleries/files.js";
+import { newId, titleFromFolder } from "../galleries/files.js";
 import { designOf, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
 import { parse } from "../validate.js";
 import { emailPanel, sendGalleryEmail } from "../galleries/mail.js";
@@ -316,7 +316,7 @@ export async function galleryRoutes(app: FastifyInstance) {
     const p = db.select().from(photo).where(and(eq(photo.id, req.params.photoId), eq(photo.galleryId, req.params.id))).get();
     if (!p) return reply.code(404).send({ error: "not_found", message: "That photo is already gone." });
     try {
-      fs.rmSync(resolveInside(app.ctx.config.galleriesDir, p.relPath), { force: true });
+      await app.ctx.originals.remove(p);
     } catch (err) {
       return reply.code(500).send({ error: "failed", message: `Couldn't delete the file: ${(err as Error).message}` });
     }

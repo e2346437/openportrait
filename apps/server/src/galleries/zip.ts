@@ -4,7 +4,7 @@ import { ZipArchive } from "archiver";
 import { tables, type Db } from "@openportrait/db";
 import { derivativePath, renderVariant } from "./derivatives.js";
 import { downloadState, loadSetsAndPhotos } from "./present.js";
-import { resolveInside } from "./files.js";
+import type { Originals } from "./originals.js";
 import { LOOSE_SET_NAME } from "./ingest.js";
 
 const { favoriteSelection, favoriteItem, favoriteList } = tables;
@@ -82,7 +82,7 @@ export function splitParts(entries: Entry[], max = MAX_PART_BYTES): Entry[][] {
 }
 
 /** Streams one part as a zip. JPEGs don't shrink, so files are stored as they are, which keeps it fast and light on the server. */
-export function streamZip(opts: { galleriesDir: string; cacheDir: string; gallery: Gallery; entries: Entry[]; onError: (err: Error) => void }) {
+export function streamZip(opts: { originals: Originals; cacheDir: string; gallery: Gallery; entries: Entry[]; onError: (err: Error) => void }) {
   const archive = new ZipArchive({ store: true, forceZip64: true });
   archive.on("error", opts.onError);
   archive.on("warning", (w: { code?: string } & Error) => w.code !== "ENOENT" && opts.onError(w));
@@ -90,15 +90,24 @@ export function streamZip(opts: { galleriesDir: string; cacheDir: string; galler
     for (const e of opts.entries) {
       if (archive.destroyed) return;
       try {
-        const source = resolveInside(opts.galleriesDir, e.photo.relPath);
-        let file = source;
+        const date = new Date(e.photo.mtimeMs);
         if (opts.gallery.downloadSize === "web") {
-          file = derivativePath(opts.cacheDir, opts.gallery.id, e.photo.id, e.photo.version, "web");
-          if (!fs.existsSync(file)) await renderVariant(source, file, "web");
+          const file = derivativePath(opts.cacheDir, opts.gallery.id, e.photo.id, e.photo.version, "web");
+          if (!fs.existsSync(file)) {
+            const src = await opts.originals.materialize(e.photo);
+            try {
+              await renderVariant(src.file, file, "web");
+            } finally {
+              src.cleanup();
+            }
+          }
+          archive.file(file, { name: e.name, date });
+        } else {
+          const { stream } = await opts.originals.open(e.photo);
+          archive.append(stream, { name: e.name, date });
         }
-        if (!fs.existsSync(file)) continue; // moved away since the last scan
-        archive.file(file, { name: e.name, date: new Date(e.photo.mtimeMs) });
       } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") continue; // moved away since the last scan
         opts.onError(err as Error);
       }
     }

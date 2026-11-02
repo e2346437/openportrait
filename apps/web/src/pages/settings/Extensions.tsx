@@ -43,6 +43,11 @@ function Card({ id, card }: { id: string; card: SettingsCard }) {
     try {
       const body = Object.fromEntries((action.fields ?? []).map((f) => [f.name, values[f.name] ?? ""]));
       const r = await api<Record<string, unknown>>(`${base}${action.route}`, { method: "POST", body });
+      // An action may answer with `openUrl` to send the owner to another page, such as a sign-in at a connected service.
+      if (typeof r.openUrl === "string" && /^https:\/\/|^\//.test(r.openUrl)) {
+        window.location.assign(r.openUrl);
+        return;
+      }
       setData((prev) => ({ ...(prev ?? {}), ...r }));
       setValues({});
       toast(`${action.label}: done`);

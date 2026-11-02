@@ -33,3 +33,7 @@ A page is a description, not UI code. Its `slug` must be lowercase letters, digi
 Capability groups let an extension supply tools that stay hidden until it grants them. Use `lockCapability` to mark a group as provided by an extension, and `grantCapability` or `revokeCapability` to switch it on or off as a whole.
 
 For the full design, see the Extensions section of [the product spec](SPEC.md#extensions).
+
+## Sending email through an outside mailbox
+
+An extension can call `api.mailSender({ label, ready, send })` to offer a mailbox, for example a hosted account that signs in with OAuth instead of a password. While `ready()` is true, all of the studio's email goes through `send`, and Settings > Email says so. When it is not ready, the SMTP settings are used as before.

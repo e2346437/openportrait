@@ -537,3 +537,11 @@ button.agenda-row:hover { background: var(--surface-2); }
 .foot-row { border-top: 1px solid var(--line); }
 @media (max-width: 640px) { .catalog-list li { grid-template-columns: minmax(0, 1fr) auto; padding-inline: var(--s4); } .cat-actions { grid-column: 1 / -1; } }
 .panel-head .input.sm { max-width: 280px; }
+
+/* Online payment on the client invoice page */
+.pay-box .form-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; }
+@media (max-width: 560px) {
+  .pay-box .form-actions { flex-direction: column; align-items: stretch; }
+  .pay-box .form-actions .btn { width: 100%; justify-content: center; }
+}
+.plain-steps code { overflow-wrap: anywhere; word-break: break-all; font-size: 0.9em; }

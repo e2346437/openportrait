@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireOwner, requireUser } from "../auth.js";
 import * as orders from "../domain/orders.js";
 import * as products from "../domain/products.js";
+import { testPayPal } from "../payments/paypal.js";
+import { DomainError } from "../domain/context.js";
 import { parse } from "../validate.js";
 import { serviceContext } from "./crm.js";
 
@@ -41,6 +43,40 @@ export async function orderRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireUser);
   const ctx = (req: Parameters<typeof serviceContext>[1]) => serviceContext(app, req);
   const id = (req: { params: unknown }) => (req.params as { id: string }).id;
+
+  // ---- online payments (PayPal) ----
+  const paypalView = () => {
+    const s = app.ctx.settings;
+    const publicUrl = (app.ctx.publicUrl?.() ?? "").replace(/\/+$/, "");
+    return {
+      clientId: s.get("paypal.clientId") ?? "",
+      hasSecret: !!s.get("paypal.clientSecret"),
+      mode: s.get("paypal.mode") === "live" ? "live" : "sandbox",
+      webhookId: s.get("paypal.webhookId") ?? "",
+      webhookUrl: publicUrl.startsWith("http") ? `${publicUrl}/api/public/paypal/webhook` : "",
+      hasPublicUrl: publicUrl.startsWith("http"),
+      configured: !!(s.get("paypal.clientId") && s.get("paypal.clientSecret")),
+    };
+  };
+  app.get("/payments/paypal", { preHandler: requireOwner }, async () => paypalView());
+  app.put("/payments/paypal", { preHandler: requireOwner }, async (req, reply) => {
+    const b = parse(z.object({ clientId: z.string().trim().max(200), clientSecret: z.string().trim().max(400).optional(), mode: z.enum(["sandbox", "live"]), webhookId: z.string().trim().max(100) }), req.body, reply);
+    if (!b) return;
+    const s = app.ctx.settings;
+    s.set("paypal.clientId", b.clientId);
+    if (b.clientSecret) s.set("paypal.clientSecret", b.clientSecret); // blank keeps the saved secret
+    s.set("paypal.mode", b.mode);
+    s.set("paypal.webhookId", b.webhookId);
+    return paypalView();
+  });
+  app.post("/payments/paypal/test", { preHandler: requireOwner }, async () => {
+    try {
+      await testPayPal({ settings: app.ctx.settings });
+      return { ok: true };
+    } catch (err) {
+      throw new DomainError("payment_failed", err instanceof Error ? err.message : "PayPal didn't accept those details.", 400);
+    }
+  });
 
   // ---- settings ----
   const view = () => ({

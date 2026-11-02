@@ -24,7 +24,18 @@ Open an invoice and choose **Record a payment** for cash, check, Venmo, Zelle, c
 
 Refunds (owner only) are recorded as negative payments, up to what has been paid. An invoice with money on it can't be voided until the money is refunded.
 
-Online card and PayPal payments, client credit and coupon codes come next and plug into the same invoices.
+## Paying online with PayPal
+
+Connect PayPal in **Settings > Payments** (owner only). The page walks through creating a PayPal app, pasting the client ID and secret, and adding a webhook. Start in Testing (sandbox) with a sandbox buyer account; switch to Live when you are happy. The money goes straight to your own PayPal account. OpenPortrait never holds it and never sees card numbers.
+
+Once connected, and once your public address is set, an unpaid invoice shows **Pay online** with two buttons: the next payment on the schedule (for example the deposit), and the full balance. The client approves on PayPal's page and comes back to the invoice, which is then marked paid and a receipt is emailed.
+
+- **The webhook is a safety net.** If the client closes the tab after paying, PayPal tells OpenPortrait directly and the payment is still recorded. Every webhook is verified with PayPal before it is believed, and a payment is never recorded twice.
+- **Refunds** you make inside PayPal are recorded on the invoice automatically.
+- **Currencies without cents** (such as JPY) aren't supported for PayPal checkout yet. Record those payments by hand.
+- PayPal sits behind a payment provider interface, so other processors can be added later.
+
+Client credit and coupon codes come next and plug into the same invoices.
 
 ## For AI assistants
 

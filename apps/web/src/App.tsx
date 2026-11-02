@@ -40,6 +40,7 @@ import { QuestionnairesSettingsPage } from "./pages/settings/Questionnaires.js";
 import { QuestionnairePage } from "./pages/public/Questionnaire.js";
 import { ImportSettingsPage } from "./pages/settings/Import.js";
 import { PricesSettingsPage } from "./pages/settings/Prices.js";
+import { ReportsPage } from "./pages/reports/Reports.js";
 import { ExtensionPageView } from "./pages/extensions/ExtensionPage.js";
 import { ExtensionsSettingsPage } from "./pages/settings/Extensions.js";
 import { PaymentsSettingsPage } from "./pages/settings/Payments.js";
@@ -108,6 +109,7 @@ export function App() {
                   <Route path="orders" element={<OrdersPage />} />
                   <Route path="orders/new" element={<OrderPage />} />
                   <Route path="orders/:id" element={<OrderPage />} />
+                  <Route path="reports" element={<ReportsPage />} />
                   <Route path="galleries" element={<GalleriesListPage />} />
                   <Route path="galleries/:id" element={<GalleryDetailPage />} />
                   <Route path="incoming" element={<IncomingPage />} />

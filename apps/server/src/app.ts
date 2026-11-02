@@ -34,6 +34,7 @@ import { calendarRoutes } from "./routes/calendar.js";
 import { googleRoutes } from "./routes/google.js";
 import { bookingRoutes } from "./routes/booking.js";
 import { orderRoutes } from "./routes/orders.js";
+import { reportRoutes } from "./routes/reports.js";
 import { contractRoutes } from "./routes/contracts.js";
 import { householdRoutes } from "./routes/households.js";
 import { taskRoutes } from "./routes/tasks.js";
@@ -239,6 +240,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(googleRoutes, { prefix: "/api/studio/google" });
   await app.register(bookingRoutes, { prefix: "/api/studio" });
   await app.register(orderRoutes, { prefix: "/api/studio" });
+  await app.register(reportRoutes, { prefix: "/api/studio" });
   await app.register(contractRoutes, { prefix: "/api/studio" });
   await app.register(householdRoutes, { prefix: "/api/studio" });
   await app.register(taskRoutes, { prefix: "/api/studio" });

@@ -71,7 +71,13 @@ export function Shell() {
   }));
   const base = groups.map((g) => (g.label === "Studio" && showApprovals ? { ...g, items: [approvalsItem, ...g.items] } : g));
   // Extension pages sit just above the Studio group (Settings).
-  const navGroups = [...base.slice(0, -1), ...extGroups, ...base.slice(-1)];
+  const allGroups = [...base.slice(0, -1), ...extGroups, ...base.slice(-1)];
+  // A login limited to its own shoots only sees the Shoots page.
+  const scoped = !!me?.user?.scoped;
+  const navGroups = scoped ? [{ items: [{ to: "/studio/shoots", label: "My shoots", icon: "camera" as IconName }] }] : allGroups;
+  useEffect(() => {
+    if (scoped && location.pathname === "/studio") navigate("/studio/shoots", { replace: true });
+  }, [scoped, location.pathname, navigate]);
 
   const studioName = me?.studio.name || "Your studio";
   const user = me?.user;

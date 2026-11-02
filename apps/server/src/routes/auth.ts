@@ -45,7 +45,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   app.get("/me", async (req) => ({
-    user: req.user,
+    user: req.user ? { ...req.user, scoped: req.shootScope !== null } : null,
     studio: { name: settings.get("studio.name") ?? "", timezone: settings.get("studio.timezone") ?? "UTC" },
   }));
 

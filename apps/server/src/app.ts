@@ -20,6 +20,7 @@ import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
 import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
 import { mcpRoutes } from "./ai/mcp.js";
+import { enforceShootScope, shootScopeFor } from "./scope.js";
 import { loadExtensions, extensionRoutes } from "./extensions.js";
 import { oauthRoutes, oauthStudioRoutes } from "./ai/oauth.js";
 import { aiRoutes } from "./routes/ai.js";
@@ -190,7 +191,10 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   app.addHook("onRequest", async (req) => {
     const token = req.cookies[SESSION_COOKIE];
     req.user = token ? lookupSession(db, token) : null;
+    req.shootScope = shootScopeFor(req.user);
   });
+  app.decorateRequest("shootScope", null);
+  app.addHook("onRequest", enforceShootScope);
 
   app.addHook("onSend", async (req, reply, payload) => {
     reply.header("Content-Security-Policy", CSP);

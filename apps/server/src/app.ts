@@ -129,7 +129,8 @@ export async function buildApp({ config, startBackground = true, logger }: Build
   });
 
   await app.register(cookie);
-  await app.register(rateLimit, { global: false });
+  // Every rate limit keys on the verified client address, never on a header the caller can choose (SEC-001).
+  await app.register(rateLimit, { global: false, keyGenerator: (req) => ctx.ip(req) });
 
   app.decorateRequest("user", null);
   app.addHook("onRequest", async (req) => {

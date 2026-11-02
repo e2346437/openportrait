@@ -10,7 +10,7 @@
       "id": "SEC-001",
       "title": "Rate limits key on an address the caller controls (and share one bucket behind the tunnel)",
       "severity": "High",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N",
       "tests": [

@@ -3,11 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { tables } from "@openportrait/db";
 import { requireOwner } from "./auth.js";
 import { financialReport, resolveRange, type FinancialReport } from "./domain/reports.js";
 import { VERSION, type AppContext } from "./app.js";
-import { incomingSubfolderHooks, mailSenders } from "./extension-hooks.js";
+import { hashPassword, generateLoginPassword } from "./auth.js";
+import { incomingSubfolderHooks, mailSenders, shootScopeHooks } from "./extension-hooks.js";
 import { defineTool, grantCapability, lockCapability, revokeCapability } from "./ai/registry.js";
 import { registerSiteExtension, registerSiteTemplate, unregisterSiteExtension, unregisterSiteTemplate, type SiteExtension, type SiteTemplate } from "./site/registry.js";
 
@@ -144,6 +147,9 @@ export interface ExtensionPage {
   export?: { label: string; route: string };
 }
 
+/** Returns the ids of the shoots this user may see, or null when the user isn't limited. */
+export type ShootScopeHook = (user: { id: string; role: string }) => string[] | null;
+
 export interface ExtensionApi {
   /** The module's id: its file name without the extension. */
   id: string;
@@ -175,6 +181,13 @@ export interface ExtensionApi {
   mailSender(sender: MailSender): void;
   /** Adds a page to the sidebar (owner only). See ExtensionPage. */
   page(page: ExtensionPage): void;
+  /**
+   * Limits some signed-in users to a list of shoots. A limited user can only sign in, change their password, and open
+   * the shoots on their list (read-only); every other studio route answers 403. Return null for users you don't limit.
+   */
+  limitUsersToShoots(fn: ShootScopeHook): void;
+  /** Creates a "staff" sign-in with a generated password, shown once to the owner. Rejects an email already in use. */
+  createStaffLogin(input: { email: string; name: string }): Promise<{ id: string; password: string }>;
   /** Runs when the app shuts down. */
   onClose(fn: () => void | Promise<void>): void;
   /** Adds to the website builder: more templates, fields in its "More" tab, pages, CSS, and files. Can be undone when no longer allowed. */
@@ -266,6 +279,20 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         incomingSubfolder: (fn) => {
           incomingSubfolderHooks.push(fn);
           app.addHook("onClose", async () => void incomingSubfolderHooks.splice(incomingSubfolderHooks.indexOf(fn), 1));
+        },
+        limitUsersToShoots: (fn) => {
+          shootScopeHooks.push(fn);
+          app.addHook("onClose", async () => void shootScopeHooks.splice(shootScopeHooks.indexOf(fn), 1));
+        },
+        createStaffLogin: async ({ email, name }) => {
+          const mail = email.trim().toLowerCase();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) throw new Error("Enter a valid email address.");
+          if (ctx.db.select({ id: tables.user.id }).from(tables.user).where(eq(tables.user.email, mail)).get()) throw new Error("Someone already signs in with that email.");
+          const password = generateLoginPassword();
+          const userId = crypto.randomUUID();
+          ctx.db.insert(tables.user).values({ id: userId, email: mail, name: name.trim().slice(0, 80) || mail, passwordHash: await hashPassword(password), role: "staff" }).run();
+          ctx.db.insert(tables.auditLog).values({ action: "auth.staff_created", detail: { userId, via: id } }).run();
+          return { id: userId, password };
         },
         mailSender: (sender) => {
           mailSenders.push(sender);

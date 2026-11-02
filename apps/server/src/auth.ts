@@ -76,3 +76,8 @@ export async function requireOwner(req: FastifyRequest, reply: FastifyReply): Pr
   if (!req.user) return reply.code(401).send({ error: "unauthorized", message: "Please sign in." });
   if (req.user.role !== "owner") return reply.code(403).send({ error: "forbidden", message: "Only the studio owner can change this." });
 }
+
+/** A random password for a login the owner hands over, long enough to resist guessing. */
+export function generateLoginPassword(): string {
+  return crypto.randomBytes(15).toString("base64url");
+}

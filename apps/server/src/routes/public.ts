@@ -103,11 +103,13 @@ export async function publicRoutes(app: FastifyInstance) {
     const v = view ?? orders.publicView(c, orderToken(req));
     const o = orders.byToken(c, orderToken(req));
     const available = credits.creditAvailable(c, o.id);
-    return { ...v, pay: checkout.onlineOptions(c, orderToken(req)), credit: available > 0 ? { availableCents: available } : null };
+    return { ...v, pay: checkout.onlineOptions(c, orderToken(req)), contract: contracts.requiredContract(c, o), credit: available > 0 ? { availableCents: available } : null };
   };
   app.get("/order/:token", { config: limit(60) }, async (req) => orderPage(req));
   app.post("/order/:token/credit", { config: limit(10) }, async (req) => {
     const o = orders.byToken(ctx(req), orderToken(req));
+    const unsigned = contracts.requiredContract(ctx(req), o);
+    if (unsigned) throw new DomainError("contract_required", `Please sign ${unsigned.title} before paying.`, 409);
     credits.applyCredit(ctx(req), o.id);
     return orderPage(req);
   });

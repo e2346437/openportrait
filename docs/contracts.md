@@ -55,3 +55,13 @@ Once the client has signed, the owner can **Countersign as the studio**. The PDF
 ## For AI assistants
 
 Tools in the `contracts` group: `contract_templates_list`, `contracts_list`, `contracts_get` (read), `contracts_create_draft` (draft), and `contracts_send` (waits for the owner's approval because it reaches a client). Assistants can't sign or countersign.
+
+## Signing before paying (booking pages)
+
+A paid booking page can name an agreement under **Booking pages > Edit > Price and deposit > Agreement to sign first**.
+
+- When someone books, OpenPortrait drafts that agreement for them, links it to the booking's invoice, and puts the signing link in the booking email and on the confirmation page.
+- Until it is signed, the invoice page shows "Sign your agreement first" instead of the pay buttons, and online payment and applying credit are refused (409). After signing, the client gets a "Continue to payment" button.
+- Staff can still record payments by hand, and voiding the agreement lifts the hold.
+- The template may only use fields a booking knows: client name, first name and email, studio name and email, order title and total, and today's date. This is checked when the page is saved.
+- Needs a price on the page. Pages with no agreement behave as before.

@@ -31,6 +31,7 @@ interface View {
   couponCode: string | null;
   couponCents: number;
   credit: { availableCents: number } | null;
+  contract?: { title: string; url: string } | null;
   pay: { provider: string; name: string; dueCents: number; balanceCents: number } | null;
 }
 
@@ -156,7 +157,16 @@ export function OrderViewPage() {
       ) : null}
 
       {note ? <Callout tone={note.tone}>{note.text}</Callout> : null}
-      {!quote && v.credit && v.state !== "void" ? (
+      {!quote && v.contract && v.state !== "void" ? (
+        <section className="doc-section pay-box">
+          <h2>Sign your agreement first</h2>
+          <p className="muted">{v.studioName || "The studio"} needs you to sign {v.contract.title} before you can pay online. It takes a minute, and you'll come back here to pay.</p>
+          <div className="form-actions">
+            <a className="btn primary lg" href={v.contract.url}>Review and sign</a>
+          </div>
+        </section>
+      ) : null}
+      {!quote && v.credit && !v.contract && v.state !== "void" ? (
         <section className="doc-section pay-box">
           <h2>Your credit</h2>
           {useCredit.error ? <Callout tone="bad">{useCredit.error}</Callout> : null}

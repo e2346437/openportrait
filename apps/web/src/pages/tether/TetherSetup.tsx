@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
-import { Button, Callout, CopyValue, EmptyState, Field, Icon, PageHeader, Panel, Spinner } from "@openportrait/ui";
+import { Button, Callout, CopyValue, EmptyState, Field, Icon, PageHeader, Panel, Spinner, useToast } from "@openportrait/ui";
+import { api, type InternetStatus } from "../../lib/api.js";
+import { useSubmit } from "../../lib/useForm.js";
 import { formatDate, ms } from "../../lib/time.js";
 import { useSession } from "../../lib/session.js";
 import { isLight, isLocalHost, liveLink, loadBg, saveBg, type TetherSources } from "../../lib/tether.js";
@@ -9,7 +11,6 @@ import { BackgroundPicker } from "./BackgroundPicker.js";
 import "./tether.css";
 
 const SOURCE_KEY = "openportrait.tether.source";
-const LOCAL_KEY = "openportrait.tether.local";
 const remembered = (key: string) => {
   try {
     return localStorage.getItem(key);
@@ -25,13 +26,24 @@ const remember = (key: string, value: string) => {
   }
 };
 
+/** "192.168.4.5:8090" or "http://192.168.4.5:8090/" as "http://192.168.4.5:8090", or null when it isn't an address yet. */
+function normalizeLanUrl(input: string | null): string | null {
+  const v = (input ?? "").trim();
+  if (!v) return null;
+  const full = /^https?:\/\//.test(v) ? v : `http://${v}`;
+  return URL.canParse(full) ? full.replace(/\/+$/, "") : null;
+}
+
 export function TetherSetupPage() {
   const { me } = useSession();
   const tz = me?.studio.timezone ?? "UTC";
   const { data, error, loading, reload } = useLoad<TetherSources>("/tether/sources");
   const [source, setSource] = useState(() => remembered(SOURCE_KEY) ?? "incoming");
   const [bg, setBg] = useState(loadBg);
-  const [localBase, setLocalBase] = useState(() => remembered(LOCAL_KEY) ?? "");
+  const [lanDraft, setLanDraft] = useState<string | null>(null);
+  const isOwner = me?.user?.role === "owner";
+  const toast = useToast();
+  const saveLan = useSubmit(() => api<InternetStatus>("/internet/lan-url", { method: "PUT", body: { url: lanDraft ?? "" } }));
   const onLan = isLocalHost(window.location.hostname);
 
   // If the remembered shoot is gone or finished, fall back to Incoming rather than showing a blank choice.
@@ -39,8 +51,9 @@ export function TetherSetupPage() {
     if (data && source !== "incoming" && !data.shoots.some((s) => s.id === source)) setSource("incoming");
   }, [data, source]);
 
-  const guess = data?.lan.addresses[0] ? `http://${data.lan.addresses[0]}:${data.lan.port}` : "";
-  const base = onLan ? window.location.origin : localBase.trim() || guess;
+  // A container can't see its host's address or the port Docker mapped, so the home address is a saved setting.
+  const typedUrl = normalizeLanUrl(lanDraft);
+  const base = onLan ? window.location.origin : (typedUrl ?? data?.lan.url ?? "");
   const link = useMemo(() => liveLink(window.location.origin, source, bg), [source, bg]);
   const localLink = base && !onLan ? liveLink(base, source, bg) : null;
 
@@ -135,16 +148,40 @@ export function TetherSetupPage() {
               <Callout tone="ok" title="You&rsquo;re on your local network">The live view will load straight from your server, so photos appear with the least delay.</Callout>
             ) : (
               <>
-                <Field label="Your server&rsquo;s local address" hint="Use this link when the screen is on your home or studio network.">
-                  {(p) => <input {...p} className="input mono" value={localBase} placeholder={guess || "http://192.168.1.20:8080"} onChange={(e) => { setLocalBase(e.target.value); remember(LOCAL_KEY, e.target.value); }} spellCheck={false} />}
+                <Field label="Your server&rsquo;s address at home" hint="Use this link when the screen is on your home or studio network. It's the address you'd type to open OpenPortrait from home, with the port you mapped." error={saveLan.fieldErrors.url ?? saveLan.error}>
+                  {(p) => (
+                    <div className="input-row">
+                      <input {...p} className="input mono" value={lanDraft ?? data.lan.url ?? ""} placeholder="http://192.168.4.5:8090" readOnly={!isOwner} onChange={(e) => setLanDraft(e.target.value)} spellCheck={false} inputMode="url" />
+                      {isOwner ? (
+                        <Button
+                          type="button"
+                          loading={saveLan.busy}
+                          disabled={lanDraft === null}
+                          onClick={async () => {
+                            const next = await saveLan.submit();
+                            if (!next) return;
+                            setLanDraft(null);
+                            toast("Home address saved");
+                            reload();
+                          }}
+                        >
+                          Save
+                        </Button>
+                      ) : null}
+                    </div>
+                  )}
                 </Field>
-                {localLink ? <CopyValue value={localLink} label="local live view link" /> : <p className="muted small">Enter the address you use to reach the server on your network.</p>}
+                {localLink ? (
+                  <CopyValue value={localLink} label="local live view link" />
+                ) : (
+                  <p className="muted small">{isOwner ? "Enter the address once and OpenPortrait remembers it for every screen. In Unraid it's the WebUI link on the Docker tab." : "Ask the studio owner to set the home address in Settings."}</p>
+                )}
               </>
             )}
             <p className="muted small">The live view shows its round-trip time while it runs, so you can see which route is faster.</p>
           </Panel>
           <Callout tone="info" title="Camera not uploading yet?">
-            <Link to="/studio/incoming">Set up in-camera upload</Link> to send photos from your camera over SFTP.
+            <Link to="/studio/settings/camera-upload">Set up camera upload</Link> to send photos from your camera over SFTP, FTPS or FTP.
           </Callout>
         </div>
       </div>

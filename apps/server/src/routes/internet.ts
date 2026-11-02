@@ -1,7 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requireOwner } from "../auth.js";
-import { lanAddresses } from "../app.js";
 import { extractTunnelToken } from "../tunnel.js";
 import { parse } from "../validate.js";
 
@@ -19,6 +18,13 @@ const UrlBody = z.object({
     .transform((u) => (u === "" || /^https?:\/\//.test(u) ? u : `https://${u}`).replace(/\/+$/, ""))
     .refine((u) => u === "" || URL.canParse(u), "Enter an address like https://studio.example.com."),
 });
+const LanBody = z.object({
+  url: z
+    .string()
+    .trim()
+    .transform((u) => (u === "" || /^https?:\/\//.test(u) ? u : `http://${u}`).replace(/\/+$/, ""))
+    .refine((u) => u === "" || URL.canParse(u), "Enter an address like http://192.168.4.5:8090."),
+});
 const TrustBody = z.object({ trustCloudflare: z.boolean() });
 
 export async function internetRoutes(app: FastifyInstance) {
@@ -32,7 +38,7 @@ export async function internetRoutes(app: FastifyInstance) {
       publicUrl: app.ctx.publicUrl(),
       publicUrlSource: settings.get("internet.publicUrl") ? "settings" : config.appUrl ? "template" : t.hostnames[0] ? "tunnel" : null,
       trustCloudflare: settings.get("internet.trustCloudflare") ?? true,
-      lan: { addresses: lanAddresses(), port: config.port },
+      lan: app.ctx.lan(),
       platform: config.isUnraid ? "unraid" : "docker",
     };
   };
@@ -58,6 +64,15 @@ export async function internetRoutes(app: FastifyInstance) {
     if (!body) return;
     if (body.url) settings.set("internet.publicUrl", body.url);
     else settings.delete("internet.publicUrl");
+    return status();
+  });
+
+  /** The server's address on the home network, which a container can't work out for itself. */
+  app.put("/lan-url", { preHandler: requireOwner }, async (req, reply) => {
+    const body = parse(LanBody, req.body, reply);
+    if (!body) return;
+    if (body.url) settings.set("internet.lanUrl", body.url);
+    else settings.delete("internet.lanUrl");
     return status();
   });
 

@@ -42,4 +42,10 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ UPLOAD_PROTOCOL: "telnet" })).toThrow(/UPLOAD_PROTOCOL/);
     expect(() => loadConfig({ SFTP_PORT: "22" })).toThrow(/SFTP_PORT/);
   });
+
+  it("reads the home network address and rejects a bare IP", () => {
+    expect(loadConfig({ LAN_URL: "http://192.168.4.5:8090/" }).lanUrl).toBe("http://192.168.4.5:8090");
+    expect(loadConfig({}).lanUrl).toBe("");
+    expect(() => loadConfig({ LAN_URL: "192.168.4.5:8090" })).toThrow(/LAN_URL/);
+  });
 });

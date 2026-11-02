@@ -11,6 +11,7 @@ import { loadConfig } from "@openportrait/config";
 import { buildApp } from "../src/app.js";
 import { cleanVirtual, jailPath, landingVirtual, sweepStaleUploads } from "../src/upload/files.js";
 import { generatePassword, normalizePublicKey, usernameFromLabel } from "../src/upload/accounts.js";
+import { loadHostKey } from "../src/upload/sftp.js";
 import { isRoutineDisconnect } from "../src/upload/ftp.js";
 import { scheduleProblem, scheduleState } from "../src/upload/schedule.js";
 
@@ -57,6 +58,23 @@ describe("schedule", () => {
     expect(scheduleProblem([{ days: [1], start: "9:00", end: "10:00" }])).toMatch(/18:00/);
     expect(scheduleProblem([{ days: [1], start: "09:00", end: "09:00" }])).toMatch(/same/);
     expect(scheduleProblem(evenings)).toBeNull();
+  });
+});
+
+describe("SSH host key", () => {
+  it("is always one the server can read back", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "op-hostkey-"));
+    try {
+      for (let i = 0; i < 150; i++) {
+        const d = path.join(dir, String(i));
+        fs.mkdirSync(d);
+        expect(loadHostKey(d).fingerprint).toMatch(/^SHA256:/);
+      }
+      // The same key (and fingerprint) comes back on the next start.
+      expect(loadHostKey(path.join(dir, "0")).fingerprint).toBe(loadHostKey(path.join(dir, "0")).fingerprint);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -338,5 +356,56 @@ describe("upload servers", () => {
     await app.inject({ method: "PATCH", url: `/api/studio/upload/accounts/${cam.id}`, headers: { cookie }, payload: { disabled: true } });
     await expect(sftpConnect(cam.username, reset.password)).rejects.toThrow();
     expect((await app.inject({ method: "DELETE", url: `/api/studio/upload/accounts/${cam.id}`, headers: { cookie } })).statusCode).toBe(200);
+  });
+});
+
+describe("home network address", () => {
+  let app: FastifyInstance;
+  let root: string;
+  let cookie: string;
+  beforeEach(async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "op-lan-"));
+    app = await buildApp({ config: loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web"), OPENPORTRAIT_PLATFORM: "unraid" }), startBackground: false, logger: false });
+    const res = await app.inject({ method: "POST", url: "/api/studio/setup", payload: { studioName: "S", ownerName: "Pat", email: "pat@example.com", password: "correct horse battery", timezone: "UTC" } });
+    cookie = `op_session=${res.cookies.find((c) => c.name === "op_session")!.value}`;
+  });
+  afterEach(async () => {
+    await app.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("shows no address until one is set, rather than the container's own", async () => {
+    const sources = (await app.inject({ method: "GET", url: "/api/studio/tether/sources", headers: { cookie } })).json();
+    expect(sources.lan).toMatchObject({ url: null, host: null });
+    const cam = (await app.inject({ method: "GET", url: "/api/studio/upload", headers: { cookie, host: "studio.example.com" } })).json();
+    expect(cam.connect.hosts).toEqual([]);
+  });
+
+  it("serves the saved home address to tethering, camera upload and the AI connect page", async () => {
+    const saved = await app.inject({ method: "PUT", url: "/api/studio/internet/lan-url", headers: { cookie }, payload: { url: "192.168.4.5:8090/" } });
+    expect(saved.json().lan).toMatchObject({ url: "http://192.168.4.5:8090", host: "192.168.4.5", source: "settings" });
+    const sources = (await app.inject({ method: "GET", url: "/api/studio/tether/sources", headers: { cookie } })).json();
+    expect(sources.lan.url).toBe("http://192.168.4.5:8090");
+    // A public host name (such as the tunnel) is never offered to a camera; the home address is.
+    const cam = (await app.inject({ method: "GET", url: "/api/studio/upload", headers: { cookie, host: "studio.example.com" } })).json();
+    expect(cam.connect.hosts).toEqual(["192.168.4.5"]);
+    const ai = (await app.inject({ method: "GET", url: "/api/studio/ai", headers: { cookie } })).json();
+    expect(ai.urls.lan).toBe("http://192.168.4.5:8090/mcp");
+    const cleared = await app.inject({ method: "PUT", url: "/api/studio/internet/lan-url", headers: { cookie }, payload: { url: "" } });
+    expect(cleared.json().lan.url).toBeNull();
+  });
+
+  it("uses the template variable until a saved address overrides it", async () => {
+    await app.close();
+    app = await buildApp({ config: loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web"), LAN_URL: "http://10.0.0.9:8080", OPENPORTRAIT_PLATFORM: "unraid" }), startBackground: false, logger: false });
+    const login = await app.inject({ method: "POST", url: "/api/studio/auth/login", payload: { email: "pat@example.com", password: "correct horse battery" } });
+    cookie = `op_session=${login.cookies.find((c) => c.name === "op_session")!.value}`;
+    expect((await app.inject({ method: "GET", url: "/api/studio/internet", headers: { cookie } })).json().lan).toMatchObject({ url: "http://10.0.0.9:8080", source: "template" });
+    expect((await app.inject({ method: "PUT", url: "/api/studio/internet/lan-url", headers: { cookie }, payload: { url: "http://192.168.4.5:8090" } })).json().lan.source).toBe("settings");
+  });
+
+  it("rejects something that isn't an address", async () => {
+    const res = await app.inject({ method: "PUT", url: "/api/studio/internet/lan-url", headers: { cookie }, payload: { url: "http://" } });
+    expect(res.statusCode).toBe(400);
   });
 });

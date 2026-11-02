@@ -54,7 +54,7 @@ interface State {
   timezone: string;
   accounts: Camera[];
   events: Array<{ id: number; at: number; action: string; detail: Record<string, unknown> | null; ip: string | null }>;
-  connect: { hosts: string[]; sftpPort: number; ftpPort: number; passiveMin: number; passiveMax: number; fingerprint: string; hasCert: boolean };
+  connect: { hosts: string[]; sftpPort: number; ftpPort: number; passiveMin: number; passiveMax: number; fingerprint: string; hasCert: boolean; lanConfigured: boolean };
 }
 interface NewCamera {
   id: string;
@@ -151,7 +151,6 @@ export function CameraUploadSettingsPage() {
     if (r) applySaved(r);
   };
 
-  const host = connect.hosts[0] ?? "your-server";
   const orb = status.state === "open" ? "ok" : status.state === "error" ? "bad" : "";
   const headline = status.state === "open" ? "Open for cameras" : status.state === "error" ? "Couldn't open" : "Closed";
   const sub =
@@ -417,7 +416,13 @@ export function CameraUploadSettingsPage() {
               <dt>Protocol</dt>
               <dd>{data.settings.protocol === "sftp" ? "SFTP" : data.settings.protocol === "ftps" ? "FTPS (explicit TLS)" : "FTP"}</dd>
               <dt>Server</dt>
-              <dd>{connect.hosts.length ? connect.hosts.map((h) => <CopyValue key={h} value={h} label="server address" />) : <CopyValue value={host} label="server address" />}</dd>
+              <dd>
+                {connect.hosts.length ? (
+                  connect.hosts.map((h) => <CopyValue key={h} value={h} label="server address" />)
+                ) : (
+                  <span>Your server's address on your home network, such as 192.168.4.5. Save it under Settings &gt; Internet access to see it here.</span>
+                )}
+              </dd>
               <dt>Port</dt>
               <dd>
                 <CopyValue value={String(data.settings.protocol === "sftp" ? connect.sftpPort : connect.ftpPort)} label="port" />

@@ -17,7 +17,7 @@ export interface TetherUploading {
 export interface TetherSources {
   incoming: { label: string; description: string };
   shoots: Array<{ id: string; subject: string; shootType: string; client: string; startsAt: string | number | null }>;
-  lan: { addresses: string[]; port: number };
+  lan: { url: string | null; source: "settings" | "template" | null; host: string | null; addresses: string[]; port: number };
 }
 
 // ---- background colour ----

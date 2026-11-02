@@ -9,6 +9,7 @@ import { financialReport, resolveRange, type FinancialReport } from "./domain/re
 import { VERSION, type AppContext } from "./app.js";
 import { incomingSubfolderHooks } from "./extension-hooks.js";
 import { defineTool, grantCapability, lockCapability, revokeCapability } from "./ai/registry.js";
+import { registerSiteExtension, registerSiteTemplate, unregisterSiteExtension, unregisterSiteTemplate, type SiteExtension, type SiteTemplate } from "./site/registry.js";
 
 /**
  * Extensions are optional modules that add tools, routes, or capabilities to OpenPortrait. They are plain
@@ -166,6 +167,13 @@ export interface ExtensionApi {
   page(page: ExtensionPage): void;
   /** Runs when the app shuts down. */
   onClose(fn: () => void | Promise<void>): void;
+  /** Adds to the website builder: more templates, fields in its "More" tab, pages, CSS, and files. Can be undone when no longer allowed. */
+  site: {
+    registerTemplate(t: SiteTemplate): void;
+    unregisterTemplate(id: string): void;
+    registerExtension(e: Omit<SiteExtension, "id">): void;
+    unregisterExtension(): void;
+  };
 }
 
 export interface ExtensionInfo {
@@ -257,6 +265,12 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         lockCapability,
         grantCapability,
         revokeCapability,
+        site: {
+          registerTemplate: (t) => registerSiteTemplate({ ...t, extra: true }),
+          unregisterTemplate: unregisterSiteTemplate,
+          registerExtension: (e) => registerSiteExtension({ ...e, id }),
+          unregisterExtension: () => unregisterSiteExtension(id),
+        },
         onClose: (fn) => void app.addHook("onClose", async () => void (await fn())),
       });
       for (const plugin of routes) {

@@ -52,6 +52,7 @@ import { GallerySettingsPage } from "./pages/settings/Galleries.js";
 import { ClientGalleryPage } from "./pages/client/ClientGallery.js";
 import "./pages/client/client.css";
 import "./pages/galleries/galleries.css";
+import { WebsitePage } from "./pages/website/Website.js";
 import { IncomingPage } from "./pages/incoming/Incoming.js";
 import { TetherSetupPage } from "./pages/tether/TetherSetup.js";
 import { TetherLivePage } from "./pages/tether/TetherLive.js";
@@ -112,6 +113,7 @@ export function App() {
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="galleries" element={<GalleriesListPage />} />
                   <Route path="galleries/:id" element={<GalleryDetailPage />} />
+                  <Route path="website" element={<WebsitePage />} />
                   <Route path="incoming" element={<IncomingPage />} />
                   <Route path="tether" element={<TetherSetupPage />} />
                   <Route path="approvals" element={<ApprovalsPage />} />

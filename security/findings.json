@@ -75,7 +75,7 @@
       "id": "SEC-005",
       "title": "Gallery links carry about 31 bits of randomness and public gallery endpoints are not rate limited",
       "severity": "Medium",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:N/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N",
       "tests": [

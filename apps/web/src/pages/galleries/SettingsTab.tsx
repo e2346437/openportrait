@@ -112,7 +112,7 @@ export function SettingsTab({ data, patch, onDeleted }: { data: GalleryDetail; p
           <Field label="Title" error={errors.title}>
             {(p) => <TextInput {...p} value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />}
           </Field>
-          <Field label="Link ending" error={errors.slug} hint="Anyone with the link can view. Changing it breaks links already sent.">
+          <Field label="Link ending" error={errors.slug} hint="Anyone with the link can view. A longer, random ending is harder to guess; changing it breaks links already sent.">
             {(p) => <TextInput {...p} value={slug} maxLength={80} onChange={(e) => setSlug(e.target.value.toLowerCase())} />}
           </Field>
         </div>

@@ -92,13 +92,29 @@ describe("SEC-003 state-changing requests are not tied to the site that sent the
 });
 
 describe("SEC-005 client gallery links", () => {
-  openFinding("SEC-005", "gallery link tails carry at least 64 bits of entropy", () => {
+  control("SEC-005", "gallery link tails carry at least 64 bits of entropy", () => {
     // Measure rather than assume: count distinct tails from many draws and estimate bits from the alphabet actually used.
     const tails = new Set<string>();
     for (let i = 0; i < 2000; i++) tails.add(uniqueSlug({ select: () => ({ from: () => ({ where: () => ({ get: () => undefined }) }) }) } as never, "t").slice(2));
     const alphabet = new Set([...tails].join("")).size;
     const tailLength = [...tails][0]!.length;
     expect(Math.log2(alphabet) * tailLength).toBeGreaterThanOrEqual(64);
+  });
+});
+
+describe("SEC-005 guessing gallery links", () => {
+  control("SEC-005b", "a visitor address that keeps guessing unknown links is throttled; staff previews are not", async () => {
+    const codes: number[] = [];
+    for (let i = 0; i < 30; i++) codes.push((await d.app.inject({ method: "GET", url: `/api/g/guess-${i}`, remoteAddress: "198.51.100.9" })).statusCode);
+    expect(codes.slice(0, 20).every((c) => c === 404)).toBe(true);
+    expect(codes.slice(20)).toContain(429);
+    // A different visitor is unaffected.
+    expect((await d.app.inject({ method: "GET", url: "/api/g/guess-x", remoteAddress: "198.51.100.10" })).statusCode).toBe(404);
+    // Staff are never locked out of previews.
+    expect((await d.app.inject({ method: "GET", url: "/api/g/guess-y", remoteAddress: "198.51.100.9", headers: { cookie: d.cookie } })).statusCode).toBe(404);
+  });
+  control("SEC-005c", "existing short links keep resolving the same way (no format dependency in lookup)", () => {
+    expect(uniqueSlug({ select: () => ({ from: () => ({ where: () => ({ get: () => undefined }) }) }) } as never, "Smith Family")).toMatch(/^smith-family-[a-z2-7]{26}$/);
   });
 });
 

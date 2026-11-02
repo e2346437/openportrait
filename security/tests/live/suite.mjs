@@ -158,11 +158,15 @@ if (slug) {
     return before === 200 && gallery === 404 && after === 404;
   });
 
-  await openFinding("SEC-005", "public gallery endpoints are rate limited per visitor", async () => {
+  await control("SEC-005", "public gallery endpoints are rate limited per visitor and repeated wrong guesses are throttled", async () => {
     let limited = false;
     for (let i = 0; i < 150 && !limited; i++) limited = (await pub.get(`/api/g/${slug}`)).status === 429;
-    return limited;
+    let guessLimited = false;
+    const guesser = new Client(A_URL);
+    for (let i = 0; i < 40 && !guessLimited; i++) guessLimited = (await guesser.get(`/api/g/guess-${i}-${Date.now()}`)).status === 429;
+    return limited && guessLimited;
   });
+  await sleep(62000); // let the per-address windows reset so later checks start clean
 
   const v = new Client(A_URL);
   await v.post(`/api/g/${slug}/identify`, { email: "victim@audit.invalid" });

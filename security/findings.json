@@ -228,7 +228,7 @@
       "deployments": [
         "all deployments"
       ],
-      "note": "npm/corepack/yarn removed from the runtime image (10 findings gone). Remaining: Go dependencies inside the cloudflared and gosu binaries; needs upstream releases built with newer Go."
+      "note": "npm/corepack/yarn removed from the runtime image and cloudflared bumped to 2026.10.7 (its Go dependency findings cleared). Remaining: gosu is built with an older Go and has an expiring exception in security/config/allowlist.json; it only calls setuid and execs the app."
     },
     {
       "id": "SEC-015",

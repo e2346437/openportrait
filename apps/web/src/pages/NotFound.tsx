@@ -7,6 +7,7 @@ export function NotFoundPage({ standalone }: { standalone?: boolean }) {
       <EmptyState
         icon="alert"
         title="Nothing here"
+        headingLevel={1}
         action={
           <Link className="btn primary" to="/studio">
             Go home

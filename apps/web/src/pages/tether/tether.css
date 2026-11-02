@@ -9,6 +9,7 @@
 .set-item small { color: var(--ink-3); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-item.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--accent-soft); }
 .set-item.on > svg { color: var(--accent); }
+.set-item.on small { color: var(--ink-2); }
 .set-item:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .center-pad { display: grid; place-items: center; padding: 64px 0; }
 .muted { color: var(--ink-3); } .small { font-size: 13px; }

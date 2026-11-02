@@ -112,7 +112,7 @@ export function ImportSettingsPage() {
       </Panel>
 
       <Panel title="Export your data" description="Download your clients, shoots and invoices as CSV files for a spreadsheet, your accountant, or a backup. They can be imported again here.">
-        <div className="row-gap">
+        <div className="row-gap wrap">
           {KINDS.map((k) => (
             <a key={k.value} className="btn" href={`/api/studio/export/${k.value}.csv`} download>{k.label} (CSV)</a>
           ))}

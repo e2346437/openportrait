@@ -88,7 +88,7 @@ export function Shell() {
   const user = me?.user;
 
   const brand = (
-    <NavLink to="/studio" className="brand" aria-label={`${studioName} home`}>
+    <NavLink to="/studio" className="brand">
       <Mark />
       <span className="brand-text">
         OpenPortrait
@@ -99,6 +99,7 @@ export function Shell() {
 
   return (
     <div className={`shell${open ? " nav-open" : ""}`}>
+      <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); const m = document.getElementById("main"); m?.focus(); m?.scrollIntoView(); }}>Skip to content</a>
       <header className="topbar">
         <Button variant="ghost" className="icon" icon="menu" aria-label="Open menu" aria-expanded={open} aria-controls="sidebar" onClick={() => setOpen(true)} />
         {brand}
@@ -145,7 +146,7 @@ export function Shell() {
           </div>
         ) : null}
       </aside>
-      <main className="main" id="main">
+      <main className="main" id="main" tabIndex={-1}>
         <div className="main-in">
           <Outlet />
         </div>

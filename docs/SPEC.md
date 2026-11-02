@@ -202,7 +202,7 @@ Google sync details (as built): shoot times are the source of truth, so one dele
 
 ## 7. Access and security
 
-- **Staff:** email and password with Argon2id hashing, optional TOTP 2FA, and the roles Owner, Staff, and Assistant.
+- **Staff:** email and password with Argon2id hashing, optional two-step sign-in with any authenticator app (TOTP, 10 single-use recovery codes, code reuse refused, five wrong codes lock the second step for 15 minutes; the secret is encrypted with the instance key), and the roles Owner, Staff, and Assistant. Passkeys and an idle timeout are not built yet.
 - **Clients:** no passwords. Magic-link email sign-in to a client portal (quotes, invoices, questionnaires, galleries). Galleries can also have an optional gallery password or a public link.
 - **Exposure:** OpenPortrait assumes it is published through a Cloudflare Tunnel (section 9). No router ports are opened. Port 8080 stays available on the LAN for local access. Other reverse proxies may work but aren't supported.
 - **Secrets:** a session key is generated on first run and stored in `/config`. PayPal and Google secrets are encrypted at rest with that key.
@@ -218,7 +218,7 @@ There is one image, `ghcr.io/e2346437/openportrait` (mirrored to Docker Hub as `
 - CI tests the image with both the compose file and the Unraid template's settings before each release.
 - **Image contents:** `node:22-bookworm-slim` plus three static release binaries: `cloudflared`, `tini` (PID 1) and `gosu`. The entrypoint creates a user for `PUID`/`PGID`, applies `UMASK`, takes ownership of `/config` and `/cache`, fixes only the top level of `/galleries` and `/incoming` (never walking a photo library), and drops privileges. better-sqlite3 and argon2 use their bundled prebuilt binaries, so no compiler is needed for amd64 or arm64.
 - **Tags:** until 1.0, `latest` and `edge` follow `main`; release tags `vX.Y.Z` publish `X.Y.Z` and `X.Y`. At 1.0, `latest` moves to releases only.
-- **Maintenance CLI:** `docker exec -it openportrait openportrait reset-password <email>` sets a temporary password and signs the account out everywhere; `openportrait backup` writes a snapshot to `/config/backups` (nightly snapshots are automatic, 14 kept).
+- **Maintenance CLI:** `docker exec -it openportrait openportrait reset-password <email>` sets a temporary password and signs the account out everywhere; `openportrait disable-mfa <email>` turns off two-step sign-in for an account; `openportrait backup` writes a snapshot to `/config/backups` (nightly snapshots are automatic, 14 kept).
 
 ### Unraid template
 

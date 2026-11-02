@@ -84,6 +84,9 @@ OpenPortrait only changes the owner of the top level of `/galleries` and `/incom
 # Locked out? Set a temporary password (it is printed once) and sign the account out everywhere.
 docker exec -it openportrait openportrait reset-password you@example.com
 
+# Lost your phone and your recovery codes? Turn off two-step sign-in for an account.
+docker exec -it openportrait openportrait disable-mfa you@example.com
+
 # Take a database snapshot now (one is also taken every night).
 docker exec -it openportrait openportrait backup
 ```

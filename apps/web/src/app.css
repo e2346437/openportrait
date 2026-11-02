@@ -689,3 +689,12 @@ button.agenda-row:hover { background: var(--surface-2); }
   .ext-table td small { display: none; }
   .ext-table td .num { text-align: right; }
 }
+
+/* Two-step sign-in */
+.mfa-scan { display: flex; gap: var(--s5); align-items: center; flex-wrap: wrap; }
+.mfa-scan img, .mfa-qr-wait { border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 4px; }
+.mfa-qr-wait { width: 200px; height: 200px; }
+.mfa-steps { margin: 0; padding-left: 20px; color: var(--ink-2); }
+input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18px; max-width: 14ch; }
+.recovery-codes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.recovery-codes li { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--surface-2); text-align: center; letter-spacing: 0.06em; }

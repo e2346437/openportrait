@@ -149,7 +149,7 @@ if (slug) {
   });
   await control("GAL-5", "a non-image extension is refused for photo upload", async () => (await a.post("/api/studio/uploads/", { galleryId, set: "", filename: "shell.php", size: 10, lastModified: 0 })).status === 415);
 
-  await openFinding("SEC-004", "after a gallery is unpublished, its photo URLs stop working", async () => {
+  await control("SEC-004", "after a gallery is unpublished, its photo URLs stop working", async () => {
     const before = (await pub.get(photo.thumb)).status;
     await a.post(`/api/studio/galleries/${galleryId}/unpublish`, {});
     const gallery = (await pub.get(`/api/g/${slug}`)).status;

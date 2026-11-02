@@ -60,7 +60,7 @@
       "id": "SEC-004",
       "title": "Signed photo URLs never expire and keep working after a gallery is unpublished or expires",
       "severity": "Medium",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:N/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N",
       "tests": [
@@ -91,7 +91,7 @@
       "id": "SEC-006",
       "title": "AI wrapper around client-written text can be closed early by the text itself; names and other fields are not wrapped",
       "severity": "Medium",
-      "status": "open",
+      "status": "fixed",
       "confirmed": true,
       "cvss4": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:A/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N",
       "tests": [

@@ -3,7 +3,7 @@ import { addNote, getContact, listContacts } from "../../domain/contacts.js";
 import { board, createLead, getLead, moveLead } from "../../domain/leads.js";
 import { SHOOT_STATUSES, createShoot, getShoot, listShoots } from "../../domain/shoots.js";
 import { defineTool } from "../registry.js";
-import { iso, svc, untrusted } from "./util.js";
+import { iso, plain, svc, untrusted } from "./util.js";
 
 const id = (what: string) => z.string().min(1).describe(what);
 
@@ -18,7 +18,7 @@ defineTool({
   input: { q: z.string().optional(), tag: z.string().optional(), limit: z.number().int().min(1).max(50).optional() },
   handler: (ctx, args) => {
     const r = listContacts(svc(ctx), { q: args.q, tag: args.tag, limit: args.limit ?? 20 });
-    return { total: r.total, contacts: r.items.map((c) => ({ id: c.id, name: c.name, email: c.email, phone: c.phone, company: c.company, tags: c.tags })) };
+    return { total: r.total, contacts: r.items.map((c) => ({ id: c.id, name: plain(c.name), email: plain(c.email), phone: plain(c.phone), company: plain(c.company), tags: c.tags.map((t: string) => plain(t)) })) };
   },
 });
 
@@ -33,14 +33,15 @@ defineTool({
     const c = getContact(svc(ctx), args.contactId);
     return {
       id: c.id,
-      name: c.name,
-      email: c.email,
-      phone: c.phone,
-      company: c.company,
-      tags: c.tags,
+      name: plain(c.name),
+      email: plain(c.email),
+      phone: plain(c.phone),
+      company: plain(c.company),
+      tags: c.tags.map((t: string) => plain(t)),
       leads: c.leads.map((l) => ({ id: l.id, stage: l.stage, shootType: l.shootType, eventDate: l.eventDate, convertedShootId: l.convertedShootId })),
-      shoots: c.shoots.map((s) => ({ id: s.id, subject: s.subject, status: s.status, shootType: s.shootType, startsAt: iso(s.startsAt) })),
-      timeline: c.timeline.slice(0, 15).map((t) => ({ type: t.type, at: iso(t.at), text: t.type === "note" ? untrusted(t.text) : t.text })),
+      shoots: c.shoots.map((s) => ({ id: s.id, subject: plain(s.subject), status: s.status, shootType: s.shootType, startsAt: iso(s.startsAt) })),
+      // Every timeline entry can contain text that came from outside (emails, form answers), so all of it is wrapped.
+      timeline: c.timeline.slice(0, 15).map((t) => ({ type: t.type, at: iso(t.at), text: untrusted(t.text) })),
     };
   },
 });
@@ -75,7 +76,7 @@ defineTool({
       total: st.total,
       leads: st.leads.map((l) => {
         const c = l as typeof l & { id: string; shootType: string | null; eventDate: string | null; source: string | null; createdAt: Date };
-        return { id: c.id, contact: c.name, email: c.email, shootType: c.shootType, eventDate: c.eventDate, source: c.source, createdAt: iso(c.createdAt) };
+        return { id: c.id, contact: plain(c.name), email: plain(c.email), shootType: c.shootType, eventDate: c.eventDate, source: c.source, createdAt: iso(c.createdAt) };
       }),
     })),
 });
@@ -89,7 +90,7 @@ defineTool({
   input: { leadId: id("The lead's id.") },
   handler: (ctx, args) => {
     const l = getLead(svc(ctx), args.leadId);
-    return { ...l, message: untrusted(l.message), notes: l.notes.map((n) => ({ ...n, body: untrusted(n.body) })) };
+    return { ...l, name: plain((l as { name?: string }).name), email: plain((l as { email?: string }).email), message: untrusted(l.message), notes: l.notes.map((n) => ({ ...n, body: untrusted(n.body) })) };
   },
 });
 
@@ -143,7 +144,7 @@ defineTool({
   },
   handler: (ctx, args) => {
     const r = listShoots(svc(ctx), { ...args, limit: args.limit ?? 20 });
-    return { total: r.total, shoots: r.items.map((s) => ({ id: s.id, subject: s.subject, status: s.status, shootType: s.shootType, client: s.client, contactId: s.contactId, startsAt: iso(s.startsAt), location: s.location })) };
+    return { total: r.total, shoots: r.items.map((s) => ({ id: s.id, subject: plain(s.subject), status: s.status, shootType: s.shootType, client: plain(s.client), contactId: s.contactId, startsAt: iso(s.startsAt), location: plain(s.location) })) };
   },
 });
 
@@ -158,13 +159,13 @@ defineTool({
     const s = getShoot(svc(ctx), args.shootId);
     return {
       id: s.id,
-      subject: s.subject,
+      subject: plain(s.subject),
       status: s.status,
       shootType: s.shootType.name,
-      client: s.primary,
+      client: s.primary ? { ...s.primary, name: plain(s.primary.name), email: plain(s.primary.email), phone: plain(s.primary.phone) } : s.primary,
       notes: untrusted(s.notes),
-      events: s.events.map((e) => ({ id: e.id, title: e.title, startsAt: iso(e.startsAt), endsAt: iso(e.endsAt), location: e.location })),
-      people: s.contacts.map((c) => ({ contactId: c.contactId, name: c.name, role: c.role })),
+      events: s.events.map((e) => ({ id: e.id, title: plain(e.title), startsAt: iso(e.startsAt), endsAt: iso(e.endsAt), location: plain(e.location) })),
+      people: s.contacts.map((c) => ({ contactId: c.contactId, name: plain(c.name), role: plain(c.role) })),
       folder: s.folder?.path ?? null,
     };
   },

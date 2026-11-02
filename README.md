@@ -23,11 +23,14 @@ Brand assets (logo, icons, colors) live in [`docs/brand`](docs/brand/README.md).
 - **Quotes, invoices and payments:** a price list, deposits and balances, manual payments, PayPal checkout, coupon codes and client credit.
 - **Galleries:** photos from your own storage, client galleries with favorites and downloads, and an optional payment lock on downloads.
 - **Camera upload:** cameras send photos over SFTP, FTP or FTPS, and SFTP tethering shows a live view while you shoot.
-- **Import:** bring in clients, shoots and invoices from a CSV or JSON file.
+- **Tasks and households:** a to-do list on every shoot with starter checklists, and households that group the people who share a home or company.
+- **Reports:** income, outstanding balances and bookings over time, with CSV export for clients, shoots and invoices.
+- **Website builder:** build a static studio website and host it anywhere.
+- **Import and export:** bring in clients, shoots and invoices from a CSV or JSON file, and export them back out.
 - **Connect your AI:** a built-in MCP server for an AI assistant. It is off until you turn it on, and anything that reaches a client or moves money waits for your approval by default.
 - **Extensions:** optional modules that add tools, settings and sidebar pages.
 
-Still in progress: see the [product spec and roadmap](docs/SPEC.md).
+See the [changelog](CHANGELOG.md) for what changed, and the [product spec and roadmap](docs/SPEC.md) for what is planned.
 
 ## Guides
 
@@ -45,6 +48,11 @@ Still in progress: see the [product spec and roadmap](docs/SPEC.md).
 | [Google Calendar](docs/google-calendar.md) | Two-way calendar sync |
 | [Importing your data](docs/import.md) | Bringing clients, shoots and invoices in from a file |
 | [Connect your AI](docs/ai-access.md) | Connecting an AI assistant through MCP, with approvals |
+| [Tasks](docs/tasks.md) | Shoot to-do lists and starter checklists |
+| [Households](docs/households.md) | Grouping contacts who share a home or company |
+| [Website builder](docs/website.md) | Building and hosting a static studio site |
+| [Accessibility](docs/accessibility.md) | What is in place and how to report a problem |
+| [Releasing](docs/releasing.md) | Maintainer notes for cutting a version |
 | [Extensions](docs/extensions.md) | Writing an extension module |
 
 The [product spec and architecture](docs/SPEC.md) describes the design and the roadmap.
@@ -88,6 +96,10 @@ pnpm typecheck
 | `unraid` | The Unraid Community Applications template |
 
 After changing the schema, run `pnpm db:generate` to write a new migration.
+
+## Security
+
+Please report vulnerabilities privately; see [SECURITY.md](SECURITY.md). The [security documentation](security/) covers the threat model, hardening and the release gate.
 
 ## License
 

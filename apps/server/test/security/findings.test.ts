@@ -13,7 +13,7 @@ beforeAll(async () => {
 afterAll(async () => d.close());
 
 describe("SEC-001 rate limits use an identity the caller controls", () => {
-  openFinding("SEC-001", "login attempts from one socket are throttled even when CF-Connecting-IP changes on every request", async () => {
+  control("SEC-001", "login attempts from one socket are throttled even when CF-Connecting-IP changes on every request", async () => {
     // A direct connection (not from cloudflared, which is loopback) that forges the header on each attempt.
     let throttled = false;
     for (let i = 0; i < 25; i++) {
@@ -27,6 +27,15 @@ describe("SEC-001 rate limits use an identity the caller controls", () => {
       if (res.statusCode === 429) throttled = true;
     }
     expect(throttled).toBe(true);
+  });
+
+  control("SEC-001d", "behind the tunnel (loopback socket), different CF-Connecting-IP values are separate visitors", async () => {
+    const codes: number[] = [];
+    for (let i = 0; i < 14; i++) {
+      const res = await d.app.inject({ method: "POST", url: "/api/studio/auth/login", remoteAddress: "127.0.0.1", headers: { "cf-connecting-ip": `203.0.113.${i + 1}` }, payload: { email: "x@audit.invalid", password: `wrong-${i}` } });
+      codes.push(res.statusCode);
+    }
+    expect(codes).not.toContain(429);
   });
 
   control("SEC-001c", "without the forged header, the same socket is throttled after 10 attempts", async () => {

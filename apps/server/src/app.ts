@@ -66,6 +66,10 @@ export interface AppContext {
   /** This server's address on the home network (see lan.ts). */
   lan(): LanInfo;
   ip(req: import("fastify").FastifyRequest): string;
+  /** Absolute address for links and metadata: the configured public address, else the home-network one, else localhost. Never taken from the request. */
+  baseUrl(): string;
+  /** Hosts this studio is legitimately reached on (public, configured, home network). */
+  ownHosts(): string[];
   /** Code required by the first-run wizard. null = not required. undefined = generate one at first start. */
   setupCode?: string | null;
 }
@@ -122,6 +126,18 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
       const host = tunnel.getStatus().hostnames[0];
       return settings.get("internet.publicUrl") || config.appUrl || (host ? `https://${host}` : "");
     },
+    baseUrl() {
+      return ctx.publicUrl() || ctx.lan().url || `http://localhost:${config.port}`;
+    },
+    ownHosts() {
+      return [ctx.publicUrl(), config.appUrl, ctx.lan().url].flatMap((u) => {
+        try {
+          return u ? [new URL(u).host] : [];
+        } catch {
+          return [];
+        }
+      });
+    },
     ip(req) {
       return clientIp(req, settings.get("internet.trustCloudflare") ?? true);
     },
@@ -144,13 +160,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
 
   // Refuse state-changing studio requests that a browser says came from another site (SEC-003).
   app.addHook("onRequest", async (req, reply) => {
-    const hosts = [ctx.publicUrl(), config.appUrl, ctx.lan().url].flatMap((u) => {
-      try {
-        return u ? [new URL(u).host] : [];
-      } catch {
-        return [];
-      }
-    });
+    const hosts = ctx.ownHosts();
     if (crossSiteBlocked(req, hosts)) return rejectCrossSite(reply);
   });
 

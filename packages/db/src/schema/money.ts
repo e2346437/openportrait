@@ -173,6 +173,8 @@ export const coupon = sqliteTable(
     kind: text({ enum: ["percent", "fixed"] }).notNull(),
     value: integer().notNull(),
     itemId: text(),
+    /** When set the coupon only works on that booking page. Empty means quotes and every booking page. */
+    schedulerId: text(),
     /** The last day (YYYY-MM-DD) it can be applied. */
     expiresOn: text(),
     maxUses: integer(),

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { Button, Callout, CopyValue, EmptyState, Field, PageHeader, Panel, Spinner, StatusChip, TextArea, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
+import { formatMoney } from "../../lib/money.js";
 import { useSession } from "../../lib/session.js";
 import { formatDateTime } from "../../lib/time.js";
 import { useSubmit } from "../../lib/useForm.js";
@@ -19,6 +20,7 @@ interface Booking {
   phone: string | null;
   contactId: string;
   schedulerName: string;
+  payment: { totalCents: number; paidCents: number; status: "unpaid" | "partial" | "paid" | "void" } | null;
 }
 interface Inquiry {
   enabled: boolean;
@@ -103,6 +105,11 @@ function Requests({ pending }: { pending: ReturnType<typeof useLoad<{ items: Boo
                     {b.schedulerName} · {formatDateTime(ms(b.startsAt), tz)}
                   </span>
                   {b.email ? <small>{b.email}{b.phone ? ` · ${b.phone}` : ""}</small> : null}
+                  {b.payment && b.payment.status !== "void" ? (
+                    <StatusChip tone={b.payment.status === "paid" ? "ok" : b.payment.status === "partial" ? "info" : "warn"}>
+                      {b.payment.status === "paid" ? "Paid" : b.payment.status === "partial" ? `${formatMoney(b.payment.paidCents)} of ${formatMoney(b.payment.totalCents)} paid` : `Awaiting payment, ${formatMoney(b.payment.totalCents)}`}
+                    </StatusChip>
+                  ) : null}
                   {b.message ? <p className="req-msg">{b.message}</p> : null}
                   {declining === b.id ? (
                     <div className="req-decline">
@@ -142,6 +149,11 @@ function Requests({ pending }: { pending: ReturnType<typeof useLoad<{ items: Boo
                   <span>
                     {b.schedulerName} · {formatDateTime(ms(b.startsAt), tz)}
                   </span>
+                  {b.payment && b.payment.status !== "void" ? (
+                    <StatusChip tone={b.payment.status === "paid" ? "ok" : b.payment.status === "partial" ? "info" : "warn"}>
+                      {b.payment.status === "paid" ? "Paid" : b.payment.status === "partial" ? `${formatMoney(b.payment.paidCents)} of ${formatMoney(b.payment.totalCents)} paid` : `Awaiting payment, ${formatMoney(b.payment.totalCents)}`}
+                    </StatusChip>
+                  ) : null}
                 </div>
                 <div className="controls">
                   <Button variant="ghost" size="sm" className="danger" onClick={() => window.confirm(`Cancel ${b.name}'s booking? They'll be emailed.`) && run(b.id, "cancel")}>

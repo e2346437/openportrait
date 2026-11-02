@@ -70,6 +70,8 @@ export function OrderViewPage() {
         .finally(() => setQs({}, { replace: true }));
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [code, setCode] = useState("");
+  const addCoupon = useSubmit(() => publicApi<View>(`/order/${encodeURIComponent(token)}/coupon`, { body: { code } }));
   const decline = useSubmit(() => publicApi<View>(`/order/${encodeURIComponent(token)}/decline`, { body: {} }));
 
   if (loading) return <PublicShell narrow><Spinner label="Loading" /></PublicShell>;
@@ -190,6 +192,30 @@ export function OrderViewPage() {
         </section>
       ) : null}
       {!quote && v.state === "paid" ? <Callout tone="ok" title="Paid in full. Thank you.">{v.acceptedName ? `Accepted by ${v.acceptedName}.` : ""}</Callout> : null}
+
+      {quote && v.state === "sent" ? (
+        <section className="doc-section coupon-box" aria-label="Coupon">
+          <h2>Have a coupon?</h2>
+          <form
+            className="coupon-row"
+            noValidate
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const r = await addCoupon.submit();
+              if (r) {
+                setData(r);
+                setNote({ tone: "ok", text: `${r.couponCode} applied. Your new total is ${formatMoney(r.totalCents, r.currency)}.` });
+                setCode("");
+              }
+            }}
+          >
+            <Field label="Coupon code" error={addCoupon.error ?? undefined} hint={v.couponCode ? `${v.couponCode} is on this quote. A better code replaces it.` : "The total and your payments update when it's applied."}>
+              {(p) => <TextInput {...p} autoCapitalize="characters" spellCheck={false} autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />}
+            </Field>
+            <Button type="submit" loading={addCoupon.busy} disabled={!code.trim()}>Apply</Button>
+          </form>
+        </section>
+      ) : null}
 
       {quote && v.state === "sent" ? (
         <section className="doc-section accept">

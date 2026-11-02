@@ -6,6 +6,9 @@ fix comes with its regression test already in the repository, so the work is: ma
 `openFinding` to `control` (vitest reports the `it.fails` as a failure the moment the fix works, which is the prompt to do so),
 and update `findings.json`.
 
+> Update: SEC-004, 006, 007, 010, 011, 015 (tag length) and 017 are also fixed and tested. Still open: SEC-009 (CSP), 012
+> (visitor email proof), 016 (MFA), which change the UI or sign-in flow and are waiting for the owner's go-ahead.
+
 ## Before a public launch (blocks release)
 
 | Order | Finding | Change | Size | Needs approval | Breaks anything? |
@@ -15,15 +18,15 @@ and update `findings.json`.
 | 3 ✅ | SEC-003 | Fetch-Metadata / Origin check on non-GET studio requests | ~30 lines | **Yes** (public API behaviour) | Scripts that call the API with a cookie from another origin stop working; same-origin browser use is unaffected |
 | 4 ✅ | SEC-008 | Hardened defaults in `docker-compose.yml` and the Unraid template (`ExtraParams`); delete `npm`/`corepack` and set-uid bits from the runtime image; pin base by digest | Config + 5 Dockerfile lines | **Yes** (deployment) | Verified to start and pass the live suite. Read-only root needs `/tmp` as tmpfs |
 | 5 | SEC-014 | Remove npm/corepack from runtime; bump cloudflared and gosu when fixed builds exist; weekly rebuild; Dependabot | Small | No | No |
-| 6 | SEC-004 | Time-limited media signatures + gallery-state check; shorter cache | ~40 lines | **Yes** (URL format) | Pages cache URLs for an hour, not a year; first view after expiry re-fetches the gallery JSON |
+| 6 | SEC-004 ✅ | Time-limited media signatures + gallery-state check; shorter cache | ~40 lines | **Yes** (URL format) | Pages cache URLs for an hour, not a year; first view after expiry re-fetches the gallery JSON |
 | 7 ✅ | SEC-005 | 128-bit slugs for new galleries, keep old; throttle unknown-slug 404s; warn on short custom slugs | ~30 lines | **Yes** (URL format) | Existing links keep working |
 
 ## Before the first outside users
 
 | Order | Finding | Change | Needs approval |
 |---|---|---|---|
-| 8 | SEC-006 | Escape the wrapper, wrap every outside-sourced field, label approval source | No |
-| 9 | SEC-007 | Never overwrite in camera folders; byte cap per camera; free-space floor | No |
+| 8 | SEC-006 ✅ | Escape the wrapper, wrap every outside-sourced field, label approval source | No |
+| 9 | SEC-007 ✅ | Never overwrite in camera folders; byte cap per camera; free-space floor | No |
 | 10 | SEC-009 | CSP in report-only, then enforce; HSTS when HTTPS | **Yes** (UI risk) |
 | 11 | SEC-012 | Email confirmation for favorites; apply the password gate to identify/list routes | **Yes** (gallery flow) |
 | 12 | SEC-016 | TOTP/passkey for the owner; idle timeout | **Yes** (auth feature) |

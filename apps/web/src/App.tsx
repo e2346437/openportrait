@@ -30,6 +30,10 @@ import { BookCancelPage } from "./pages/public/BookCancel.js";
 import { ApprovalsPage } from "./pages/Approvals.js";
 import { ConsentAIPage } from "./pages/ConsentAI.js";
 import { OrdersPage } from "./pages/orders/Orders.js";
+import { ContractsPage } from "./pages/contracts/Contracts.js";
+import { ContractPage } from "./pages/contracts/Contract.js";
+import { ContractTemplatesPage } from "./pages/settings/ContractTemplates.js";
+import { ContractSignPage } from "./pages/public/Contract.js";
 import { OrderPage } from "./pages/orders/Order.js";
 import { QuestionnairesSettingsPage } from "./pages/settings/Questionnaires.js";
 import { QuestionnairePage } from "./pages/public/Questionnaire.js";
@@ -96,6 +100,8 @@ export function App() {
                   <Route path="booking" element={<BookingPage />} />
                   <Route path="clients" element={<ClientsPage />} />
                   <Route path="clients/:id" element={<ContactDetailPage />} />
+                  <Route path="contracts" element={<ContractsPage />} />
+                  <Route path="contracts/:id" element={<ContractPage />} />
                   <Route path="orders" element={<OrdersPage />} />
                   <Route path="orders/new" element={<OrderPage />} />
                   <Route path="orders/:id" element={<OrderPage />} />
@@ -113,6 +119,7 @@ export function App() {
                     <Route path="questionnaires" element={<QuestionnairesSettingsPage />} />
                     <Route path="prices" element={<PricesSettingsPage />} />
                     <Route path="payments" element={<PaymentsSettingsPage />} />
+                    <Route path="contracts" element={<ContractTemplatesPage />} />
                     <Route path="email" element={<EmailSettingsPage />} />
                     <Route path="camera-upload" element={<CameraUploadSettingsPage />} />
                     <Route path="internet" element={<InternetSettingsPage />} />
@@ -130,6 +137,7 @@ export function App() {
             <Route path="/inquire" element={<InquirePage />} />
             <Route path="/q/:token" element={<QuestionnairePage />} />
             <Route path="/o/:token" element={<OrderViewPage />} />
+            <Route path="/c/:token" element={<ContractSignPage />} />
             <Route path="/book/cancel/:token" element={<BookCancelPage />} />
             <Route path="/book/:slug" element={<BookPage />} />
             <Route path="*" element={<NotFoundPage standalone />} />

@@ -128,13 +128,13 @@ export function Callout({ tone = "neutral", title, children, action }: { tone?: 
   );
 }
 
-export function EmptyState({ icon, title, children, action }: { icon: IconName; title: ReactNode; children?: ReactNode; action?: ReactNode }) {
+export function EmptyState({ icon, title, children, action, headingLevel }: { icon: IconName; title: ReactNode; children?: ReactNode; action?: ReactNode; headingLevel?: number }) {
   return (
     <div className="empty">
       <div className="empty-art">
         <Icon name={icon} />
       </div>
-      <b>{title}</b>
+      {headingLevel ? <b role="heading" aria-level={headingLevel}>{title}</b> : <b>{title}</b>}
       {children ? <p>{children}</p> : null}
       {action}
     </div>

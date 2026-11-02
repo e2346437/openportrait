@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
-import { Button, Callout, Dialog, EmptyState, Field, PageHeader, Spinner, Switch, TextArea, TextInput, useToast, type IconName } from "@openportrait/ui";
+import { Button, Callout, Dialog, EmptyState, Field, PageHeader, Spinner, TextArea, TextInput, useToast, type IconName } from "@openportrait/ui";
+import { SwitchRow } from "../../components/SwitchRow.js";
 import { ApiError } from "../../lib/api.js";
 import { extensionApi, useExtensionPages, type ExtensionPageDef, type PageColumn, type PageField } from "../../lib/extensionPages.js";
 import { formatMoney, moneyInput, parseMoney } from "../../lib/money.js";
@@ -66,9 +67,8 @@ function FieldControl({ field, value, onChange, error, extension }: { field: Pag
   const options = field.options ?? remote.data?.options ?? [];
   if (field.type === "checkbox") {
     return (
-      <div className={field.wide ? "span-2" : undefined}>
-        <Switch checked={Boolean(value)} onChange={onChange} label={field.label} />
-        {field.hint ? <span className="hint">{field.hint}</span> : null}
+      <div className="span-2">
+        <SwitchRow checked={Boolean(value)} onChange={onChange} label={field.label} hint={field.hint} />
       </div>
     );
   }
@@ -196,7 +196,7 @@ function PageBody({ extension, def }: { extension: string; def: ExtensionPageDef
     return (
       <>
       {header}
-      <EmptyState icon="key" title="Part of OpenPortrait Pro" action={<Link className="btn primary" to="/studio/settings/extensions">Open license settings</Link>}>
+      <EmptyState icon="key" title="Not unlocked yet" action={<Link className="btn primary" to="/studio/settings/extensions">Open extension settings</Link>}>
         {locked}
       </EmptyState>
       </>

@@ -187,7 +187,7 @@ function OrderRecord({ order: o, onChanged, onEdit }: { order: OrderDetail; onCh
               <div><dt>Subtotal</dt><dd>{money(o.subtotalCents)}</dd></div>
               {o.discountCents ? <div><dt>Discount</dt><dd>−{money(o.discountCents)}</dd></div> : null}
               {o.couponCents ? <div><dt>Coupon {o.couponCode}</dt><dd>−{money(o.couponCents)}</dd></div> : null}
-              {o.taxCents ? <div><dt>Tax</dt><dd>{money(o.taxCents)}</dd></div> : null}
+              {o.taxCents ? <div><dt>{o.taxLabel || "Tax"}</dt><dd>{money(o.taxCents)}</dd></div> : null}
               <div className="grand"><dt>Total</dt><dd>{money(o.totalCents)}</dd></div>
               {open ? <div><dt>Paid</dt><dd>{money(o.paidCents)}</dd></div> : null}
               {open ? <div className="grand"><dt>Balance</dt><dd>{money(o.balanceCents)}</dd></div> : null}

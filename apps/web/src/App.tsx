@@ -41,6 +41,7 @@ import { QuestionnairePage } from "./pages/public/Questionnaire.js";
 import { ImportSettingsPage } from "./pages/settings/Import.js";
 import { BackupsSettingsPage } from "./pages/settings/Backups.js";
 import { PricesSettingsPage } from "./pages/settings/Prices.js";
+import { SalesTaxSettingsPage } from "./pages/settings/SalesTax.js";
 import { ReportsPage } from "./pages/reports/Reports.js";
 import { ExtensionPageView } from "./pages/extensions/ExtensionPage.js";
 import { ExtensionsSettingsPage } from "./pages/settings/Extensions.js";
@@ -127,6 +128,7 @@ export function App() {
                     <Route path="calendar" element={<CalendarSettingsPage />} />
                     <Route path="questionnaires" element={<QuestionnairesSettingsPage />} />
                     <Route path="prices" element={<PricesSettingsPage />} />
+                    <Route path="tax" element={<SalesTaxSettingsPage />} />
                     <Route path="payments" element={<PaymentsSettingsPage />} />
                     <Route path="contracts" element={<ContractTemplatesPage />} />
                     <Route path="email" element={<EmailSettingsPage />} />

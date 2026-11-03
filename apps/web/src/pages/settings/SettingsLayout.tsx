@@ -37,6 +37,7 @@ function groups(hasExtensions: boolean): Group[] {
       title: "Money",
       items: [
         { to: "prices", label: "Prices", icon: "receipt" },
+        { to: "tax", label: "Sales tax", icon: "receipt" },
         { to: "payments", label: "Payments", icon: "receipt", ownerOnly: true },
       ],
     },

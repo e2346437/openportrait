@@ -6,6 +6,7 @@ import { DomainError, linkTo, newId, notFound, type ServiceContext } from "./con
 import { evaluate as evaluateCoupon } from "./coupons.js";
 import { composeEmail, queueEmail } from "./email.js";
 import { formatMoney, totalsFor } from "./money.js";
+import { resolveRate, type TaxPick } from "./tax.js";
 import { addDays, isYmd, ymdIn } from "./time.js";
 
 const { order, orderLine, paymentSchedule, payment, counter, contact, creditEntry } = tables;
@@ -41,6 +42,8 @@ export interface OrderInput {
   /** The booking page this document comes from. Lets a coupon limited to that page apply. */
   schedulerId?: string | null;
   validUntil?: string | null;
+  /** One of the studio's tax rates. Omit for the default. */
+  taxRateId?: string | null;
   lines: OrderLineInput[];
   /** Omit for one payment of the whole amount, due on acceptance. */
   schedule?: ScheduleInput[];
@@ -158,6 +161,8 @@ function detail(ctx: ServiceContext, o: OrderRow) {
     couponCents: o.couponCents,
     taxCents: o.taxCents,
     taxBps: o.taxBps,
+    taxRateId: o.taxRateId,
+    taxLabel: o.taxLabel,
     token: o.token,
     contactName: c ? displayName(c) : "",
     contactEmail: c?.email ?? null,
@@ -211,11 +216,12 @@ function ensureContact(ctx: ServiceContext, id: string) {
   if (!c) throw notFound("Contact");
 }
 
-function write(ctx: ServiceContext, id: string, input: OrderInput, taxBps: number, existing?: OrderRow) {
+function write(ctx: ServiceContext, id: string, input: OrderInput, rate: TaxPick, existing?: OrderRow) {
+  const taxBps = rate.bps;
   const v = clean(ctx, input, taxBps, existing);
   ctx.db
     .update(order)
-    .set({ title: v.title, intro: input.intro?.trim() || null, terms: input.terms?.trim() ?? null, discountCents: v.totals.discountCents, couponId: v.coupon?.couponId ?? null, couponCode: v.coupon?.code ?? null, couponCents: v.coupon?.cents ?? 0, subtotalCents: v.totals.subtotalCents, taxCents: v.totals.taxCents, totalCents: v.totals.totalCents, taxBps, validUntil: v.validUntil, shootId: input.shootId ?? null, leadId: input.leadId ?? null, updatedAt: new Date() })
+    .set({ title: v.title, intro: input.intro?.trim() || null, terms: input.terms?.trim() ?? null, discountCents: v.totals.discountCents, couponId: v.coupon?.couponId ?? null, couponCode: v.coupon?.code ?? null, couponCents: v.coupon?.cents ?? 0, subtotalCents: v.totals.subtotalCents, taxCents: v.totals.taxCents, totalCents: v.totals.totalCents, taxBps, taxRateId: rate.id, taxLabel: rate.label, validUntil: v.validUntil, shootId: input.shootId ?? null, leadId: input.leadId ?? null, updatedAt: new Date() })
     .where(eq(order.id, id))
     .run();
   ctx.db.delete(orderLine).where(eq(orderLine.orderId, id)).run();
@@ -226,7 +232,7 @@ function write(ctx: ServiceContext, id: string, input: OrderInput, taxBps: numbe
 
 export function createOrder(ctx: ServiceContext, kind: "quote" | "invoice", input: OrderInput) {
   ensureContact(ctx, input.contactId);
-  const taxBps = ctx.settings.get("money.taxBps") ?? 0;
+  const rate = resolveRate(ctx, input.taxRateId);
   const id = newId();
   ctx.db.transaction((tx) => {
     const t = { ...ctx, db: tx as unknown as ServiceContext["db"] };
@@ -243,7 +249,7 @@ export function createOrder(ctx: ServiceContext, kind: "quote" | "invoice", inpu
         terms: ctx.settings.get("money.terms") || null,
       })
       .run();
-    write(t, id, { ...input, terms: input.terms ?? ctx.settings.get("money.terms") ?? null }, taxBps);
+    write(t, id, { ...input, terms: input.terms ?? ctx.settings.get("money.terms") ?? null }, rate);
   });
   const o = rowOf(ctx, id);
   logActivity(ctx, { contactId: o.contactId, kind: `${kind}.created`, summary: `${label(o)} drafted: ${o.title}`, shootId: o.shootId, leadId: o.leadId });
@@ -257,7 +263,7 @@ export function updateOrder(ctx: ServiceContext, id: string, input: OrderInput) 
   ctx.db.transaction((tx) => {
     const t = { ...ctx, db: tx as unknown as ServiceContext["db"] };
     t.db.update(order).set({ contactId: input.contactId }).where(eq(order.id, id)).run();
-    write(t, id, input, ctx.settings.get("money.taxBps") ?? o.taxBps, o);
+    write(t, id, input, resolveRate(ctx, input.taxRateId ?? o.taxRateId), o);
   });
   return getOrder(ctx, id);
 }
@@ -421,6 +427,7 @@ export function publicView(ctx: ServiceContext, token: string) {
     couponCode: d.couponCode,
     couponCents: d.couponCents,
     taxCents: d.taxCents,
+    taxLabel: d.taxLabel,
     totalCents: d.totalCents,
     paidCents: d.paidCents,
     balanceCents: d.balanceCents,

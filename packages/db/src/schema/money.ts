@@ -67,6 +67,9 @@ export const order = sqliteTable(
     totalCents: integer().notNull().default(0),
     /** Tax rate in basis points (825 = 8.25%) fixed when the document is saved, so later rate changes don't rewrite it. */
     taxBps: integer().notNull().default(0),
+    /** Which of the studio's tax rates this document uses, and the name it shows. Null on documents from before multiple rates. */
+    taxRateId: text(),
+    taxLabel: text(),
     /** A coupon code applied to this document. `couponCents` is the part of the discount it gives; `discountCents` is the total. */
     couponId: text(),
     couponCode: text(),

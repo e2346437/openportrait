@@ -103,6 +103,8 @@ export interface SettingTypes {
   "money.currency": string;
   /** Default sales tax in basis points (825 = 8.25%). */
   "money.taxBps": number;
+  /** Places the studio collects tax, one of them the default (see domain/tax.ts). `money.taxBps` mirrors the default. */
+  "money.taxRates": { id: string; state: string; name: string; rateBps: number; registration: string; isDefault: boolean }[];
   "money.terms": string;
   /** How to pay by hand (Venmo handle, check address). Shown on invoices. */
   "money.paymentInstructions": string;

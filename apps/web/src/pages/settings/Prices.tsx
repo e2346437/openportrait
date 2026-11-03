@@ -293,15 +293,13 @@ function MoneyPanel() {
   const owner = me?.user?.role === "owner";
   const toast = useToast();
   const { data, error } = useLoad<MoneyState>("/money/settings");
-  const [f, setF] = useState({ currency: "USD", tax: "0", terms: "", paymentInstructions: "", quoteValidDays: "30" });
+  const [f, setF] = useState({ currency: "USD", terms: "", paymentInstructions: "", quoteValidDays: "30" });
   useEffect(() => {
-    if (data) setF({ currency: data.currency, tax: String(data.taxBps / 100), terms: data.terms, paymentInstructions: data.paymentInstructions, quoteValidDays: String(data.quoteValidDays) });
+    if (data) setF({ currency: data.currency, terms: data.terms, paymentInstructions: data.paymentInstructions, quoteValidDays: String(data.quoteValidDays) });
   }, [data]);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const save = useSubmit(() => {
-    const tax = Number(f.tax);
-    if (!Number.isFinite(tax) || tax < 0 || tax > 50) throw new Error("Enter the tax rate as a percentage, like 8.25.");
-    return api("/money/settings", { method: "PUT", body: { currency: f.currency, taxBps: Math.round(tax * 100), terms: f.terms, paymentInstructions: f.paymentInstructions, quoteValidDays: Number(f.quoteValidDays) } });
+    return api("/money/settings", { method: "PUT", body: { currency: f.currency, terms: f.terms, paymentInstructions: f.paymentInstructions, quoteValidDays: Number(f.quoteValidDays) } });
   });
   if (error && !data) return <Callout tone="bad">{error}</Callout>;
   if (!data) return <Spinner label="Loading" />;
@@ -310,11 +308,10 @@ function MoneyPanel() {
     if ((await save.submit()) !== undefined) toast("Saved");
   };
   return (
-    <Panel title="Quotes and invoices" description="Defaults for every new quote and invoice. Changing the tax rate doesn't change ones you've already written.">
+    <Panel title="Quotes and invoices" description="Defaults for every new quote and invoice. Sales tax rates live under Sales tax.">
       <form onSubmit={go} noValidate className="form-grid">
         {save.error ? <div className="span-2"><Callout tone="bad">{save.error}</Callout></div> : null}
         <Field label="Currency" hint="A three-letter code, like USD." error={save.fieldErrors.currency}>{(p) => <TextInput {...p} maxLength={3} disabled={!owner} value={f.currency} onChange={set("currency")} />}</Field>
-        <Field label="Sales tax rate (%)" hint="Added to taxable lines. Leave at 0 if you don't charge it.">{(p) => <TextInput {...p} inputMode="decimal" disabled={!owner} value={f.tax} onChange={set("tax")} />}</Field>
         <Field label="Quotes are good for (days)">{(p) => <TextInput {...p} inputMode="numeric" disabled={!owner} value={f.quoteValidDays} onChange={set("quoteValidDays")} />}</Field>
         <Field className="span-2" label="How clients can pay" hint="Shown on invoices. For example: Venmo @yourstudio, or checks to 12 Main St.">{(p) => <TextArea {...p} rows={2} maxLength={1000} disabled={!owner} value={f.paymentInstructions} onChange={set("paymentInstructions")} />}</Field>
         <Field className="span-2" label="Default terms and conditions" hint="Copied onto each new quote. You can edit them per quote.">{(p) => <TextArea {...p} rows={5} maxLength={6000} disabled={!owner} value={f.terms} onChange={set("terms")} />}</Field>

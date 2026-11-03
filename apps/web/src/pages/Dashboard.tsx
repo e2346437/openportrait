@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Icon, Panel, StatusChip } from "@openportrait/ui";
+import { api, type Reminder } from "../lib/api.js";
 import { useSession } from "../lib/session.js";
 import { tunnelSummary, useInternet } from "../lib/useInternet.js";
 
@@ -14,6 +16,46 @@ interface Item {
   done: boolean;
   to?: string;
   later?: string;
+}
+
+const REMINDER_PATH = { lead: "leads", shoot: "shoots", contact: "clients" } as const;
+
+const waited = (since: number) => {
+  const d = Math.floor((Date.now() - since) / 86_400_000);
+  return d < 1 ? "today" : d === 1 ? "1 day" : `${d} days`;
+};
+
+/** Built-in reminders: leads that need a reply or follow-up and shoots that need preparing. Owner only; nothing is sent for you. */
+function Reminders() {
+  const [items, setItems] = useState<Reminder[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    api<{ items: Reminder[] }>("/automation/reminders")
+      .then((r) => live && setItems(r.items))
+      .catch(() => live && setItems([]));
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!items?.length) return null;
+  return (
+    <Panel title="Needs your attention" description={`${items.length} ${items.length === 1 ? "thing" : "things"} waiting. They clear themselves once you act.`}>
+      <div className="checklist" style={{ margin: "calc(var(--s5) * -1)" }}>
+        {items.map((r) => (
+          <Link key={r.id} to={`/studio/${REMINDER_PATH[r.ref.type]}/${r.ref.id}`} className="check-row">
+            <span className="tick" aria-hidden="true" />
+            <span>
+              <b>{r.title}</b>
+              <span>{r.detail}</span>
+            </span>
+            <span className="btn sm">
+              Open <Icon name="arrowRight" />
+            </span>
+          </Link>
+        ))}
+      </div>
+    </Panel>
+  );
 }
 
 export function DashboardPage() {
@@ -47,6 +89,8 @@ export function DashboardPage() {
           {firstName ? `, ${firstName}` : ""}.
         </h1>
       </div>
+
+      {isOwner ? <Reminders /> : null}
 
       <Panel
         title="Get your studio ready"

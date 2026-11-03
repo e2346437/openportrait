@@ -52,6 +52,15 @@ describe("automation mode", () => {
     expect((await queue(await aiConnection())).count).toBe(0);
   });
 
+  it("built-in mode lists reminders for the owner, and the AI queue stays empty", async () => {
+    const r = await app.inject({ url: "/api/studio/automation/reminders", headers: { cookie } });
+    expect(r.json().items.map((i: { id: string }) => i.id)).toEqual([`lead-first-reply:${leadId}`]);
+    expect((await api("GET")).json().automations.find((a: { id: string }) => a.id === "lead-first-reply")).toMatchObject({ reminders: 1, waiting: 0 });
+    await api("PUT", { overrides: { "lead-first-reply": "off" } });
+    expect((await app.inject({ url: "/api/studio/automation/reminders", headers: { cookie } })).json().items).toEqual([]);
+    expect((await app.inject("/api/studio/automation/reminders")).statusCode).toBe(401);
+  });
+
   it("AI-controlled mode gives the AI the work and silences the built-in rules", async () => {
     await api("PUT", { mode: "ai" });
     expect(builtInMayRun(app.ctx.settings, "lead-first-reply")).toBe(false);

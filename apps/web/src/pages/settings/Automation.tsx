@@ -90,6 +90,7 @@ export function AutomationSettingsPage() {
               <div className="auto-text">
                 <b>{a.title}</b>
                 <span>{a.description}</span>
+                {a.owner === "built-in" && a.reminders ? <StatusChip tone="info">{`${a.reminders} on your dashboard`}</StatusChip> : null}
                 {a.owner === "ai" ? <StatusChip tone={a.waiting ? "info" : "ok"}>{a.waiting ? `${a.waiting} waiting for your AI` : "Nothing waiting"}</StatusChip> : null}
               </div>
               <Field label="Handled by" className="auto-select">

@@ -196,6 +196,22 @@ describe("catalog", () => {
     expect((await staff("GET", "/catalog")).body.items).toHaveLength(0);
     expect((await staff("POST", "/catalog", { name: "", priceCents: 1 })).status).toBe(400);
   });
+
+  it("builds packages from products and keeps auto prices in step", async () => {
+    const hours = (await staff("POST", "/catalog", { name: "Coverage hour", priceCents: 30_000 })).body;
+    const album = (await staff("POST", "/catalog", { name: "Album", priceCents: 50_000 })).body;
+    const pkg = await staff("POST", "/catalog", { kind: "package", name: "Wedding", priceCents: 0, autoPrice: true, components: [{ itemId: hours.id, quantity: 8 }, { itemId: album.id, quantity: 1 }] });
+    expect(pkg.status).toBe(201);
+    expect(pkg.body).toMatchObject({ autoPrice: true, priceCents: 290_000 });
+    await staff("PATCH", `/catalog/${album.id}`, { name: "Album", priceCents: 60_000 });
+    const listed = (await staff("GET", "/catalog")).body.items.find((i: { id: string }) => i.id === pkg.body.id);
+    expect(listed).toMatchObject({ priceCents: 300_000 });
+    expect(listed.components).toEqual([{ itemId: hours.id, quantity: 8 }, { itemId: album.id, quantity: 1 }]);
+    const custom = await staff("PATCH", `/catalog/${pkg.body.id}`, { name: "Wedding", priceCents: 250_000, autoPrice: false, components: listed.components });
+    expect(custom.body).toMatchObject({ autoPrice: false, priceCents: 250_000 });
+    const bad = await staff("POST", "/catalog", { kind: "package", name: "Nested", priceCents: 1, components: [{ itemId: pkg.body.id, quantity: 1 }] });
+    expect(bad.status).toBe(400);
+  });
 });
 
 describe("AI tools", () => {

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { contact } from "./people.js";
 
 const now = sql`(unixepoch('subsec') * 1000)`;
@@ -18,9 +18,23 @@ export const catalogItem = sqliteTable(
     priceCents: integer().notNull().default(0),
     taxable: integer({ mode: "boolean" }).notNull().default(true),
     position: integer().notNull().default(0),
+    /** Packages only: when true the price is the sum of the products inside it. */
+    autoPrice: integer({ mode: "boolean" }).notNull().default(false),
     archivedAt: integer({ mode: "timestamp_ms" }),
   },
   (t) => [index("catalog_item_kind_idx").on(t.kind, t.position)],
+);
+
+/** The products inside a package, with how many of each. */
+export const catalogPackageItem = sqliteTable(
+  "catalog_package_item",
+  {
+    packageId: text().notNull().references(() => catalogItem.id, { onDelete: "cascade" }),
+    itemId: text().notNull().references(() => catalogItem.id, { onDelete: "cascade" }),
+    quantity: integer().notNull().default(1),
+    position: integer().notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.packageId, t.itemId] })],
 );
 
 /**

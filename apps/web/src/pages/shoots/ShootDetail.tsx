@@ -99,6 +99,9 @@ export function ShootDetailPage() {
           <Button icon="edit" onClick={() => setEditing(true)}>
             Edit
           </Button>
+          <Link className="btn" to={`/studio/orders/new?shoot=${shoot.id}`}>
+            <Icon name="receipt" /> New quote
+          </Link>
           <select className="input" aria-label="Status" style={{ width: "auto" }} value={shoot.status} onChange={(e) => void patch({ status: e.target.value as ShootStatus }, "Status updated")}>
             {(Object.keys(SHOOT_STATUS) as ShootStatus[]).map((s) => (
               <option key={s} value={s}>

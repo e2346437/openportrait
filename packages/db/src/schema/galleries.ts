@@ -54,6 +54,9 @@ export const gallery = sqliteTable(
     welcomeMessage: text(),
     downloadSize: text({ enum: ["none", "web", "full"] }).notNull().default("full"),
     downloadLock: text({ enum: ["until_paid", "highlights_early", "none"] }).notNull().default("none"),
+    /** Per-client caps (null = no cap): how many separate downloads, and how many files in total. */
+    downloadMaxTimes: integer(),
+    downloadMaxFiles: integer(),
     unlockedAt: integer({ mode: "timestamp_ms" }),
     expiresAt: integer({ mode: "timestamp_ms" }),
     publishedAt: integer({ mode: "timestamp_ms" }),
@@ -208,6 +211,8 @@ export const downloadEvent = sqliteTable(
     photoId: text(),
     scope: text({ enum: ["photo", "set", "gallery", "favorites"] }).notNull(),
     variant: text({ enum: ["web", "full"] }).notNull(),
+    /** Files in this download: 1 for a photo, the part's photo count for a zip. */
+    fileCount: integer().notNull().default(1),
     clientEmail: text(),
     ip: text(),
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),

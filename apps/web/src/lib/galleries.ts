@@ -68,6 +68,8 @@ export interface GalleryDetail {
     design: GalleryDesign;
     downloadSize: DownloadSize;
     downloadLock: DownloadLock;
+    downloadMaxTimes: number | null;
+    downloadMaxFiles: number | null;
     accessMode: "link" | "password";
     hasPassword: boolean;
     registration: "none" | "email" | "email_name";
@@ -150,6 +152,7 @@ export interface ClientGallery {
     coverFocalY: number;
     downloadSize?: DownloadSize;
     downloadLock?: DownloadLock;
+    downloadLimited?: boolean;
     unlocked?: boolean;
     date: number | null;
   };

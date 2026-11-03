@@ -255,6 +255,59 @@ describe("zip downloads", () => {
   });
 });
 
+describe("download limits", () => {
+  it("caps downloads and files per client, counts each client separately, and never limits staff", async () => {
+    await jpeg(path.join(share, "Lim/Gallery/a.jpg"), red);
+    await jpeg(path.join(share, "Lim/Gallery/b.jpg"), blue);
+    await jpeg(path.join(share, "Lim/Gallery/c.jpg"), green);
+    const { id, slug, detail } = await galleryFromShare();
+    await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
+    expect((await studio("PATCH", `/galleries/${id}`, { downloadMaxTimes: 0 })).statusCode).toBe(400);
+    const saved = (await studio("PATCH", `/galleries/${id}`, { downloadMaxTimes: 3, downloadMaxFiles: 4 })).json().gallery;
+    expect(saved).toMatchObject({ downloadMaxTimes: 3, downloadMaxFiles: 4 });
+
+    const client = async (email: string) => {
+      const who = await app.inject({ method: "POST", url: `/api/g/${slug}/identify`, payload: { email } });
+      return `op_client=${who.cookies.find((c) => c.name === "op_client")!.value}`;
+    };
+    const ana = await client("ana@example.com");
+    const ben = await client("ben@example.com");
+    const photo = (name: string) => detail.photos.find((x: { filename: string }) => x.filename === name).id;
+    const one = (cookie: string, name: string) => app.inject({ url: `/api/g/${slug}/photos/${photo(name)}/download`, headers: { cookie } });
+
+    // A 3-file zip is fine (3 of 4 files, 1 of 3 downloads); a second would exceed the file cap.
+    const zip1 = await app.inject({ url: `/api/g/${slug}/zip?scope=gallery`, headers: { cookie: ana } });
+    expect(zip1.statusCode).toBe(200);
+    const opts = (await app.inject({ url: `/api/g/${slug}/downloads`, headers: { cookie: ana } })).json();
+    expect(opts.allowance).toMatchObject({ usedTimes: 1, usedFiles: 3, timesLeft: 2, filesLeft: 1 });
+    expect(opts.downloads.find((d: { key: string }) => d.key === "gallery").blocked).toMatch(/1 file left/);
+    const tooMany = await app.inject({ url: `/api/g/${slug}/zip?scope=gallery`, headers: { cookie: ana } });
+    expect(tooMany.statusCode).toBe(403);
+    expect(tooMany.json().error).toBe("limit");
+
+    // One more photo uses the last file; then the cap is reached.
+    expect((await one(ana, "a.jpg")).statusCode).toBe(200);
+    const done = await one(ana, "b.jpg");
+    expect(done.statusCode).toBe(403);
+    expect(done.json().message).toMatch(/4 files/);
+    expect((await app.inject({ url: `/api/g/${slug}/allowance`, headers: { cookie: ana } })).json().blocked).toMatch(/4 files/);
+
+    // Ben has his own allowance, and the times cap stops him after 3 single downloads.
+    for (const n of ["a.jpg", "b.jpg", "c.jpg"]) expect((await one(ben, n)).statusCode).toBe(200);
+    const last = await one(ben, "a.jpg");
+    expect(last.statusCode).toBe(403);
+    expect(last.json().message).toMatch(/all 3 of your downloads/);
+
+    // Staff preview is never counted or blocked.
+    const asStaff = await app.inject({ method: "GET", url: `/api/g/${slug}/photos/${photo("a.jpg")}/download`, headers: { cookie: `${staff}; ${ben}` } });
+    expect(asStaff.statusCode).toBe(200);
+
+    // No caps again: everything opens.
+    await studio("PATCH", `/galleries/${id}`, { downloadMaxTimes: null, downloadMaxFiles: null });
+    expect((await one(ben, "a.jpg")).statusCode).toBe(200);
+  });
+});
+
 describe("watermark", () => {
   it("marks previews only while downloads wait for payment, and never the downloads", async () => {
     const shoot = path.join(share, "Oda Family");

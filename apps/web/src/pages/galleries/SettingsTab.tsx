@@ -18,6 +18,26 @@ const REGISTRATION: Array<{ id: GalleryDetail["gallery"]["registration"]; title:
   { id: "email_name", title: "Name and email first", body: "Visitors enter their name and email before they see any photos." },
 ];
 
+/** A whole-number cap that saves when you leave the field; empty means no cap. */
+function LimitField({ label, hint, unit, value, onSave, error }: { label: string; hint: string; unit: string; value: number | null; onSave: (n: number | null) => void; error?: string }) {
+  const [text, setText] = useState(value === null ? "" : String(value));
+  const commit = () => {
+    const n = text.trim() === "" ? null : Math.floor(Number(text));
+    if (n !== null && (!Number.isFinite(n) || n < 1)) return setText(value === null ? "" : String(value));
+    if (n !== value) onSave(n);
+  };
+  return (
+    <Field label={label} hint={hint} error={error}>
+      {(p) => (
+        <span className="limit-input">
+          <TextInput {...p} type="number" min={1} step={1} inputMode="numeric" placeholder="No limit" value={text} onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === "Enter" && commit()} />
+          <span className="unit">{unit}</span>
+        </span>
+      )}
+    </Field>
+  );
+}
+
 function AccessPanel({ g, patch }: { g: GalleryDetail["gallery"]; patch: Patch }) {
   const toast = useToast();
   const [password, setPassword] = useState("");
@@ -146,6 +166,16 @@ export function SettingsTab({ data, patch, onDeleted }: { data: GalleryDetail; p
             </label>
           ))}
         </fieldset>
+        {g.downloadSize !== "none" ? (
+          <fieldset className="opts">
+            <legend className="label">Limits for each client</legend>
+            <p className="hint">Counted by the email each client gives. Leave a field empty for no limit. You are never counted when you preview the gallery.</p>
+            <div className="form-grid">
+              <LimitField label="Downloads" unit="downloads" hint="A zip or a single photo is one download." value={g.downloadMaxTimes} onSave={(n) => patch("", { downloadMaxTimes: n })} />
+              <LimitField label="Files" unit="files" hint="Photos in total, across zips and single downloads." value={g.downloadMaxFiles} onSave={(n) => patch("", { downloadMaxFiles: n })} />
+            </div>
+          </fieldset>
+        ) : null}
         {g.downloadLock !== "none" ? (
           <Callout tone={g.unlockedAt ? "ok" : "warn"} title={g.unlockedAt ? `Unlocked ${formatDate(g.unlockedAt)}` : "Still locked"} action={<Button size="sm" onClick={() => patch("/unlock", { locked: !!g.unlockedAt }, "POST")}>{g.unlockedAt ? "Lock again" : "Mark as paid"}</Button>}>
             {g.unlockedAt ? "Clients can download everything." : "Mark the gallery paid by hand for cash or check payments. Online payment will do this automatically."}

@@ -32,7 +32,7 @@ const OrderBody = z.object({
   schedule: z.array(z.object({ label: z.string().max(100), amountCents: z.number(), dueDate: z.string().max(10).nullish() })).max(24).optional(),
 });
 const Method = z.enum(orders.METHODS);
-const ItemBody = z.object({ kind: z.enum(["package", "item"]).optional(), name: z.string().max(200), description: z.string().max(1000).nullish(), priceCents: z.number(), taxable: z.boolean().optional() });
+const ItemBody = z.object({ kind: z.enum(["package", "item"]).optional(), name: z.string().max(200), description: z.string().max(1000).nullish(), priceCents: z.number(), taxable: z.boolean().optional(), autoPrice: z.boolean().optional(), components: z.array(z.object({ itemId: z.string().max(40), quantity: z.number().int().min(1).max(99) })).max(50).optional() });
 const MoneySettings = z.object({
   currency: z.string().trim().length(3, "Use a three-letter currency code such as USD.").toUpperCase(),
   taxBps: z.number().int().min(0).max(5000),

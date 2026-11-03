@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { Avatar, Button, Callout, Icon, Panel, StatusChip, TextArea, useToast, type IconName } from "@openportrait/ui";
 import { HouseholdPanel } from "../../components/HouseholdPanel.js";
 import { CreditPanel } from "../../components/CreditPanel.js";
+import { ContractsPanel, GalleriesPanel, OrdersPanel } from "../../components/RelatedPanels.js";
 import { ContactDialog } from "../../components/ContactDialog.js";
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
@@ -188,10 +189,6 @@ export function ContactDetailPage() {
             </div>
           </Panel>
 
-          <HouseholdPanel contact={c} onChanged={reload} />
-
-          <CreditPanel contactId={c.id} />
-
           <Panel
             flush
             title="Shoots"
@@ -220,6 +217,14 @@ export function ContactDetailPage() {
               </div>
             )}
           </Panel>
+
+          <OrdersPanel contactId={c.id} />
+          <ContractsPanel contactId={c.id} />
+          <GalleriesPanel shootIds={c.shoots.map((s) => s.id)} />
+
+          <HouseholdPanel contact={c} onChanged={reload} />
+
+          <CreditPanel contactId={c.id} />
 
           <Panel flush title="Inquiries">
             {c.leads.length === 0 ? (

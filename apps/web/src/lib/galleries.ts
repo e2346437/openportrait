@@ -89,6 +89,7 @@ export interface GallerySummary {
   title: string;
   slug: string;
   status: "draft" | "live" | "archived";
+  shootId: string | null;
   shootFolder: string;
   sourceMissing: boolean;
   photoCount: number;

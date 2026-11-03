@@ -853,3 +853,14 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .qp-card { margin: 0 auto; box-shadow: none; padding: clamp(16px, 3vw, 32px); }
 .qp-frame.phone .qp-card { padding: 16px; }
 .q-builder[hidden] { display: none; }
+
+/* Settings > Prices: package builder */
+.pkg-pick { border: 1px solid var(--line, #d9d6cf); border-radius: var(--radius-md, 10px); padding: 0; margin: 0; min-width: 0; display: grid; }
+.pkg-pick legend { padding: 0 6px; margin-left: 10px; }
+.pkg-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line, #d9d6cf); min-width: 0; }
+.pkg-row:first-of-type { border-top: 0; }
+.pkg-row.on { background: color-mix(in srgb, var(--lens, #2f6f73) 8%, transparent); }
+.pkg-step { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.pkg-step output { min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+.pkg-total { margin: 0; align-self: end; }
+.pkg-total small { display: block; opacity: .7; }

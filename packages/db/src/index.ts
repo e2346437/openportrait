@@ -30,8 +30,35 @@ export function openDatabase({ file, migrate: runMigrations = true }: OpenOption
   client.pragma("foreign_keys = ON");
   client.pragma("busy_timeout = 5000");
   const db = drizzle({ client, schema, casing: "snake_case" }) as Db;
-  if (runMigrations) migrate(db, { migrationsFolder: migrationsDir });
+  if (runMigrations) {
+    if (file !== ":memory:") snapshotBeforeMigrating(client, file);
+    migrate(db, { migrationsFolder: migrationsDir });
+  }
   return db;
+}
+
+const KEEP_SNAPSHOTS = 3;
+
+/**
+ * Updating the app can change the database in a way older versions can't read. When there are migrations to apply to a
+ * database that already has data, keep a consistent copy first (`pre-migrate/` beside the database) so a bad update
+ * can be undone. Never blocks startup: if the copy can't be made, the update still goes ahead.
+ */
+function snapshotBeforeMigrating(client: Database.Database, file: string): void {
+  try {
+    const applied = client.prepare("select name from sqlite_master where type = 'table' and name = '__drizzle_migrations'").get()
+      ? ((client.prepare("select max(created_at) as latest from __drizzle_migrations").get() as { latest: number | null }).latest ?? null)
+      : null;
+    if (applied === null || applied >= appLatestMigration()) return; // a new database, or already up to date
+    const dir = path.join(path.dirname(file), "pre-migrate");
+    fs.mkdirSync(dir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    client.prepare("vacuum into ?").run(path.join(dir, `${path.basename(file)}.${stamp}`));
+    const old = fs.readdirSync(dir).filter((n) => n.startsWith(`${path.basename(file)}.`)).sort();
+    for (const n of old.slice(0, Math.max(0, old.length - KEEP_SNAPSHOTS))) fs.rmSync(path.join(dir, n), { force: true });
+  } catch (err) {
+    console.warn(`Couldn't save a copy of the database before updating it: ${err instanceof Error ? err.message : err}`);
+  }
 }
 
 /** Consistent online snapshot via SQLite's backup API (safe while the app is running). */

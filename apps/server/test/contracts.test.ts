@@ -86,6 +86,33 @@ describe("templates", () => {
   });
 });
 
+describe("formatted wording", () => {
+  const RICH = '<h1>Agreement</h1><p style="text-align:center;color:red" onclick="x()">Hello <strong>{{client.name}}</strong><script>alert(1)</script> <a href="javascript:alert(1)">bad</a> <a href="https://example.com/terms">terms</a></p><ul><li>One</li><li>Two</li></ul>';
+  it("cleans the markup, escapes merge values, and keeps it through signing and the PDF", async () => {
+    const contactId = (await staff("POST", "/contacts", { firstName: "<b>Jane", lastName: "Smith", email: "jane@example.com" })).body.id as string;
+    const t = await staff("POST", "/contract-templates", { name: "Rich", body: RICH });
+    expect(t.status).toBe(201);
+    const stored = (await staff("GET", "/contract-templates")).body.items[0].body as string;
+    expect(stored).toContain("<h2>Agreement</h2>");
+    expect(stored).toContain("text-align:center");
+    expect(stored).not.toMatch(/script|onclick|javascript:|color:red/);
+    expect(stored).toContain('href="https://example.com/terms"');
+    const c = await staff("POST", "/contracts", { contactId, templateId: t.body.id });
+    expect(c.body.body).toContain("&lt;b&gt;Jane Smith");
+    expect(c.body.body).not.toContain("<b>Jane");
+    await staff("POST", `/contracts/${c.body.id}/send`);
+    const token = (app.ctx.db.$client.prepare("select token from contract where id = ?").get(c.body.id) as { token: string }).token;
+    expect((await pub("GET", `/contract/${token}`)).body.body).toContain("<li>One</li>");
+    expect((await sign(token)).status).toBe(200);
+    const pdf = await app.inject({ method: "GET", url: `/api/public/contract/${token}/pdf` });
+    expect(pdf.statusCode).toBe(200);
+    expect(pdf.rawPayload.subarray(0, 5).toString()).toBe("%PDF-");
+  });
+  it("refuses wording that is only empty markup", async () => {
+    expect((await staff("POST", "/contract-templates", { name: "Empty", body: "<p><br></p>" })).status).toBe(400);
+  });
+});
+
 describe("drafting", () => {
   it("fills merge fields from the client, shoot and quote", async () => {
     const contactId = await client();

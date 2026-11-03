@@ -3,6 +3,7 @@ import path from "node:path";
 import { ZipArchive } from "archiver";
 import { backupDatabase, type Db } from "@openportrait/db";
 import { defineJob, enqueue } from "@openportrait/jobs";
+import { DestinationStore, providerFor } from "./backup-destinations.js";
 import type { Settings } from "./settings.js";
 
 export const BACKUP_DEFAULTS = { enabled: true, everyHours: 24, keep: 14, includeGalleries: false, includeOriginals: false } as const;
@@ -96,10 +97,13 @@ export function measureTree(root: string, privateNames: string[]): TreeSizes {
 export class BackupService {
   private running = false;
   private lastError = "";
+  readonly destinations: DestinationStore;
 
   constructor(
     private readonly deps: { db: Db; settings: Settings; configDir: string; galleriesDir: string },
-  ) {}
+  ) {
+    this.destinations = new DestinationStore(deps.settings);
+  }
 
   get dir() {
     return backupsDir(this.deps.configDir);
@@ -239,6 +243,7 @@ export class BackupService {
 
       if (trigger === "scheduled") this.prune(cfg.keep);
       this.deps.settings.set("backup.lastAt", Date.now());
+      await this.copyOut(final, name, cfg.keep, trigger);
       this.lastError = "";
       return this.list().find((b) => b.name === name)!;
     } catch (err) {
@@ -246,6 +251,28 @@ export class BackupService {
       throw err;
     } finally {
       this.running = false;
+    }
+  }
+
+  /**
+   * Copies a finished backup to every enabled destination. One destination failing never fails the backup or stops the
+   * others; the error is saved on that destination and shown on the Backups page.
+   */
+  async copyOut(file: string, name: string, keep: number, trigger: "scheduled" | "manual"): Promise<void> {
+    const size = fs.statSync(file).size;
+    for (const d of this.destinations.all().filter((x) => x.enabled)) {
+      const provider = providerFor(d.kind);
+      try {
+        if (!provider) throw new Error("The extension that provides this destination isn't loaded.");
+        await provider.upload(d.config, { path: file, name, size });
+        if (trigger === "scheduled") {
+          const mine = (await provider.list(d.config)).map((f) => f.name).filter((n) => /^openportrait-[0-9TZ-]+\.(zip|db)$/.test(n)).sort().reverse();
+          for (const old of mine.slice(Math.max(1, keep))) await provider.remove(d.config, old);
+        }
+        this.destinations.record(d.id, { ok: true, file: name });
+      } catch (err) {
+        this.destinations.record(d.id, { ok: false, error: err instanceof Error ? err.message : "The copy failed." });
+      }
     }
   }
 

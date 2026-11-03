@@ -49,6 +49,8 @@ export interface SettingTypes {
   "backup.keep": number;
   "backup.includeGalleries": boolean;
   "backup.includeOriginals": boolean;
+  /** JSON list of places backups are copied to (see backup-destinations.ts). Encrypted, because a destination may hold credentials. */
+  "backup.destinations": string;
   /** Delivery folder inside each shoot folder; its subfolders are gallery sets. */
   "galleries.deliveryFolder": string;
   /** Other shoot subfolders the gallery watcher never reads (camera originals). */
@@ -117,7 +119,7 @@ export interface SettingTypes {
   "upload.passiveHost": string;
 }
 
-const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token", "google.clientSecret", "google.refreshToken", "email.password", "paypal.clientSecret"]);
+const SECRET_KEYS = new Set<keyof SettingTypes>(["tunnel.token", "google.clientSecret", "google.refreshToken", "email.password", "paypal.clientSecret", "backup.destinations"]);
 
 export class Settings {
   constructor(

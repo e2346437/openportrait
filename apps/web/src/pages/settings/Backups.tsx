@@ -16,6 +16,7 @@ import { useSubmit } from "../../lib/useForm.js";
 import { formatBytes } from "../../lib/tether.js";
 import { formatDate, plural, timeAgo } from "../../lib/galleries.js";
 import { SwitchRow } from "../../components/SwitchRow.js";
+import { BackupDestinationsPanel } from "./BackupDestinations.js";
 
 interface Config {
   enabled: boolean;
@@ -251,6 +252,8 @@ export function BackupsSettingsPage() {
           you would have to enter those passwords again after a restore.
         </Callout>
       </Panel>
+
+      <BackupDestinationsPanel />
 
       <Panel
         title="Your backups"

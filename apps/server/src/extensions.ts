@@ -10,7 +10,7 @@ import { requireOwner } from "./auth.js";
 import { financialReport, resolveRange, type FinancialReport } from "./domain/reports.js";
 import { VERSION, type AppContext } from "./app.js";
 import { hashPassword, generateLoginPassword } from "./auth.js";
-import { incomingSubfolderHooks, mailSenders, shootScopeHooks } from "./extension-hooks.js";
+import { backupProviders, incomingSubfolderHooks, mailSenders, shootScopeHooks } from "./extension-hooks.js";
 import { defineTool, grantCapability, lockCapability, revokeCapability } from "./ai/registry.js";
 import { registerSiteExtension, registerSiteTemplate, unregisterSiteExtension, unregisterSiteTemplate, type SiteExtension, type SiteTemplate } from "./site/registry.js";
 
@@ -106,6 +106,26 @@ export interface ReportData {
 
 /** Gets the file's path inside Incoming, such as "Z9/2026-11-14/DSC_1.NEF". Returns a folder name, or nothing. */
 export type IncomingSubfolderHook = (info: { shootId: string; path: string }) => string | undefined | null;
+/**
+ * An outside place to copy backups, such as a cloud bucket. The owner adds one or more destinations of this kind under
+ * Settings > Backups; the app draws the form from `fields`, stores the values encrypted, and calls these methods.
+ * Each method receives the destination's saved values and throws an Error with a plain-language message on failure.
+ */
+export interface BackupProvider {
+  /** Stable id, for example "s3". Must not be "folder". */
+  kind: string;
+  /** Shown in the list of destination types, for example "Amazon S3 or Backblaze B2". */
+  label: string;
+  description?: string;
+  fields: Array<{ name: string; label: string; hint?: string; secret?: boolean; optional?: boolean }>;
+  /** Checks the values and the connection. Used by "Test" and before saving. */
+  check(config: Record<string, string>): Promise<void>;
+  /** Copies one backup file. Must not leave a partial file under the final name. */
+  upload(config: Record<string, string>, file: { path: string; name: string; size: number }): Promise<void>;
+  /** Backups already at the destination, so old ones can be removed. */
+  list(config: Record<string, string>): Promise<Array<{ name: string }>>;
+  remove(config: Record<string, string>, name: string): Promise<void>;
+}
 /** An outside way to send the studio's email, such as a hosted mailbox. */
 export interface MailSender {
   /** Shown in Settings > Email, for example "Microsoft 365". */
@@ -204,6 +224,8 @@ export interface ExtensionApi {
   incomingSubfolder(fn: IncomingSubfolderHook): void;
   /** Offers an outside mailbox for sending. While it is ready, it replaces the SMTP settings for outgoing email. */
   mailSender(sender: MailSender): void;
+  /** Offers another place to copy backups to. See BackupProvider. */
+  backupProvider(provider: BackupProvider): void;
   /** Adds a page to the sidebar (owner only). See ExtensionPage. */
   page(page: ExtensionPage): void;
   /**
@@ -322,6 +344,11 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
           ctx.db.insert(tables.user).values({ id: userId, email: mail, name: name.trim().slice(0, 80) || mail, passwordHash: await hashPassword(password), role: "staff" }).run();
           ctx.db.insert(tables.auditLog).values({ action: "auth.staff_created", detail: { userId, via: id } }).run();
           return { id: userId, password };
+        },
+        backupProvider: (provider) => {
+          if (provider.kind === "folder") throw new Error('backup provider kind "folder" is built in');
+          backupProviders.push(provider);
+          app.addHook("onClose", async () => void backupProviders.splice(backupProviders.indexOf(provider), 1));
         },
         mailSender: (sender) => {
           mailSenders.push(sender);

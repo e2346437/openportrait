@@ -47,6 +47,7 @@ import { reportRoutes } from "./routes/reports.js";
 import { contractRoutes } from "./routes/contracts.js";
 import { householdRoutes } from "./routes/households.js";
 import { taskRoutes } from "./routes/tasks.js";
+import { runSheetRoutes } from "./routes/runsheet.js";
 import { publicRoutes } from "./routes/public.js";
 import { questionnaireRoutes } from "./routes/questionnaires.js";
 import { registerEmailJob } from "./domain/email.js";
@@ -289,6 +290,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(contractRoutes, { prefix: "/api/studio" });
   await app.register(householdRoutes, { prefix: "/api/studio" });
   await app.register(taskRoutes, { prefix: "/api/studio" });
+  await app.register(runSheetRoutes, { prefix: "/api/studio" });
   await app.register(questionnaireRoutes, { prefix: "/api/studio" });
   // Clients reach these without signing in, so they sit outside /api/studio and its access rule.
   await app.register(publicRoutes, { prefix: "/api/public" });

@@ -19,6 +19,7 @@ import { LeadsPage } from "./pages/leads/Leads.js";
 import { LeadDetailPage } from "./pages/leads/LeadDetail.js";
 import { ShootsPage } from "./pages/shoots/Shoots.js";
 import { ShootDetailPage } from "./pages/shoots/ShootDetail.js";
+import { RunSheetPrintPage } from "./pages/shoots/RunSheetPrint.js";
 import { CalendarPage } from "./pages/calendar/Calendar.js";
 import { CalendarSettingsPage } from "./pages/settings/Calendar.js";
 import { EmailSettingsPage } from "./pages/settings/Email.js";
@@ -103,6 +104,7 @@ export function App() {
                   <Route path="leads/:id" element={<LeadDetailPage />} />
                   <Route path="shoots" element={<ShootsPage />} />
                   <Route path="shoots/:id" element={<ShootDetailPage />} />
+                  <Route path="shoots/:id/run-sheet" element={<RunSheetPrintPage />} />
                   <Route path="calendar" element={<CalendarPage />} />
                   <Route path="booking" element={<BookingPage />} />
                   <Route path="clients" element={<ClientsPage />} />

@@ -8,6 +8,7 @@ import { formatDate, formatTime, ms, msToZoned, zonedToMs } from "../../lib/time
 import { SHOOT_STATUS, type ShootDetail, type ShootEvent, type ShootStatus, type ShootType } from "../../lib/types.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { RunSheetPanel } from "../../components/RunSheet.js";
 import { TaskList } from "../../components/TaskList.js";
 import { ContractsPanel, GalleriesPanel, OrdersPanel } from "../../components/RelatedPanels.js";
 import { RichTextEditor } from "../../components/RichTextEditor.js";
@@ -143,6 +144,8 @@ export function ShootDetailPage() {
               </div>
             )}
           </Panel>
+
+          <RunSheetPanel shootId={id} />
 
           <Panel title="To do" description="Tasks for this shoot. Only you see them.">
             <TaskList shootId={id} />

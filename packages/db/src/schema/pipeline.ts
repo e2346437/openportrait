@@ -124,6 +124,27 @@ export const shootTask = sqliteTable(
   (t) => [index("shoot_task_shoot_idx").on(t.shootId), index("shoot_task_due_idx").on(t.doneAt, t.dueDate)],
 );
 
+/**
+ * One line of a shoot's day-of run sheet ("3:30 Golden-hour portraits at the pier").
+ * `startMinutes` is the wall-clock time as minutes after midnight, in the studio's time zone.
+ */
+export const shootRunItem = sqliteTable(
+  "shoot_run_item",
+  {
+    id: text().primaryKey(),
+    shootId: text()
+      .notNull()
+      .references(() => shoot.id, { onDelete: "cascade" }),
+    startMinutes: integer().notNull(),
+    durationMinutes: integer(),
+    title: text().notNull(),
+    location: text(),
+    notes: text(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [index("shoot_run_item_shoot_idx").on(t.shootId, t.startMinutes)],
+);
+
 /** A checklist every new shoot of a type starts with. `dueDays` counts from the shoot's first date (negative is before). */
 export const shootTypeTask = sqliteTable(
   "shoot_type_task",

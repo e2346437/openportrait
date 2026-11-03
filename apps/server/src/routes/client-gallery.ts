@@ -4,10 +4,10 @@ import { and, eq, gt, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
-import { derivativePath, renderVariant, renderWatermarked, VARIANTS, watermarkedPath } from "../galleries/derivatives.js";
+import { derivativePath, renderVariant, VARIANTS, watermarkedPath } from "../galleries/derivatives.js";
+import { renderWatermarked, watermarkHash } from "../galleries/watermark.js";
 import { newId } from "../galleries/files.js";
-import { designOf, downloadState, isWatermarked, loadSetsAndPhotos, photoJson, previewUrl, watermarkText } from "../galleries/present.js";
-import { watermarkHash } from "../galleries/derivatives.js";
+import { designOf, downloadState, isWatermarked, loadSetsAndPhotos, photoJson, previewUrl, watermarkInput } from "../galleries/present.js";
 import { verifyPassword } from "../auth.js";
 import { planZip, splitParts, streamZip, zipFilename, type Scope } from "../galleries/zip.js";
 import { email, parse } from "../validate.js";
@@ -28,7 +28,7 @@ type Gallery = typeof tables.gallery.$inferSelect;
  * asked for only at the first favorite or download (docs/GALLERIES.md section 6.1).
  */
 export async function clientGalleryRoutes(app: FastifyInstance) {
-  const { db, secrets, settings } = app.ctx;
+  const { db, secrets, settings, config } = app.ctx;
 
   /** The studio logo, if one was uploaded; the version in the URL lets browsers cache it. */
   const studioLogo = () => {
@@ -123,7 +123,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     const visible = photos.filter((p) => p.state === "ready" && !p.hidden && setIds.has(p.setId));
     const byId = new Map(visible.map((p) => [p.id, p]));
     // Previews of photos still waiting on payment carry the studio's watermark; paying removes it with no extra step.
-    const mark = watermarkHash(watermarkText(settings));
+    const mark = watermarkHash(watermarkInput(settings, config.configDir));
     const markFor = (p: (typeof visible)[number]) => (isWatermarked(g, sets.find((s) => s.id === p.setId) ?? null) ? mark : null);
     const coverOf = (id: string | null, fallback?: (typeof visible)[number]) => {
       const p = (id && byId.get(id)) || fallback;
@@ -470,9 +470,9 @@ export async function mediaRoutes(app: FastifyInstance) {
         }
       }
       if (marked) {
-        const text = watermarkText(settings);
-        const wm = watermarkedPath(config.cacheDir, p.galleryId, p.id, p.version, base, text);
-        if (!fs.existsSync(wm)) await renderWatermarked(file, wm, text);
+        const input = watermarkInput(settings, config.configDir);
+        const wm = watermarkedPath(config.cacheDir, p.galleryId, p.id, p.version, base, watermarkHash(input));
+        if (!fs.existsSync(wm)) await renderWatermarked(file, wm, input);
         file = wm;
       }
     } catch {

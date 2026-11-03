@@ -19,14 +19,16 @@ export function OrderPage() {
   const [params] = useSearchParams();
   const isNew = !id;
   const { data, error, loading, setData, reload } = useLoad<OrderDetail>(id ? `/orders/${id}` : null);
-  const pre = params.get("contact");
+  const preShoot = params.get("shoot");
+  const shootLoad = useLoad<{ id: string; primary: { id: string; name: string } }>(isNew && preShoot ? `/shoots/${preShoot}` : null);
+  const pre = params.get("contact") ?? shootLoad.data?.primary.id ?? null;
   const preContact = useLoad<{ id: string; name: string }>(isNew && pre ? `/contacts/${pre}` : null);
   const initial: PickedContact | null = preContact.data ? { id: preContact.data.id, name: preContact.data.name } : null;
   const [editing, setEditing] = useState(false);
 
   if (!isNew && loading && !data) return <Spinner label="Loading" />;
   if (!isNew && (error || !data)) return <Callout tone="bad" title="Couldn't open that">{error ?? "It may have been deleted."}</Callout>;
-  if (isNew && pre && preContact.loading) return <Spinner label="Loading" />;
+  if (isNew && ((pre && preContact.loading) || (preShoot && shootLoad.loading && !shootLoad.data))) return <Spinner label="Loading" />;
 
   const back = (
     <Link to="/studio/orders" className="back">
@@ -39,7 +41,7 @@ export function OrderPage() {
       <div className="stack">
         {back}
         <h1 className="page-title">New quote or invoice</h1>
-        <OrderEditor order={null} initialContact={initial} onSaved={(o) => navigate(`/studio/orders/${o.id}`, { replace: true })} />
+        <OrderEditor order={null} initialContact={initial} initialShootId={shootLoad.data?.id ?? null} onSaved={(o) => navigate(`/studio/orders/${o.id}`, { replace: true })} />
       </div>
     );
 

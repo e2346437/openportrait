@@ -45,7 +45,7 @@ let keySeq = 1;
 const blankLine = (): FormLine => ({ key: keySeq++, itemId: null, description: "", detail: "", quantity: "1", price: "", taxable: true });
 
 /** Writing or editing a draft quote or invoice: who it's for, what's on it, and when payments are due. */
-export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDetail | null; initialContact?: PickedContact | null; onSaved: (o: OrderDetail) => void }) {
+export function OrderEditor({ order, initialContact, initialShootId, onSaved }: { order: OrderDetail | null; initialContact?: PickedContact | null; initialShootId?: string | null; onSaved: (o: OrderDetail) => void }) {
   const catalog = useLoad<{ items: CatalogItem[] }>("/catalog");
   const settings = useLoad<MoneySettings>("/money/settings");
   const currency = settings.data?.currency ?? "USD";
@@ -56,6 +56,9 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
 
   const [kind, setKind] = useState<"quote" | "invoice">(order?.kind ?? "quote");
   const [contact, setContact] = useState<PickedContact | null>(order ? { id: order.contactId, name: order.contactName } : (initialContact ?? null));
+  const [shootId, setShootId] = useState(order?.shootId ?? initialShootId ?? "");
+  // Shoots this client is part of, so a quote can be filed under the right one and show up in reports by shoot type.
+  const clientShoots = useLoad<{ shoots: Array<{ id: string; subject: string; shootType: string; startsAt: number | null }> }>(contact ? `/contacts/${contact.id}` : null).data?.shoots;
   const [title, setTitle] = useState(order?.title ?? "");
   const [intro, setIntro] = useState(order?.intro ?? "");
   const [terms, setTerms] = useState(order?.terms ?? "");
@@ -118,6 +121,7 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
     if (discountCents === null) throw new Error("Enter the discount as an amount, like 50.00.");
     const body = {
       contactId: contact.id,
+      shootId: shootId && clientShoots?.some((x) => x.id === shootId) ? shootId : null,
       title,
       intro: intro || null,
       terms,
@@ -152,8 +156,30 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
             </div>
           ) : null}
           <div className="span-2">
-            <ContactPicker value={contact} onChange={setContact} label="For" />
+            <ContactPicker
+              value={contact}
+              onChange={(c) => {
+                setContact(c);
+                if (c?.id !== contact?.id) setShootId("");
+              }}
+              label="For"
+            />
           </div>
+          {clientShoots?.length ? (
+            <Field className="span-2" label="Shoot" hint="Optional. Files this under the shoot, so it counts in reports for that type of shoot.">
+              {(p) => (
+                <select {...p} className="input" value={shootId} onChange={(e) => setShootId(e.target.value)}>
+                  <option value="">Not tied to a shoot</option>
+                  {clientShoots.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.subject} · {x.shootType}
+                      {x.startsAt ? ` · ${new Date(x.startsAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          ) : null}
           <Field className="span-2" label="Title" hint="What the client sees, such as “Smith wedding collection”." error={save.fieldErrors.title}>
             {(p) => <TextInput {...p} value={title} onChange={(e) => setTitle(e.target.value)} />}
           </Field>

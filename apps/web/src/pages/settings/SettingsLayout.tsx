@@ -56,6 +56,7 @@ function groups(hasExtensions: boolean): Group[] {
         { to: "automation", label: "Automation", icon: "refresh", ownerOnly: true },
         ...(hasExtensions ? [{ to: "extensions", label: "Extensions", icon: "sparkle" as IconName, ownerOnly: true }] : []),
         { to: "import", label: "Import and export", icon: "inbox", ownerOnly: true },
+        { to: "backups", label: "Backups", icon: "shield", ownerOnly: true },
         { to: "account", label: "Your account", icon: "user" },
       ],
     },

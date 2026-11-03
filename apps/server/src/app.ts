@@ -8,7 +8,8 @@ import type { AppConfig } from "@openportrait/config";
 import { openDatabase, type Db } from "@openportrait/db";
 import { JobRunner } from "@openportrait/jobs";
 import { SESSION_COOKIE, lookupSession } from "./auth.js";
-import { registerBackupJob } from "./backup.js";
+import { BackupService, registerBackupJob } from "./backup.js";
+import { backupRoutes } from "./routes/backups.js";
 import { clientIp } from "./client-ip.js";
 import { crossSiteBlocked, rejectCrossSite } from "./csrf.js";
 import { Secrets } from "./secrets.js";
@@ -86,6 +87,7 @@ export interface AppContext {
   galleries: GalleryIngest;
   /** Where full-size originals are read from; extensions can attach remote storage (see galleries/originals.ts). */
   originals: Originals;
+  backups: BackupService;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
   publicUrl(): string;
   /** This server's address on the home network (see lan.ts). */
@@ -167,6 +169,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     jobs,
     galleries,
     originals,
+    backups: new BackupService({ db, settings, configDir: config.configDir, galleriesDir: config.galleriesDir }),
     lan() {
       return lanInfo(settings, config);
     },
@@ -262,6 +265,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(crmRoutes, { prefix: "/api/studio" });
   await app.register(importRoutes, { prefix: "/api/studio/import" });
   await app.register(exportRoutes, { prefix: "/api/studio/export" });
+  await app.register(backupRoutes, { prefix: "/api/studio/backups" });
   await app.register(tetherRoutes, { prefix: "/api/studio/tether" });
   await app.register(incomingRoutes, { prefix: "/api/studio/incoming" });
   await app.register(uploadRoutes, { prefix: "/api/studio/upload" });
@@ -309,7 +313,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     app.log.warn({ webDir: config.webDir }, "web UI not built; only the API is available");
   }
 
-  const scheduleBackup = registerBackupJob(config.configDir, () => settings);
+  const scheduleBackup = registerBackupJob(ctx.backups, () => settings);
 
   if (startBackground) {
     tunnel.setToken(settings.get("tunnel.token") || config.tunnelToken);

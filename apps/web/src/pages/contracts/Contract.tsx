@@ -7,6 +7,8 @@ import { useSession } from "../../lib/session.js";
 import { formatDateTime, ms } from "../../lib/time.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { isHtml } from "../../lib/richtext.js";
+import { RichTextEditor } from "../../components/RichTextEditor.js";
 
 /** One contract: read it, adjust a draft, send it, and once it is signed, countersign and download it. */
 export function ContractPage() {
@@ -82,7 +84,10 @@ export function ContractPage() {
               <form onSubmit={onSave} noValidate className="form-grid">
                 {save.error ? <div className="span-2"><Callout tone="bad">{save.error}</Callout></div> : null}
                 <Field className="span-2" label="Title">{(p) => <TextInput {...p} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
-                <Field className="span-2" label="Text">{(p) => <textarea {...p} className="input contract-text" rows={18} value={body} onChange={(e) => setBody(e.target.value)} />}</Field>
+                <div className="span-2 field">
+                  <span className="label" id="draft-wording">Text</span>
+                  <RichTextEditor variant="full" labelledBy="draft-wording" value={body} onChange={setBody} />
+                </div>
                 <div className="span-2 form-actions">
                   <Button type="submit" loading={save.busy}>Save changes</Button>
                 </div>
@@ -136,6 +141,8 @@ export function ContractPage() {
 
 /** A contract's text, with lines that start with # shown as headings. */
 export function ContractText({ text }: { text: string }) {
+  // Formatted wording is cleaned on the server before it is saved and again before it is shown.
+  if (isHtml(text)) return <div className="contract-doc rich" dangerouslySetInnerHTML={{ __html: text }} />;
   return (
     <div className="contract-doc">
       {text.split("\n").map((line, i) => (line.startsWith("# ") ? <h3 key={i}>{line.slice(2)}</h3> : line.trim() ? <p key={i}>{line}</p> : null))}

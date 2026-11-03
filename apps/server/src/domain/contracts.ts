@@ -8,6 +8,7 @@ import { DomainError, linkTo, newId, notFound, type ServiceContext } from "./con
 import { composeEmail, queueEmail } from "./email.js";
 import { formatMoney } from "./money.js";
 import { renderContractPdf } from "./contract-pdf.js";
+import { escapeHtml, htmlToText, isHtml, sanitizeRich } from "./richtext.js";
 
 const { contract, contractTemplate, contact, shoot, shootEvent, shootType, order, user } = tables;
 
@@ -54,6 +55,12 @@ export function unknownFields(text: string): string[] {
   return [...new Set([...text.matchAll(FIELD)].map((m) => m[1]!).filter((k) => !KNOWN.has(k.toLowerCase())))];
 }
 
+/** Tidies wording on its way in: plain text keeps its lines, formatted text is cleaned down to the allowed markup. */
+function clean(text: string): string {
+  const t = text.replace(/\r\n/g, "\n").trim();
+  return isHtml(t) ? sanitizeRich(t) : t;
+}
+
 // ---- templates ----
 
 export function listTemplates(ctx: ServiceContext, includeArchived = false) {
@@ -62,9 +69,9 @@ export function listTemplates(ctx: ServiceContext, includeArchived = false) {
 
 function checkTemplate(input: { name: string; body: string }) {
   const name = input.name.trim();
-  const body = input.body.replace(/\r\n/g, "\n").trim();
+  const body = clean(input.body);
   if (!name) throw new DomainError("invalid", "Give the template a name, like “Wedding agreement”.");
-  if (!body) throw new DomainError("invalid", "Write the contract wording.");
+  if (!body || (isHtml(body) && !htmlToText(body))) throw new DomainError("invalid", "Write the contract wording.");
   if (body.length > 60_000) throw new DomainError("invalid", "That's too long for one contract.");
   const bad = unknownFields(body);
   if (bad.length) throw new DomainError("invalid", `${bad.map((b) => `{{${b}}}`).join(", ")} isn't a field OpenPortrait knows. Check the spelling against the list of fields.`);
@@ -130,10 +137,11 @@ export function render(ctx: ServiceContext, text: string, c: { contactId: string
   if (bad.length) throw new DomainError("invalid", `${bad.map((b) => `{{${b}}}`).join(", ")} isn't a field OpenPortrait knows.`);
   const { m } = values(ctx, c);
   const missing = new Set<string>();
+  const html = isHtml(text);
   const out = text.replace(FIELD, (_all, key: string) => {
     const v = m[key.toLowerCase()];
     if (!v) missing.add(key);
-    return v ?? "";
+    return html ? escapeHtml(v ?? "") : (v ?? "");
   });
   if (missing.size) {
     const hint = (k: string) => (k.startsWith("shoot.") ? "link a shoot" : k.startsWith("order.") ? "link a quote or invoice" : `add the ${k.replace("client.", "client's ").replace("studio.", "studio ")} first`);
@@ -185,7 +193,7 @@ export interface ContractInput {
 export function createContract(ctx: ServiceContext, input: ContractInput) {
   const tpl = input.templateId ? ctx.db.select().from(contractTemplate).where(eq(contractTemplate.id, input.templateId)).get() : null;
   if (input.templateId && !tpl) throw notFound("Template");
-  const raw = (input.body ?? tpl?.body ?? "").trim();
+  const raw = clean(input.body ?? tpl?.body ?? "");
   const title = (input.title ?? tpl?.name ?? "").trim();
   if (!title) throw new DomainError("invalid", "Give the contract a title.");
   if (!raw) throw new DomainError("invalid", "Choose a template or write the wording.");
@@ -202,8 +210,8 @@ export function updateDraft(ctx: ServiceContext, id: string, input: { title: str
   if (c.status !== "draft") throw new DomainError("locked", "Only a draft can be edited. Void it and make a new one.");
   const title = input.title.trim();
   if (!title) throw new DomainError("invalid", "Give the contract a title.");
-  const body = render(ctx, input.body.replace(/\r\n/g, "\n").trim(), c);
-  if (!body) throw new DomainError("invalid", "The contract is empty.");
+  const body = render(ctx, clean(input.body), c);
+  if (!body || (isHtml(body) && !htmlToText(body))) throw new DomainError("invalid", "The contract is empty.");
   ctx.db.update(contract).set({ title: title.slice(0, 200), body, bodyHash: hash(body), updatedAt: new Date() }).where(eq(contract.id, id)).run();
   return view(ctx, rowOf(ctx, id));
 }
@@ -231,7 +239,7 @@ function view(ctx: ServiceContext, c: ContractRow) {
     contactEmail: cl?.email ?? null,
     shootId: c.shootId,
     orderId: c.orderId,
-    body: c.body,
+    body: isHtml(c.body) ? sanitizeRich(c.body) : c.body,
     bodyHash: c.bodyHash,
     sentAt: c.sentAt,
     viewedAt: c.viewedAt,

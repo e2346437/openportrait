@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Button, Callout, Dialog, EmptyState, Field, Panel, Spinner, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { EXAMPLE_CONTRACT } from "../../lib/contracts.js";
+import { plainPreview, toEditorHtml } from "../../lib/richtext.js";
+import { RichTextEditor } from "../../components/RichTextEditor.js";
 import { useSession } from "../../lib/session.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
@@ -45,7 +47,7 @@ export function ContractTemplatesPage() {
             <li key={t.id}>
               <span className="cat-main">
                 <b>{t.name}</b>
-                <small>{t.body.replace(/[#\n]+/g, " ").slice(0, 110)}…</small>
+                <small>{plainPreview(t.body)}</small>
               </span>
               <span />
               <span />
@@ -68,28 +70,16 @@ function TemplateDialog({ target, onClose, onSaved }: { target: Template | "new"
   const fields = useLoad<{ fields: Array<{ key: string; label: string }> }>("/contract-fields").data?.fields ?? [];
   const [name, setName] = useState("");
   const [body, setBody] = useState("");
-  const area = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (!target) return;
     setName(target === "new" ? "" : target.name);
-    setBody(target === "new" ? "" : target.body);
+    setBody(target === "new" ? "" : toEditorHtml(target.body));
   }, [target]);
   const editing = target && target !== "new" ? target : null;
   const { busy, error, submit } = useSubmit(() => (editing ? api(`/contract-templates/${editing.id}`, { method: "PUT", body: { name, body } }) : api("/contract-templates", { body: { name, body } })));
   const go = async (e: FormEvent) => {
     e.preventDefault();
     if ((await submit()) !== undefined) onSaved();
-  };
-  const insert = (key: string) => {
-    const el = area.current;
-    const text = `{{${key}}}`;
-    if (!el) return setBody((b) => b + text);
-    const { selectionStart: s, selectionEnd: e } = el;
-    setBody(body.slice(0, s) + text + body.slice(e));
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(s + text.length, s + text.length);
-    });
   };
   return (
     <Dialog
@@ -108,17 +98,11 @@ function TemplateDialog({ target, onClose, onSaved }: { target: Template | "new"
         {error ? <div className="span-2"><Callout tone="bad">{error}</Callout></div> : null}
         <Field className="span-2" label="Name">{(p) => <TextInput {...p} autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Wedding agreement" />}</Field>
         <div className="span-2 field">
-          <span className="label">Fill in automatically</span>
-          <div className="presets" role="group" aria-label="Insert a field">
-            {fields.map((f) => (
-              <button key={f.key} type="button" className="btn sm" title={f.label} onClick={() => insert(f.key)}>{f.key}</button>
-            ))}
-          </div>
+          <span className="label" id="tpl-wording">Wording</span>
+          <RichTextEditor variant="full" labelledBy="tpl-wording" value={body} onChange={setBody} fields={fields} placeholder="Write your agreement, or start from the example below." />
+          <small className="hint">Use “Insert field” to drop in details that are filled in for each client, like their name or the shoot date.</small>
         </div>
-        <Field className="span-2" label="Wording" hint="Start a line with # to make a heading. Fields in double braces are replaced for each client.">
-          {(p) => <textarea {...p} ref={area} className="input contract-text" rows={16} value={body} onChange={(e) => setBody(e.target.value)} />}
-        </Field>
-        {!body ? <div className="span-2"><Button type="button" size="sm" onClick={() => { setBody(EXAMPLE_CONTRACT); if (!name) setName("Photography services agreement"); }}>Start from an example</Button></div> : null}
+        {!body ? <div className="span-2"><Button type="button" size="sm" onClick={() => { setBody(toEditorHtml(EXAMPLE_CONTRACT)); if (!name) setName("Photography services agreement"); }}>Start from an example</Button></div> : null}
         <p className="span-2 hint">The example is a starting point only. Have a lawyer review your agreement before you use it with clients.</p>
       </form>
     </Dialog>

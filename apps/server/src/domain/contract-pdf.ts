@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { blocks, isHtml, sanitizeRich } from "./richtext.js";
 
 export interface PdfInput {
   studio: string;
@@ -25,6 +26,31 @@ export function renderContractPdf(input: PdfInput): Promise<Buffer> {
     doc.font("Helvetica").fontSize(9).fillColor("#6b655b").text(input.studio.toUpperCase(), { characterSpacing: 1 });
     doc.moveDown(0.4).font("Helvetica-Bold").fontSize(20).fillColor("#171613").text(input.title);
     doc.moveDown(0.8);
+    if (isHtml(input.body)) {
+      for (const b of blocks(sanitizeRich(input.body))) {
+        if (b.kind === "hr") {
+          doc.moveDown(0.4);
+          doc.moveTo(72, doc.y).lineTo(540, doc.y).strokeColor("#b9b2a5").stroke();
+          doc.moveDown(0.6);
+        } else if (b.kind === "h") {
+          doc.moveDown(0.4).font("Helvetica-Bold").fontSize(b.level === 2 ? 14 : 12).fillColor("#171613").text(b.text);
+          doc.moveDown(0.2);
+        } else if (b.kind === "li") {
+          const indent = 72 + 14 * (b.level ?? 1);
+          const y = doc.y;
+          doc.font("Helvetica").fontSize(10.5).fillColor("#171613").text(b.marker ?? "•", indent - 14, y, { lineBreak: false });
+          doc.text(b.text, indent + 6, y, { lineGap: 2, width: 468 - 14 * (b.level ?? 1) - 6 });
+          doc.x = 72;
+        } else if (b.kind === "quote") {
+          doc.font("Helvetica-Oblique").fontSize(10.5).fillColor("#4a463f").text(b.text, 90, doc.y, { lineGap: 2, width: 450 });
+          doc.x = 72;
+          doc.moveDown(0.6);
+        } else {
+          doc.font("Helvetica").fontSize(10.5).fillColor("#171613").text(b.text, 72, doc.y, { lineGap: 2 });
+          doc.moveDown(0.6);
+        }
+      }
+    } else
     for (const raw of input.body.split("\n")) {
       const line = raw.trimEnd();
       if (!line) {

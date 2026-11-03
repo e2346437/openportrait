@@ -42,6 +42,7 @@ import { ImportSettingsPage } from "./pages/settings/Import.js";
 import { BackupsSettingsPage } from "./pages/settings/Backups.js";
 import { PricesSettingsPage } from "./pages/settings/Prices.js";
 import { SalesTaxSettingsPage } from "./pages/settings/SalesTax.js";
+import { LogsSettingsPage } from "./pages/settings/Logs.js";
 import { ReportsPage } from "./pages/reports/Reports.js";
 import { ExtensionPageView } from "./pages/extensions/ExtensionPage.js";
 import { ExtensionsSettingsPage } from "./pages/settings/Extensions.js";
@@ -139,6 +140,7 @@ export function App() {
                     <Route path="extensions" element={<ExtensionsSettingsPage />} />
                     <Route path="import" element={<ImportSettingsPage />} />
                     <Route path="backups" element={<BackupsSettingsPage />} />
+                    <Route path="logs" element={<LogsSettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />
                   </Route>
                   <Route path="*" element={<NotFoundPage />} />

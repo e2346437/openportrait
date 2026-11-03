@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import type { ServiceContext } from "./context.js";
+import { plainText } from "./richtext.js";
 import { toCsv } from "./reports.js";
 import { ymdIn } from "./time.js";
 
@@ -42,7 +43,7 @@ function shootsCsv(ctx: ServiceContext): string {
     .all();
   for (const { s, t, c } of joined) {
     const at = firstEvent.get(s.id);
-    rows.push([s.id, s.subject, at === undefined ? "" : ymdIn(at, zone), t.name, s.status, c.firstName, c.lastName, c.email ?? "", s.notes ?? ""]);
+    rows.push([s.id, s.subject, at === undefined ? "" : ymdIn(at, zone), t.name, s.status, c.firstName, c.lastName, c.email ?? "", plainText(s.notes ?? "")]);
   }
   rows.sort((a, b) => String(a[2]).localeCompare(String(b[2])));
   return toCsv([header, ...rows]);

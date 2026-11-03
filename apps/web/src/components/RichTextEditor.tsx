@@ -29,6 +29,8 @@ const exec = (cmd: string, arg?: string) => document.execCommand(cmd, false, arg
  * A formatted-text editor. `compact` is bold, italic, link and bullets for short notes; `standard` adds headings, numbering
  * and underline; `full` adds quotes, alignment, dividers, undo and field insertion for documents like contracts.
  */
+const BLOCKS = /^(P|H[1-6]|UL|OL|BLOCKQUOTE|HR|DIV)$/;
+
 export function RichTextEditor({ value, onChange, variant = "standard", label, labelledBy, id, placeholder, fields, minHeight, disabled }: Props) {
   const uid = useId();
   const area = useRef<HTMLDivElement>(null);
@@ -60,6 +62,15 @@ export function RichTextEditor({ value, onChange, variant = "standard", label, l
   const emit = useCallback(() => {
     const el = area.current;
     if (!el) return;
+    // The first words typed into an empty area land outside any paragraph. Wrap them, keeping the caret, so the saved text is always blocks.
+    const first = el.firstChild;
+    if (first && !(first instanceof HTMLElement && BLOCKS.test(first.tagName)) && (first.nodeType === 3 || first.nodeType === 1)) {
+      try {
+        exec("formatBlock", "p");
+      } catch {
+        /* the server wraps loose text as well */
+      }
+    }
     const blank = !el.textContent?.trim() && !el.querySelector("hr");
     setEmpty(blank);
     const html = blank ? "" : el.innerHTML;

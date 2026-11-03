@@ -39,6 +39,12 @@ export function htmlToText(html: string): string {
   return blocks(html).map((b) => (b.kind === "hr" ? "-----" : b.text)).join("\n\n");
 }
 
+/** Words only, whether the text is formatted or plain. */
+export const plainText = (text: string | null | undefined): string => (text && isHtml(text) ? htmlToText(text) : (text ?? ""));
+
+/** Longest note, counting markup. Longer is refused rather than cut, so a tag is never split. */
+export const NOTE_MAX = 40_000;
+
 export interface Block {
   kind: "h" | "p" | "li" | "quote" | "hr";
   text: string;

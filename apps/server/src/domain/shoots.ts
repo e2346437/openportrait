@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, isNull, or, sql, count } from "drizzle-orm
 import { tables } from "@openportrait/db";
 import { displayName, logActivity } from "./contacts.js";
 import { DomainError, newId, notFound, type ServiceContext } from "./context.js";
+import { NOTE_MAX, cleanRich, safeRich } from "./richtext.js";
 import { autoSendForShoot } from "./questionnaires.js";
 import { applyTypeTasks } from "./tasks.js";
 import {
@@ -165,6 +166,7 @@ export function getShoot(ctx: ServiceContext, id: string) {
   }
   return {
     ...row,
+    notes: row.notes ? safeRich(row.notes) : row.notes,
     shootType: type,
     primary: { id: primary.id, name: displayName(primary), email: primary.email, phone: primary.phone },
     events,
@@ -187,7 +189,7 @@ export function createShoot(
   const id = newId();
   const subject = input.subject?.trim() || displayName(primary);
   ctx.db.transaction((tx) => {
-    tx.insert(shoot).values({ id, subject, shootTypeId: type.id, primaryContactId: primary.id, leadId: input.leadId ?? null, notes: input.notes?.trim() || null }).run();
+    tx.insert(shoot).values({ id, subject, shootTypeId: type.id, primaryContactId: primary.id, leadId: input.leadId ?? null, notes: cleanNotes(input.notes) }).run();
     for (const e of input.events ?? []) tx.insert(shootEvent).values(eventValues(id, e)).run();
   });
   logActivity(ctx, { contactId: primary.id, shootId: id, leadId: input.leadId ?? null, kind: "shoot.created", summary: `${type.name} shoot booked for ${subject}` });
@@ -206,6 +208,12 @@ function eventValues(shootId: string, e: EventInput): typeof shootEvent.$inferIn
   return { id: newId(), shootId, title: e.title?.trim() ?? "", startsAt: new Date(e.startsAt), endsAt: new Date(e.endsAt), allDay: e.allDay ?? false, location: e.location?.trim() || null };
 }
 
+function cleanNotes(notes: string | null | undefined): string | null {
+  const t = cleanRich(notes);
+  if (t.length > NOTE_MAX) throw new DomainError("invalid", "Those notes are too long.");
+  return t || null;
+}
+
 export function updateShoot(ctx: ServiceContext, id: string, input: { subject?: string; shootTypeId?: string; status?: ShootStatus; notes?: string | null; primaryContactId?: string }) {
   const current = shootRow(ctx, id);
   const patch: Partial<typeof shoot.$inferInsert> = {};
@@ -218,7 +226,7 @@ export function updateShoot(ctx: ServiceContext, id: string, input: { subject?: 
     patch.shootTypeId = input.shootTypeId;
   }
   if (input.status !== undefined) patch.status = input.status;
-  if (input.notes !== undefined) patch.notes = input.notes?.trim() || null;
+  if (input.notes !== undefined) patch.notes = cleanNotes(input.notes);
   if (input.primaryContactId !== undefined) {
     if (!ctx.db.select().from(contact).where(eq(contact.id, input.primaryContactId)).get()) throw notFound("Contact");
     patch.primaryContactId = input.primaryContactId;

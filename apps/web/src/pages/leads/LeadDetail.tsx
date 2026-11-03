@@ -1,6 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
-import { Button, Callout, Dialog, Field, Icon, Panel, StatusChip, TextArea, TextInput, useToast } from "@openportrait/ui";
+import { Button, Callout, Dialog, Field, Icon, Panel, StatusChip, TextInput, useToast } from "@openportrait/ui";
+import { RichTextEditor } from "../../components/RichTextEditor.js";
+import { RichText } from "../../components/RichText.js";
+import { plainPreview } from "../../lib/richtext.js";
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
 import { formatDate, formatDateTime, ms, relative, zonedToMs } from "../../lib/time.js";
@@ -125,10 +128,10 @@ export function LeadDetailPage() {
           ) : null}
           <Panel title="Notes and history">
             <form className="composer" onSubmit={onNote} noValidate>
-              <TextArea aria-label="Add a note" placeholder="Add a note about this inquiry…" rows={2} value={note} onChange={(e) => setNote(e.target.value)} maxLength={10000} />
+              <RichTextEditor variant="compact" label="Add a note" placeholder="Add a note about this inquiry…" value={note} onChange={setNote} minHeight={72} />
               {addNote.error ? <Callout tone="bad">{addNote.error}</Callout> : null}
               <div className="form-actions">
-                <Button type="submit" size="sm" variant="primary" loading={addNote.busy} disabled={!note.trim()}>
+                <Button type="submit" size="sm" variant="primary" loading={addNote.busy} disabled={!plainPreview(note, 1)}>
                   Save note
                 </Button>
               </div>
@@ -140,7 +143,7 @@ export function LeadDetailPage() {
                     <Icon name={h.note ? "note" : "lead"} />
                   </span>
                   <div className="tl-body">
-                    {h.note ? <p>{h.text}</p> : <b style={{ fontWeight: 600 }}>{h.text}</b>}
+                    {h.note ? <RichText text={h.text} /> : <b style={{ fontWeight: 600 }}>{h.text}</b>}
                     <div className="tl-meta" title={formatDateTime(h.at, tz)}>
                       {relative(h.at)}
                     </div>

@@ -1,7 +1,7 @@
 import { AddOnPrompt } from "../../components/AddOnPrompt.js";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
-import { Button, Callout, Dialog, Field, Icon, Panel, StatusChip, TextArea, TextInput, copyText, useToast } from "@openportrait/ui";
+import { Button, Callout, Dialog, Field, Icon, Panel, StatusChip, TextInput, copyText, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
 import { formatDate, formatTime, ms, msToZoned, zonedToMs } from "../../lib/time.js";
@@ -10,6 +10,7 @@ import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { TaskList } from "../../components/TaskList.js";
 import { ContractsPanel, GalleriesPanel, OrdersPanel } from "../../components/RelatedPanels.js";
+import { RichTextEditor } from "../../components/RichTextEditor.js";
 import { ShootQuestionnaires } from "./ShootQuestionnaires.js";
 import { ExtensionCard, type ExtensionInfo } from "../settings/Extensions.js";
 
@@ -150,7 +151,7 @@ export function ShootDetailPage() {
           <ShootQuestionnaires shootId={id} clientEmail={shoot.primary.email} />
 
           <Panel title="Notes">
-            <TextArea aria-label="Shoot notes" rows={4} placeholder="Shot list, location details, what the client asked for…" value={notes ?? ""} maxLength={10000} onChange={(e) => setNotes(e.target.value)} />
+            <RichTextEditor variant="standard" label="Shoot notes" placeholder="Shot list, location details, what the client asked for…" value={notes ?? ""} onChange={setNotes} minHeight={110} />
             {notesDirty ? (
               <div className="form-actions">
                 <Button variant="ghost" size="sm" onClick={() => setNotes(shoot.notes ?? "")}>

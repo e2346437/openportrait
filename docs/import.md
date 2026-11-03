@@ -5,12 +5,16 @@
 ## How it works
 
 1. Choose what you are importing: **Clients**, **Shoots**, or **Invoices and payments**. Import in that order, so shoots and invoices can find their client.
-2. Choose a file. A CSV (comma, semicolon or tab separated) or a JSON list of records works.
+2. Choose a file. A CSV (comma, semicolon or tab separated) or a JSON file works.
 3. OpenPortrait guesses which column is which from common column names. Change any it got wrong.
 4. Read the **Preview**. It runs the real import inside a database transaction and then undoes it, so what it shows is exactly what will happen. Nothing is saved yet.
 5. Press **Import**. Rows with a problem are left out and listed with the reason; fix them in the file and import again.
 
 Importing the same file twice never duplicates anything. Each imported row is remembered by the old system's id when the file has one, otherwise by email, name, order number or similar.
+
+## JSON files
+
+JSON is read the same way as CSV, so the matching, preview and no-duplicates behaviour are identical. The file can be a list of records, an object that holds one list (for example `{"clients": [...]}`), a single record, or JSON Lines (one record per line). Nested details are flattened into columns you can match: `{"name": {"first": "Ada"}}` becomes the column `name.first`, and `{"address": {"city": "Portland"}}` becomes `address.city`. A list of plain values (tags, several emails) is joined into one cell; for emails and phones the first value is used. A file that holds several unrelated lists needs to be split first.
 
 ## What each import does
 

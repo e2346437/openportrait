@@ -5,7 +5,7 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "@openportrait/config";
 import { buildApp } from "../src/app.js";
-import { parseCsv } from "../src/import/csv.js";
+import { parseCsv, parseJson, parseTable } from "../src/import/csv.js";
 import { parseMoneyCents, parseYmd } from "../src/import/fields.js";
 
 let app: FastifyInstance;
@@ -53,7 +53,32 @@ describe("import helpers", () => {
   });
 });
 
+describe("JSON files", () => {
+  it("flattens nested records, lists and wrapper objects", () => {
+    const t = parseJson(JSON.stringify({ clients: [{ name: { first: "Ada", last: "Lovelace" }, emails: ["ada@example.com", "a@x.org"], tags: ["vip", "wedding"], address: { city: "Portland" } }, { name: { first: "Grace" } }] }));
+    expect(t.rows).toHaveLength(2);
+    expect(t.rows[0]).toMatchObject({ "name.first": "Ada", emails: "ada@example.com; a@x.org", tags: "vip; wedding", "address.city": "Portland" });
+    expect(t.rows[1]!["address.city"]).toBe("");
+  });
+  it("reads JSON Lines and a single record, and explains bad files", () => {
+    expect(parseTable('{"a":1}\n{"a":2}\n').rows).toHaveLength(2);
+    expect(parseJson('{"firstName":"Sam"}').rows).toEqual([{ firstName: "Sam" }]);
+    expect(() => parseJson("[1,")).toThrow(/couldn't be read/);
+    expect(() => parseJson('{"a":[{"x":1}],"b":[{"y":2}]}')).toThrow(/several lists/);
+  });
+});
+
 describe("import", () => {
+  it("imports clients from a nested JSON file", async () => {
+    const text = JSON.stringify({ data: [{ id: "c1", name: { first: "Ada", last: "Lovelace" }, emails: ["ada@example.com"], phone: "555-0100", tags: ["vip"], address: { street: "1 Main St", city: "Portland", state: "ME", zip: "04101" } }] });
+    const preview = await call("POST", "/import/preview", { kind: "contacts", text });
+    expect(preview.body.mapping).toMatchObject({ firstName: "name.first", lastName: "name.last", email: "emails", city: "address.city", postalCode: "address.zip", tags: "tags" });
+    const run = await call("POST", "/import/commit", { kind: "contacts", text });
+    expect(run.body.created.contacts).toBe(1);
+    const c = (await call("GET", "/contacts")).body.items[0];
+    expect(c.email).toBe("ada@example.com");
+  });
+
   it("previews without writing, then imports and doesn't duplicate", async () => {
     const preview = await call("POST", "/import/preview", { kind: "contacts", text: CONTACTS });
     expect(preview.status).toBe(200);

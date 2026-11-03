@@ -3,6 +3,7 @@ import { Button, Callout, Field, Panel, TextInput, useToast } from "@openportrai
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
 import { useSubmit } from "../../lib/useForm.js";
+import { WatermarkPanel } from "./WatermarkPanel.js";
 import { LOCK_LABELS, type DownloadLock } from "../../lib/galleries.js";
 
 interface GallerySettings {
@@ -93,8 +94,8 @@ export function GallerySettingsPage() {
       .catch((e: Error) => setLoadError(e.message));
   }, []);
 
-  const body = form && { ...form, privateFolders: priv.split(",").map((x) => x.trim()).filter(Boolean) };
-  const dirty = !!saved && !!body && JSON.stringify(body) !== JSON.stringify(saved);
+  const body = form && { deliveryFolder: form.deliveryFolder, defaultDownloadLock: form.defaultDownloadLock, privateFolders: priv.split(",").map((x) => x.trim()).filter(Boolean) };
+  const dirty = !!saved && !!body && JSON.stringify(body) !== JSON.stringify({ deliveryFolder: saved.deliveryFolder, defaultDownloadLock: saved.defaultDownloadLock, privateFolders: saved.privateFolders });
   const { busy, error, fieldErrors, submit } = useSubmit(() => api<GallerySettings>("/ingest/settings", { method: "PUT", body }));
 
   const onSubmit = async (e: FormEvent) => {
@@ -112,6 +113,7 @@ export function GallerySettingsPage() {
   return (
     <div className="stack">
     <LogoPanel owner={owner} />
+    <WatermarkPanel owner={owner} />
     <form onSubmit={onSubmit} noValidate className="stack">
       {error ? <Callout tone="bad">{error}</Callout> : null}
       <Panel
@@ -130,11 +132,6 @@ export function GallerySettingsPage() {
             </label>
           ))}
         </fieldset>
-      </Panel>
-      <Panel title="Watermark" description="Previews of photos that are still locked until payment carry this wording across them. It disappears on its own once the gallery is paid for, and downloaded files never have it.">
-        <Field label="Watermark wording" error={fieldErrors.watermarkText} hint="Leave empty to use your studio name.">
-          {(p) => <TextInput {...p} disabled={!owner} maxLength={60} value={form.watermarkText} placeholder="Your studio name" onChange={(e) => setForm({ ...form, watermarkText: e.target.value })} />}
-        </Field>
       </Panel>
       <Panel
         title="Folders"

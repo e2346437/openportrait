@@ -3,7 +3,6 @@ import { useState } from "react";
 import {
   Button,
   Callout,
-  EmptyState,
   Field,
   Panel,
   Spinner,
@@ -243,10 +242,10 @@ export function BackupDestinationsPanel() {
       ) : null}
       <AddOnPrompt feature="bucket-storage" />
       {data.destinations.length === 0 && editing !== "new" ? (
-        <EmptyState icon="shield" title="Backups stay on this server only">
-          Add a destination so every backup is also copied off the disk your
-          studio runs on.
-        </EmptyState>
+        <Callout tone="warn" title="Backups stay on this server only">
+          If this server's disk fails or is lost, the backups go with it. Add a
+          destination so every backup is also copied somewhere else.
+        </Callout>
       ) : (
         <ul className="backup-list">
           {data.destinations.map((d) =>

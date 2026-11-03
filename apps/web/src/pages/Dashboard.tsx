@@ -4,6 +4,7 @@ import { Icon, Panel, StatusChip } from "@openportrait/ui";
 import { api, type Reminder } from "../lib/api.js";
 import { useSession } from "../lib/session.js";
 import { tunnelSummary, useInternet } from "../lib/useInternet.js";
+import { ThisWeek } from "../components/ThisWeek.js";
 import { useLoad } from "../lib/useLoad.js";
 
 function greeting(): string {
@@ -87,7 +88,7 @@ export function DashboardPage() {
     isOwner ? "/email" : null,
   ).data;
   const mfa = useLoad<{ enabled: boolean }>(isOwner ? "/auth/mfa" : null).data;
-  const galleries = useLoad<{ galleries: unknown[] }>(
+  const galleries = useLoad<{ galleries: Array<{ photoCount: number }> }>(
     isOwner ? "/galleries" : null,
   ).data;
 
@@ -135,7 +136,7 @@ export function DashboardPage() {
       title: "Deliver your first gallery",
       detail:
         "Exports from Lightroom or Aftershoot that land in your gallery folder show up here automatically.",
-      done: (galleries?.galleries.length ?? 0) > 0,
+      done: (galleries?.galleries ?? []).some((g) => g.photoCount > 0),
       to: "/studio/settings/galleries",
     },
   ];
@@ -152,6 +153,8 @@ export function DashboardPage() {
       </div>
 
       {isOwner ? <Reminders /> : null}
+
+      <ThisWeek />
 
       {isOwner ? (
         <Panel

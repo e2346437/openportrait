@@ -1,6 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { Avatar, Button, Callout, Icon, Panel, StatusChip, TextArea, useToast, type IconName } from "@openportrait/ui";
+import { Avatar, Button, Callout, Icon, Panel, StatusChip, useToast, type IconName } from "@openportrait/ui";
+import { plainPreview } from "../../lib/richtext.js";
+import { RichTextEditor } from "../../components/RichTextEditor.js";
+import { RichText } from "../../components/RichText.js";
 import { HouseholdPanel } from "../../components/HouseholdPanel.js";
 import { CreditPanel } from "../../components/CreditPanel.js";
 import { ContractsPanel, GalleriesPanel, OrdersPanel } from "../../components/RelatedPanels.js";
@@ -61,7 +64,7 @@ export function ContactDetailPage() {
 
   const onNote = async (e: FormEvent) => {
     e.preventDefault();
-    if (!note.trim()) return;
+    if (!plainPreview(note, 1)) return;
     if (await addNote.submit()) {
       setNote("");
       await reload();
@@ -129,10 +132,10 @@ export function ContactDetailPage() {
         <div className="stack">
           <Panel title="Notes and history" description="Private to your studio.">
             <form className="composer" onSubmit={onNote} noValidate>
-              <TextArea aria-label="Add a note" placeholder="Add a note: preferences, what you talked about, things to remember…" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={10000} />
+              <RichTextEditor variant="compact" label="Add a note" placeholder="Add a note: preferences, what you talked about, things to remember…" value={note} onChange={setNote} minHeight={72} />
               {addNote.error ? <Callout tone="bad">{addNote.error}</Callout> : null}
               <div className="form-actions">
-                <Button type="submit" variant="primary" size="sm" loading={addNote.busy} disabled={!note.trim()}>
+                <Button type="submit" variant="primary" size="sm" loading={addNote.busy} disabled={!plainPreview(note, 1)}>
                   Save note
                 </Button>
               </div>
@@ -147,7 +150,7 @@ export function ContactDetailPage() {
                       <Icon name={iconFor(item)} />
                     </span>
                     <div className="tl-body">
-                      {item.type === "note" ? <p>{item.text}</p> : <b style={{ fontWeight: 600 }}>{item.text}</b>}
+                      {item.type === "note" ? <RichText text={item.text} /> : <b style={{ fontWeight: 600 }}>{item.text}</b>}
                       <div className="tl-meta" title={formatDateTime(ms(item.at), tz)}>
                         {relative(ms(item.at))}
                         {item.by ? ` · ${item.by}` : ""}

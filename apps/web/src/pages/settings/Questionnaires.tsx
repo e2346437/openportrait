@@ -5,6 +5,7 @@ import { FIELD_TYPE_LABEL, type FieldType, type QuestionField, type Starter, typ
 import { useSession } from "../../lib/session.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { QuestionnairePreview } from "../../components/QuestionnairePreview.js";
 import { SwitchRow } from "../../components/SwitchRow.js";
 
 interface Loaded {
@@ -22,6 +23,7 @@ export function QuestionnairesSettingsPage() {
   const { data, error, reload } = useLoad<Loaded>("/questionnaire-templates");
   const [editing, setEditing] = useState<{ template: Template | null; seed?: Starter } | null>(null);
   const [picking, setPicking] = useState(false);
+  const [previewing, setPreviewing] = useState<Template | null>(null);
   const { me } = useSession();
   const owner = me?.user?.role === "owner";
   const toast = useToast();
@@ -60,12 +62,11 @@ export function QuestionnairesSettingsPage() {
                 </span>
                 <span />
                 <span />
-                {owner ? (
-                  <span className="cat-actions">
-                    <Button size="sm" onClick={() => setEditing({ template: t })}>Edit</Button>
-                    <Button size="sm" variant="ghost" onClick={() => remove(t)}>Remove</Button>
-                  </span>
-                ) : <span />}
+                <span className="cat-actions">
+                  <Button size="sm" icon="eye" onClick={() => setPreviewing(t)}>Preview</Button>
+                  {owner ? <Button size="sm" onClick={() => setEditing({ template: t })}>Edit</Button> : null}
+                  {owner ? <Button size="sm" variant="ghost" onClick={() => remove(t)}>Remove</Button> : null}
+                </span>
               </li>
             ))}
           </ul>
@@ -74,6 +75,9 @@ export function QuestionnairesSettingsPage() {
 
       {data.items.length > 0 ? <DefaultsPanel templates={data.items} defaults={data.defaults} owner={owner} onChanged={reload} /> : null}
 
+      <Dialog open={!!previewing} onClose={() => setPreviewing(null)} wide title="What your client sees" description={previewing ? `${previewing.name}. Try it like a client would.` : undefined}>
+        {previewing ? <PreviewBody template={previewing} /> : null}
+      </Dialog>
       <StarterDialog open={picking} starters={data.starters} onClose={() => setPicking(false)} onPick={(seed) => { setPicking(false); setEditing({ template: null, seed }); }} />
       <BuilderDialog
         target={editing}
@@ -86,6 +90,11 @@ export function QuestionnairesSettingsPage() {
       />
     </div>
   );
+}
+
+function PreviewBody({ template }: { template: Template }) {
+  const { me } = useSession();
+  return <QuestionnairePreview studio={me?.studio.name ?? ""} title={template.name} intro={template.intro ?? ""} fields={template.fields as QuestionField[]} />;
 }
 
 function DefaultsPanel({ templates, defaults, owner, onChanged }: { templates: Template[]; defaults: TypeDefault[]; owner: boolean; onChanged: () => void }) {
@@ -168,10 +177,13 @@ function BuilderDialog({ target, onClose, onSaved }: { target: { template: Templ
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
   const [fields, setFields] = useState<QuestionField[]>([]);
+  const [tab, setTab] = useState<"edit" | "preview">("edit");
+  const { me } = useSession();
   const editing = target?.template ?? null;
 
   useEffect(() => {
     if (!target) return;
+    setTab("edit");
     const src = target.template ?? target.seed;
     setName(src?.name ?? "");
     setIntro(src?.intro ?? "");
@@ -216,7 +228,14 @@ function BuilderDialog({ target, onClose, onSaved }: { target: { template: Templ
         </>
       }
     >
-      <form id="q-form" onSubmit={go} noValidate className="q-builder">
+      <div className="seg q-tabs" role="group" aria-label="Editor or preview">
+        <button type="button" aria-pressed={tab === "edit"} onClick={() => setTab("edit")}>Edit</button>
+        <button type="button" aria-pressed={tab === "preview"} onClick={() => setTab("preview")}>Preview as client</button>
+      </div>
+      {tab === "preview" ? (
+        <QuestionnairePreview studio={me?.studio.name ?? ""} title={name} intro={intro} fields={fields.map((f) => ({ ...f, options: hasOptions(f.type) ? (f.options ?? []).map((o) => o.trim()).filter(Boolean) : undefined }))} />
+      ) : null}
+      <form id="q-form" onSubmit={go} noValidate className="q-builder" hidden={tab === "preview"}>
         {error ? <Callout tone="bad">{error}</Callout> : null}
         <div className="form-grid">
           <Field className="span-2" label="Name" hint="You'll see this in your list. Clients see it as the title.">{(p) => <TextInput {...p} autoFocus value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />}</Field>

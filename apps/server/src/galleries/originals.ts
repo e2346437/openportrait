@@ -170,12 +170,28 @@ export class Originals {
     return true;
   }
 
-  /** How many originals are local and how many are in the store. */
-  counts(): { local: number; remote: number } {
+  /** How many originals are local and how many are in the store, with their sizes in bytes. */
+  counts(): { local: number; remote: number; localBytes: number; remoteBytes: number } {
     const row = this.deps.db
-      .select({ remote: sql<number>`coalesce(sum(case when ${photo.remoteKey} is not null then 1 else 0 end), 0)`, total: sql<number>`count(*)` })
+      .select({
+        remote: sql<number>`coalesce(sum(case when ${photo.remoteKey} is not null then 1 else 0 end), 0)`,
+        remoteBytes: sql<number>`coalesce(sum(case when ${photo.remoteKey} is not null then ${photo.sizeBytes} else 0 end), 0)`,
+        total: sql<number>`count(*)`,
+        totalBytes: sql<number>`coalesce(sum(${photo.sizeBytes}), 0)`,
+      })
       .from(photo)
       .get();
-    return { local: (row?.total ?? 0) - (row?.remote ?? 0), remote: row?.remote ?? 0 };
+    const remote = row?.remote ?? 0;
+    const remoteBytes = row?.remoteBytes ?? 0;
+    return { local: (row?.total ?? 0) - remote, remote, localBytes: (row?.totalBytes ?? 0) - remoteBytes, remoteBytes };
+  }
+
+  /** Every original in the store: its path in the galleries folder and its size, for usage charts. */
+  remoteUsage(): Array<{ relPath: string; sizeBytes: number; mtimeMs: number }> {
+    return this.deps.db
+      .select({ relPath: photo.relPath, sizeBytes: photo.sizeBytes, mtimeMs: photo.mtimeMs })
+      .from(photo)
+      .where(isNotNull(photo.remoteKey))
+      .all();
   }
 }

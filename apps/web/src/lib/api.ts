@@ -120,5 +120,13 @@ export interface AutomationStatus {
   queueSize: number;
   pendingApprovals: number;
   aiAccessEnabled: boolean;
-  automations: Array<{ id: string; title: string; description: string; owner: AutomationOwner; overridden: boolean; waiting: number }>;
+  automations: Array<{ id: string; title: string; description: string; owner: AutomationOwner; overridden: boolean; waiting: number; reminders: number }>;
+}
+export interface Reminder {
+  id: string;
+  automation: string;
+  title: string;
+  detail: string;
+  ref: { type: "lead" | "shoot" | "contact"; id: string };
+  since: number;
 }

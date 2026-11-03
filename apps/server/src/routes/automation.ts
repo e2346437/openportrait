@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
 import { allAutomations } from "../automation/registry.js";
-import { automationStatus } from "../automation/queue.js";
+import { automationStatus, reminders } from "../automation/queue.js";
 import { requireOwner } from "../auth.js";
 import { parse } from "../validate.js";
 
@@ -17,6 +17,8 @@ export async function automationRoutes(app: FastifyInstance) {
   const { settings, db } = app.ctx;
 
   app.get("/", { preHandler: requireOwner }, async () => automationStatus(app.ctx));
+
+  app.get("/reminders", { preHandler: requireOwner }, async () => ({ items: reminders(app.ctx) }));
 
   app.put("/", { preHandler: requireOwner }, async (req, reply) => {
     const body = parse(Body, req.body, reply);

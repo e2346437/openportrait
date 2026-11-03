@@ -7,6 +7,7 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 Heading toward 1.0.
 
 ### Added
+- Built-in automation rules now work in the default mode: the dashboard lists leads awaiting a first reply or follow-up and upcoming shoots with no location.
 - Clients and leads, shoots and a studio calendar with two-way Google Calendar sync.
 - Booking pages with special dates, daily limits, deposits and coupons, and automatic shoots from confirmed bookings.
 - Questionnaires, contracts with e-signatures and a signed PDF audit trail, and a signing step before booking payment.

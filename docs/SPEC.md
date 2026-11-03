@@ -374,6 +374,7 @@ Delivered as its own milestone after the skeleton, and extended as each module l
 1. **Foundation:** `/mcp` endpoint, tool registry (`defineTool`), access tokens, the Connect your AI screen (turn on, copy URL, token tab, connection list, pause), audit trail, and a first read-only tool set over what exists (studio summary, settings that are safe to read).
 2. **OAuth:** dynamic registration, consent page, refresh rotation, verified against Claude and ChatGPT custom connectors.
 3. **Write tools and approvals:** access levels, the Approvals inbox, limits, undo, and the Draft/Outward/Money tiers, enabled per module as the business core ships.
+4. **Built-in reminders:** in Built-in mode the rules that have no sending action (reply to new inquiries, follow up on quiet leads, prepare shoots) appear as a "Needs your attention" list on the dashboard (`GET /api/studio/automation/reminders`, owner only). Reminders only point at the lead or shoot; nothing is sent to a client and nothing is changed.
 4. **Automation mode:** the automation registry, Settings > Automation, the work queue, schedule prompts, and the failsafe. Built: the work queue is computed from live data when the assistant asks (no cached table), and the failsafe only warns. Webhook ping and per-automation fallback to built-in are not built yet.
 
 Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Draft tool; a blocked action does not exist), approval flow, and an end-to-end run with the MCP SDK client against the real server.

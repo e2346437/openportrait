@@ -16,6 +16,19 @@ export function workQueue(ctx: AppContext): WorkItem[] {
     .slice(0, 50);
 }
 
+/**
+ * What needs the owner's attention, across every automation the built-in rules own. These are in-app
+ * reminders only: nothing is sent to a client and nothing is changed. Oldest first.
+ */
+export function reminders(ctx: AppContext): WorkItem[] {
+  const s = svc(ctx);
+  return allAutomations()
+    .filter((a) => ownerOf(ctx.settings, a.id) === "built-in")
+    .flatMap((a) => a.items(s))
+    .sort((a, b) => a.since - b.since)
+    .slice(0, 50);
+}
+
 export function recordCheckin(ctx: AppContext): void {
   ctx.settings.set("automation.lastAiCheckinAt", Date.now());
 }
@@ -31,6 +44,7 @@ export function automationStatus(ctx: AppContext) {
     owner: ownerOf(ctx.settings, a.id) as Owner,
     overridden: ctx.settings.get("automation.overrides")?.[a.id] !== undefined,
     waiting: ownerOf(ctx.settings, a.id) === "ai" ? a.items(svc(ctx)).length : 0,
+    reminders: ownerOf(ctx.settings, a.id) === "built-in" ? a.items(svc(ctx)).length : 0,
   }));
   const aiOwns = items.some((i) => i.owner === "ai");
   const queueSize = items.reduce((n, i) => n + i.waiting, 0);

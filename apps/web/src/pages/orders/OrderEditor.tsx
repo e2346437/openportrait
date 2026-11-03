@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Button, Callout, Field, Icon, Panel, TextArea, TextInput } from "@openportrait/ui";
+import { Button, Callout, Field, Icon, Panel, TextInput } from "@openportrait/ui";
 import { ContactPicker, type PickedContact } from "../../components/ContactPicker.js";
 import { api } from "../../lib/api.js";
 import { formatMoney, moneyInput, parseMoney, totalsFor, type OrderDetail } from "../../lib/money.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { RichTextEditor } from "../../components/RichTextEditor.js";
 
 interface CatalogItem {
   id: string;
@@ -157,9 +158,10 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
           <Field className="span-2" label="Title" hint="What the client sees, such as “Smith wedding collection”." error={save.fieldErrors.title}>
             {(p) => <TextInput {...p} value={title} onChange={(e) => setTitle(e.target.value)} />}
           </Field>
-          <Field className="span-2" label="Introduction" hint="Optional. A short note above the lines.">
-            {(p) => <TextArea {...p} rows={2} maxLength={3000} value={intro} onChange={(e) => setIntro(e.target.value)} />}
-          </Field>
+          <div className="span-2 field">
+            <span className="label" id="order-intro">Introduction</span>
+            <RichTextEditor variant="compact" labelledBy="order-intro" value={intro} onChange={setIntro} placeholder="Optional. A short note above the lines." />
+          </div>
         </div>
       </Panel>
 
@@ -309,9 +311,11 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
               {(p) => <TextInput {...p} type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />}
             </Field>
           ) : null}
-          <Field className="span-2" label="Terms and conditions" hint="Shown at the bottom. Your default is in Settings > Prices.">
-            {(p) => <TextArea {...p} rows={4} maxLength={6000} value={terms} onChange={(e) => setTerms(e.target.value)} />}
-          </Field>
+          <div className="span-2 field">
+            <span className="label" id="order-terms">Terms and conditions</span>
+            <RichTextEditor variant="standard" labelledBy="order-terms" value={terms} onChange={setTerms} />
+            <small className="hint">Shown at the bottom. Your default is in Settings &gt; Prices.</small>
+          </div>
         </div>
       </Panel>
 

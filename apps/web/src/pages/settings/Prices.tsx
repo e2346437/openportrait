@@ -6,6 +6,7 @@ import { useSession } from "../../lib/session.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { SwitchRow } from "../../components/SwitchRow.js";
+import { RichTextEditor } from "../../components/RichTextEditor.js";
 
 interface Item {
   id: string;
@@ -314,7 +315,11 @@ function MoneyPanel() {
         <Field label="Currency" hint="A three-letter code, like USD." error={save.fieldErrors.currency}>{(p) => <TextInput {...p} maxLength={3} disabled={!owner} value={f.currency} onChange={set("currency")} />}</Field>
         <Field label="Quotes are good for (days)">{(p) => <TextInput {...p} inputMode="numeric" disabled={!owner} value={f.quoteValidDays} onChange={set("quoteValidDays")} />}</Field>
         <Field className="span-2" label="How clients can pay" hint="Shown on invoices. For example: Venmo @yourstudio, or checks to 12 Main St.">{(p) => <TextArea {...p} rows={2} maxLength={1000} disabled={!owner} value={f.paymentInstructions} onChange={set("paymentInstructions")} />}</Field>
-        <Field className="span-2" label="Default terms and conditions" hint="Copied onto each new quote. You can edit them per quote.">{(p) => <TextArea {...p} rows={5} maxLength={6000} disabled={!owner} value={f.terms} onChange={set("terms")} />}</Field>
+        <div className="span-2 field">
+          <span className="label" id="default-terms">Default terms and conditions</span>
+          <RichTextEditor variant="standard" labelledBy="default-terms" disabled={!owner} value={f.terms} onChange={(html) => setF((x) => ({ ...x, terms: html }))} />
+          <small className="hint">Copied onto each new quote. You can edit them per quote.</small>
+        </div>
         {owner ? (
           <div className="span-2 form-actions">
             <Button variant="primary" type="submit" loading={save.busy}>Save</Button>

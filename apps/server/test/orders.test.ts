@@ -214,6 +214,22 @@ describe("catalog", () => {
   });
 });
 
+describe("formatted intro and terms", () => {
+  it("cleans markup on the way in and out, and keeps plain text as it was", async () => {
+    contactId = (await staff("POST", "/contacts", { firstName: "Rich", lastName: "Text", email: "rich@example.com" })).body.id;
+    const lines = [{ description: "Session", quantity: 1, unitCents: 10_000 }];
+    const q = await staff("POST", "/orders", { kind: "quote", contactId, title: "R", lines, intro: '<p>Hi <strong>there</strong><script>x()</script></p>', terms: "Net 30.\nNo refunds." });
+    expect(q.status).toBe(201);
+    expect(q.body.intro).toBe("<p>Hi <strong>there</strong></p>");
+    expect(q.body.terms).toBe("Net 30.\nNo refunds.");
+    const empty = await staff("PUT", `/orders/${q.body.id}`, { contactId, title: "R", lines, intro: "<p><br></p>", terms: '<ul><li onclick="x">One</li></ul>' });
+    expect(empty.body.intro).toBeNull();
+    expect(empty.body.terms).toBe("<ul><li>One</li></ul>");
+    await staff("PUT", "/money/settings", { currency: "usd", terms: "<p>Default <em>terms</em><img src=x onerror=y></p>", paymentInstructions: "", quoteValidDays: 14 });
+    expect((await staff("GET", "/money/settings")).body.terms).toBe("<p>Default <em>terms</em></p>");
+  });
+});
+
 describe("sales tax places", () => {
   it("keeps several rates, one default, and fixes the rate on each document", async () => {
     expect((await staff("GET", "/money/tax-rates")).body.rates).toEqual([]);

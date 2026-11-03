@@ -775,3 +775,29 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .backup-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
 .backup-acts { display: flex; gap: var(--s2); flex-shrink: 0; }
 @media (max-width: 560px) { .backup-row { flex-direction: column; align-items: stretch; } .backup-acts { justify-content: flex-start; } }
+
+/* Extension cards: progress, stat tiles, charts */
+.ext-stats { margin-bottom: 0; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.ext-meter { display: grid; gap: 6px; padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface-2); }
+.ext-meter-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 14px; }
+.ext-meter-head span { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ext-meter small { color: var(--ink-3); overflow-wrap: anywhere; }
+.ext-meter-track { height: 8px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+.ext-meter-track span { display: block; height: 100%; border-radius: 99px; background: var(--accent); transition: width 0.6s ease; }
+.ext-meter-track.warn span { background: var(--warn); }
+.ext-meter-track.bad span { background: var(--bad); }
+.ext-chart { display: grid; gap: var(--s3); min-width: 0; }
+.ext-chart-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s3); }
+.ext-chart-head .ext-list-title { margin: 0; }
+.ext-chart-readout { margin: 0; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; min-height: 1.4em; }
+.ext-cols { display: flex; align-items: stretch; gap: 2px; height: 210px; overflow-x: auto; }
+.ext-col { flex: 1 0 44px; max-width: 72px; display: flex; flex-direction: column; border: 0; background: none; padding: 0 1px; cursor: default; font: inherit; }
+.ext-col-plot { flex: 1; display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
+.ext-col-bar { width: 100%; max-width: 28px; background: var(--accent); border-radius: 4px 4px 0 0; opacity: 0.85; }
+.ext-col.on .ext-col-bar, .ext-col:focus-visible .ext-col-bar { opacity: 1; }
+.ext-col:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ext-col-label { font-size: 11px; color: var(--ink-3); white-space: nowrap; padding-top: 6px; text-align: center; }
+.ext-chart-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.ext-chart-table th, .ext-chart-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.ext-chart-table th:last-child, .ext-chart-table td:last-child { text-align: right; }
+@media (prefers-reduced-motion: reduce) { .ext-meter-track span { transition: none; } }

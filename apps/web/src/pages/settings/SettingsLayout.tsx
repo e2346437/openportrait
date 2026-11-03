@@ -1,95 +1,115 @@
-import { useEffect, useRef } from "react";
-import { NavLink, Outlet, useLocation } from "react-router";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { Icon, PageHeader } from "@openportrait/ui";
 import { useSession } from "../../lib/session.js";
 import { useLoad } from "../../lib/useLoad.js";
 
+type IconName = Parameters<typeof Icon>[0]["name"];
+interface Item {
+  to: string;
+  label: string;
+  icon: IconName;
+  ownerOnly?: boolean;
+}
+interface Group {
+  title: string;
+  items: Item[];
+}
+
+/** Every settings section, in the order and grouping the menu shows. */
+function groups(hasExtensions: boolean): Group[] {
+  return [
+    {
+      title: "Studio",
+      items: [
+        { to: "studio", label: "Studio details", icon: "building" },
+        { to: "galleries", label: "Galleries", icon: "image" },
+        { to: "shoots", label: "Shoots & folders", icon: "camera" },
+      ],
+    },
+    {
+      title: "Work",
+      items: [
+        { to: "questionnaires", label: "Questionnaires", icon: "note" },
+        { to: "contracts", label: "Contracts", icon: "note", ownerOnly: true },
+      ],
+    },
+    {
+      title: "Money",
+      items: [
+        { to: "prices", label: "Prices", icon: "receipt" },
+        { to: "payments", label: "Payments", icon: "receipt", ownerOnly: true },
+      ],
+    },
+    {
+      title: "Connections",
+      items: [
+        { to: "email", label: "Email", icon: "mail", ownerOnly: true },
+        { to: "calendar", label: "Google Calendar", icon: "calendar", ownerOnly: true },
+        { to: "camera-upload", label: "Camera upload", icon: "camera", ownerOnly: true },
+        { to: "internet", label: "Internet access", icon: "globe", ownerOnly: true },
+        { to: "ai", label: "Connect your AI", icon: "sparkle", ownerOnly: true },
+      ],
+    },
+    {
+      title: "System",
+      items: [
+        { to: "automation", label: "Automation", icon: "refresh", ownerOnly: true },
+        ...(hasExtensions ? [{ to: "extensions", label: "Extensions", icon: "sparkle" as IconName, ownerOnly: true }] : []),
+        { to: "import", label: "Import and export", icon: "inbox", ownerOnly: true },
+        { to: "account", label: "Your account", icon: "user" },
+      ],
+    },
+  ];
+}
+
 export function SettingsLayout() {
   const { me } = useSession();
   const owner = me?.user?.role === "owner";
-  // Only owners can see extensions, and the tab only appears when one is installed.
+  // Only owners can see extensions, and the entry only appears when one is installed.
   const ext = useLoad<{ extensions: unknown[] }>(owner ? "/extensions" : null);
   const hasExtensions = !!ext.data?.extensions.length;
-  const nav = useRef<HTMLElement>(null);
+  const navigate = useNavigate();
   const { pathname } = useLocation();
-  // On phones the bar scrolls; keep the current section in view.
-  useEffect(() => {
-    nav.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView({ inline: "center", block: "nearest" });
-  }, [pathname, hasExtensions]);
+  const visible = groups(hasExtensions)
+    .map((g) => ({ ...g, items: g.items.filter((i) => owner || !i.ownerOnly) }))
+    .filter((g) => g.items.length > 0);
+  const current = pathname.split("/").filter(Boolean).pop() ?? "studio";
+
   return (
     <>
       <PageHeader title="Settings" />
-      <nav ref={nav} className="subnav" aria-label="Settings sections">
-        <NavLink to="studio">
-          <Icon name="building" /> Studio
-        </NavLink>
-        <NavLink to="galleries">
-          <Icon name="image" /> Galleries
-        </NavLink>
-        <NavLink to="shoots">
-          <Icon name="camera" /> Shoots &amp; folders
-        </NavLink>
-        {owner ? (
-          <NavLink to="calendar">
-            <Icon name="calendar" /> Google Calendar
-          </NavLink>
-        ) : null}
-        <NavLink to="questionnaires">
-          <Icon name="note" /> Questionnaires
-        </NavLink>
-        <NavLink to="prices">
-          <Icon name="receipt" /> Prices
-        </NavLink>
-        {owner ? (
-          <NavLink to="contracts">
-            <Icon name="note" /> Contracts
-          </NavLink>
-        ) : null}
-        {owner ? (
-          <NavLink to="payments">
-            <Icon name="receipt" /> Payments
-          </NavLink>
-        ) : null}
-        {owner ? (
-          <NavLink to="email">
-            <Icon name="mail" /> Email
-          </NavLink>
-        ) : null}
-        {owner ? (
-          <NavLink to="camera-upload">
-            <Icon name="camera" /> Camera upload
-          </NavLink>
-        ) : null}
-        {owner ? (
-          <NavLink to="internet">
-            <Icon name="globe" /> Internet access
-          </NavLink>
-        ) : null}
-        {owner ? (
-          <NavLink to="ai">
-            <Icon name="sparkle" /> Connect your AI
-          </NavLink>
-        ) : null}
-        {owner ? (
-          <NavLink to="automation">
-            <Icon name="refresh" /> Automation
-          </NavLink>
-        ) : null}
-        {owner && hasExtensions ? (
-          <NavLink to="extensions">
-            <Icon name="sparkle" /> Extensions
-          </NavLink>
-        ) : null}
-        {owner ? (
-          <NavLink to="import">
-            <Icon name="inbox" /> Import and export
-          </NavLink>
-        ) : null}
-        <NavLink to="account">
-          <Icon name="user" /> Your account
-        </NavLink>
-      </nav>
-      <Outlet />
+      <div className="settings-shell">
+        {/* Phones and small tablets: a labelled picker that lists every section at once. */}
+        <label className="settings-picker">
+          <span>Section</span>
+          <select className="input" value={current} onChange={(e) => navigate(e.target.value)} aria-label="Settings section">
+            {visible.map((g) => (
+              <optgroup key={g.title} label={g.title}>
+                {g.items.map((i) => (
+                  <option key={i.to} value={i.to}>
+                    {i.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        <nav className="settings-nav" aria-label="Settings sections">
+          {visible.map((g) => (
+            <div key={g.title} className="settings-group">
+              <div className="nav-label">{g.title}</div>
+              {g.items.map((i) => (
+                <NavLink key={i.to} to={i.to}>
+                  <Icon name={i.icon} /> {i.label}
+                </NavLink>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="settings-content">
+          <Outlet />
+        </div>
+      </div>
     </>
   );
 }

@@ -15,11 +15,12 @@ export const AREA_LABELS: Record<string, string> = {
   calendar: "Calendar",
   quotes: "Quotes",
   orders: "Orders",
+  contracts: "Contracts",
   galleries: "Galleries",
   email: "Email",
 };
 /** Areas that have tools today. The rest light up as those parts of OpenPortrait are built. */
-export const LIVE_AREAS = new Set(["studio", "contacts", "leads", "shoots"]);
+export const LIVE_AREAS = new Set(["studio", "contacts", "leads", "shoots", "calendar", "quotes", "orders", "contracts"]);
 
 
 /** The "what can it do" and "which parts of the studio" choices, shared by token creation and the sign-in consent screen. */

@@ -5,6 +5,7 @@ import { answerText, type SentQuestionnaire, type Template } from "../../lib/que
 import { useSession } from "../../lib/session.js";
 import { formatDate, ms } from "../../lib/time.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { EmailOffCallout } from "../../components/EmailOffCallout.js";
 
 function state(q: SentQuestionnaire): { label: string; tone: Tone } {
   if (q.status === "submitted") return { label: "Answered", tone: "ok" };
@@ -43,6 +44,9 @@ export function ShootQuestionnaires({ shootId, clientEmail }: { shootId: string;
   return (
     <Panel title="Questionnaires" description="Forms for the client to fill in. Their answers are saved here." actions={<Button size="sm" icon="plus" onClick={() => setAdding(true)}>Add</Button>} flush>
       {list.error ? <div className="pad"><Callout tone="bad">{list.error}</Callout></div> : null}
+      <div className="pad" style={{ paddingBottom: 0 }}>
+        <EmailOffCallout>Questionnaires can't be sent yet. Automatic ones wait as drafts until email is set up.</EmailOffCallout>
+      </div>
       {list.loading && !list.data ? <div className="pad"><Spinner label="Loading" /></div> : null}
       {list.data && items.length === 0 ? (
         <EmptyState icon="note" title="Nothing sent yet" action={<Button icon="plus" onClick={() => setAdding(true)}>Add a questionnaire</Button>}>

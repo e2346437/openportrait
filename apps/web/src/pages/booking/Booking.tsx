@@ -7,6 +7,7 @@ import { useSession } from "../../lib/session.js";
 import { formatDateTime } from "../../lib/time.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { EmailOffCallout } from "../../components/EmailOffCallout.js";
 import { SwitchRow } from "../../components/SwitchRow.js";
 import { SchedulerDialog, type Scheduler } from "./SchedulerDialog.js";
 import { RichTextEditor } from "../../components/RichTextEditor.js";
@@ -47,6 +48,7 @@ export function BookingPage() {
   return (
     <>
       <PageHeader title="Booking" description="Let clients ask for a time or send an inquiry from your website." />
+      <EmailOffCallout>Clients won't get booking confirmations or reminders until email is set up.</EmailOffCallout>
       <div className="tabs" role="tablist">
         {tabs.map(([k, label]) => (
           <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>

@@ -7,6 +7,7 @@ import { useSession } from "../../lib/session.js";
 import { formatDateTime, ms } from "../../lib/time.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { EmailOffCallout } from "../../components/EmailOffCallout.js";
 import { isHtml } from "../../lib/richtext.js";
 import { RichTextEditor } from "../../components/RichTextEditor.js";
 
@@ -103,6 +104,7 @@ export function ContractPage() {
           {draft ? (
             <Panel title="Send it" description={c.contactEmail ? `Emails ${c.contactName} (${c.contactEmail}) a private link to review and sign. Any changes you've typed are saved first.` : `${c.contactName} has no email address. Add one to their contact first.`}>
               {send.error ? <Callout tone="bad">{send.error}</Callout> : null}
+              <EmailOffCallout>The contract can't be emailed until email is set up.</EmailOffCallout>
               <div className="form-actions">
                 <Button variant="primary" icon="send" loading={send.busy} disabled={!c.contactEmail} onClick={onSend}>Send for signature</Button>
                 <Button variant="ghost" className="danger" onClick={onDelete}>Delete draft</Button>

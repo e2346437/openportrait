@@ -35,6 +35,12 @@ export interface SettingsCard {
     rows?: Array<{ key: string; label: string; format?: "date" | "text" }>;
     /** A key whose string value is shown as a warning when present. */
     notice?: string;
+    /** Progress bars. `data[key]` is a {@link CardMeter}, or null/absent when nothing is in progress. */
+    meters?: Array<{ key: string }>;
+    /** Number tiles shown above the rows. `bytes` formats as KB/MB/GB. */
+    stats?: Array<{ key: string; label: string; format?: "bytes" | "number" | "text"; hintKey?: string }>;
+    /** Charts. `data[key]` is a {@link CardChart}. */
+    charts?: Array<{ key: string; title: string; format?: "bytes" | "number" }>;
     /** Lists drawn from arrays in the status JSON, each row optionally removable. */
     lists?: Array<{
       key: string;
@@ -59,6 +65,20 @@ export interface SettingsCard {
     fields?: Array<{ name: string; label: string; hint?: string; secret?: boolean; optionsKey?: string; optional?: boolean }>;
     confirm?: string;
   }>;
+}
+
+/** Status JSON for a progress bar. While `data.refreshMs` (a number) is present, the card reloads itself that often. */
+export interface CardMeter {
+  label: string;
+  detail?: string;
+  done: number;
+  total: number;
+  format?: "bytes" | "number";
+  tone?: "ok" | "warn" | "bad" | "neutral";
+}
+/** Status JSON for a chart: one or more views of the same data, such as by month and by year. */
+export interface CardChart {
+  views: Array<{ key: string; label: string; layout: "bars" | "columns"; points: Array<{ label: string; short?: string; value: number }>; note?: string }>;
 }
 
 /**

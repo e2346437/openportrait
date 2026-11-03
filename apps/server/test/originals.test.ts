@@ -152,12 +152,14 @@ describe("remote originals", () => {
   it("brings an original back to the galleries folder and counts both kinds", async () => {
     const { photo } = await setup();
     const { item, bytes } = offload(photo.id);
-    expect(app.ctx.originals.counts()).toEqual({ local: 0, remote: 1 });
+    expect(app.ctx.originals.counts()).toEqual({ local: 0, remote: 1, localBytes: 0, remoteBytes: bytes.length });
+    expect(app.ctx.originals.remoteUsage()).toEqual([expect.objectContaining({ relPath: item.relPath, sizeBytes: bytes.length })]);
     const [r] = app.ctx.originals.remote(5);
     expect(r).toMatchObject({ id: photo.id, remoteKey: "k1", file: item.file });
     expect(app.ctx.originals.markLocal(photo.id)).toBe(false); // nothing written yet: refused
     fs.writeFileSync(r!.file, bytes);
     expect(app.ctx.originals.markLocal(photo.id)).toBe(true);
-    expect(app.ctx.originals.counts()).toEqual({ local: 1, remote: 0 });
+    expect(app.ctx.originals.counts()).toEqual({ local: 1, remote: 0, localBytes: bytes.length, remoteBytes: 0 });
+    expect(app.ctx.originals.remoteUsage()).toEqual([]);
   });
 });

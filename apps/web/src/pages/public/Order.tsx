@@ -20,6 +20,7 @@ interface View {
   subtotalCents: number;
   discountCents: number;
   taxCents: number;
+  taxLabel?: string | null;
   totalCents: number;
   paidCents: number;
   balanceCents: number;
@@ -132,7 +133,7 @@ export function OrderViewPage() {
         <div><dt>Subtotal</dt><dd>{m(v.subtotalCents)}</dd></div>
         {v.discountCents ? <div><dt>Discount</dt><dd>−{m(v.discountCents)}</dd></div> : null}
         {v.couponCents ? <div><dt>Coupon {v.couponCode}</dt><dd>−{m(v.couponCents)}</dd></div> : null}
-        {v.taxCents ? <div><dt>Tax</dt><dd>{m(v.taxCents)}</dd></div> : null}
+        {v.taxCents ? <div><dt>{v.taxLabel || "Tax"}</dt><dd>{m(v.taxCents)}</dd></div> : null}
         <div className="grand"><dt>Total</dt><dd>{m(v.totalCents)}</dd></div>
         {!quote ? <div><dt>Paid</dt><dd>{m(v.paidCents)}</dd></div> : null}
         {!quote ? <div className="grand"><dt>Balance due</dt><dd>{m(v.balanceCents)}</dd></div> : null}

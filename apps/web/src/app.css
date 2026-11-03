@@ -867,6 +867,15 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .restore-check span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .restore-check small { color: var(--ink-3); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .restore-bar span { transition: none; } }
+/* A quiet pointer to a feature the Pro add-on provides. Dashed and neutral so it never competes with the page. */
+.addon-prompt { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px dashed var(--line-2); border-radius: var(--r); color: var(--ink-2); font-size: 13px; }
+.addon-prompt > svg { flex: none; margin-top: 2px; color: var(--ink-3); }
+.addon-prompt p { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.addon-prompt b { color: var(--ink); font-weight: 600; }
+.addon-prompt a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.addon-prompt-x { flex: none; display: inline-grid; place-items: center; min-width: 32px; min-height: 32px; margin: -6px -6px -6px 0; border: 0; background: none; border-radius: var(--r); color: var(--ink-3); cursor: pointer; }
+.addon-prompt-x:hover { background: var(--surface-2); color: var(--ink); }
+.addon-prompt-x:focus-visible, .addon-prompt a:focus-visible { outline: 2px solid var(--focus, currentColor); outline-offset: 2px; }
 /* Settings > Prices: package builder */
 .pkg-pick { border: 1px solid var(--line, #d9d6cf); border-radius: var(--radius-md, 10px); padding: 0; margin: 0; min-width: 0; display: grid; }
 .pkg-pick legend { padding: 0 6px; margin-left: 10px; }

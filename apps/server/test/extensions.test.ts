@@ -107,6 +107,14 @@ describe("extensions", () => {
   });
 });
 
+describe("open-source tools stay free", () => {
+  it("offers the invoicing tools with no extension installed", async () => {
+    await boot({});
+    const names = toolsFor({ level: "full", areas: ["quotes", "orders"] }).filter((t) => t.capability === "invoicing").map((t) => t.name);
+    expect(names.length).toBeGreaterThan(0);
+  });
+});
+
 describe("extension hooks for shoots and storage", () => {
   it("runs a migration once, refuses foreign tables, and lists shoot cards", async () => {
     const cookie = await boot({

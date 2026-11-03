@@ -126,6 +126,7 @@ export async function galleryRoutes(app: FastifyInstance) {
         title: g.title,
         slug: g.slug,
         status: g.status,
+        shootId: g.shootId,
         shootFolder: g.shootFolder,
         sourceMissing: g.sourceMissing,
         photoCount: counts.get(g.id)?.total ?? 0,

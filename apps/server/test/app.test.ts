@@ -63,6 +63,32 @@ describe("auth", () => {
     expect((await app.inject({ url: "/api/studio/settings/studio", headers: { cookie } })).statusCode).toBe(401);
   });
 
+  it("saves studio contact details, addresses and hours", async () => {
+    const cookie = cookieOf(await app.inject({ method: "POST", url: "/api/studio/auth/login", payload: { email: "pat@example.com", password: owner.password } }));
+    const day = { open: true, from: "09:00", to: "17:00" };
+    const body = {
+      name: "Test Studio",
+      email: "hello@example.com",
+      timezone: "America/Chicago",
+      phone: "(555) 010-2345",
+      physicalAddress: { street: "12 Harbor St", unit: "", city: "Portland", state: "ME", postal: "04101" },
+      mailingAddress: { street: "PO Box 9", city: "Portland", state: "ME", postal: "04112" },
+      showAddress: true,
+      hours: { days: Array.from({ length: 7 }, () => day), note: "By appointment on weekends" },
+    };
+    const put = await app.inject({ method: "PUT", url: "/api/studio/settings/studio", headers: { cookie }, payload: body });
+    expect(put.statusCode).toBe(200);
+    const got = (await app.inject({ url: "/api/studio/settings/studio", headers: { cookie } })).json();
+    expect(got).toMatchObject({ phone: "(555) 010-2345", showAddress: true, mailingAddress: { street: "PO Box 9" }, hours: { note: "By appointment on weekends" } });
+    // Turning the optional parts off clears them; an older client that sends only the basics still works.
+    const basic = await app.inject({ method: "PUT", url: "/api/studio/settings/studio", headers: { cookie }, payload: { name: "Test Studio", email: "hello@example.com", timezone: "UTC" } });
+    expect(basic.statusCode).toBe(200);
+    const after = (await app.inject({ url: "/api/studio/settings/studio", headers: { cookie } })).json();
+    expect(after).toMatchObject({ mailingAddress: null, hours: null, phone: "" });
+    const bad = await app.inject({ method: "PUT", url: "/api/studio/settings/studio", headers: { cookie }, payload: { ...body, hours: { days: [day], note: "" } } });
+    expect(bad.statusCode).toBe(400);
+  });
+
   it("rejects a wrong password without saying which part was wrong", async () => {
     const res = await app.inject({ method: "POST", url: "/api/studio/auth/login", payload: { email: "pat@example.com", password: "nope nope nope" } });
     expect(res.statusCode).toBe(401);

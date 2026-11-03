@@ -1,3 +1,4 @@
+import { AddOnPrompt } from "../../components/AddOnPrompt.js";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
 import { Button, Callout, Dialog, Field, Icon, Panel, StatusChip, TextArea, TextInput, copyText, useToast } from "@openportrait/ui";
@@ -199,6 +200,7 @@ export function ShootDetailPage() {
           </Panel>
 
           <ShootExtensionCards shootId={shoot.id} />
+          <AddOnPrompt feature="second-shooter" />
 
           <Panel title="Client">
             <div className="facts" style={{ flexDirection: "column", margin: 0 }}>

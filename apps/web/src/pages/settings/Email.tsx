@@ -1,3 +1,4 @@
+import { AddOnPrompt } from "../../components/AddOnPrompt.js";
 import { useEffect, useState, type FormEvent } from "react";
 import { Button, Callout, EmptyState, Field, Panel, Spinner, StatusChip, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
@@ -139,6 +140,8 @@ export function EmailSettingsPage() {
           </ul>
         )}
       </Panel>
+
+      <AddOnPrompt feature="microsoft365" />
     </div>
   );
 }

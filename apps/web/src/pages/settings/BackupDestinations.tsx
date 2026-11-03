@@ -1,3 +1,4 @@
+import { AddOnPrompt } from "../../components/AddOnPrompt.js";
 import { useState } from "react";
 import {
   Button,
@@ -240,6 +241,7 @@ export function BackupDestinationsPanel() {
           onCancel={() => setEditing(null)}
         />
       ) : null}
+      <AddOnPrompt feature="bucket-storage" />
       {data.destinations.length === 0 && editing !== "new" ? (
         <EmptyState icon="shield" title="Backups stay on this server only">
           Add a destination so every backup is also copied off the disk your

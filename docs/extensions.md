@@ -30,7 +30,11 @@ export function register(api) {
 
 A page is a description, not UI code. Its `slug` must be lowercase letters, digits and dashes, and the app draws it at `/studio/x/<extension>/<slug>` from the data you give, with the records supplied by the extension's own routes. A route can answer `{ "locked": "message" }` to show a message in place of the records.
 
-Capability groups let an extension supply tools that stay hidden until it grants them. Use `lockCapability` to mark a group as provided by an extension, and `grantCapability` or `revokeCapability` to switch it on or off as a whole.
+Capability groups let an extension supply tools that stay hidden until it grants them. Use `lockCapability` to mark a group as provided by an extension, and `grantCapability` or `revokeCapability` to switch it on or off as a whole. The built-in tool groups, including invoicing, are part of OpenPortrait itself and are never locked.
+
+## Pointers to add-on features
+
+Where a feature that an optional add-on provides would appear (QuickBooks Online, Microsoft 365, S3 and B2 bucket storage, second shooters), the owner sees one quiet line saying the add-on provides it, with a link. It shows only to the owner, disappears once the add-on is installed, and can be dismissed for good.
 
 For the full design, see the Extensions section of [the product spec](SPEC.md#extensions).
 

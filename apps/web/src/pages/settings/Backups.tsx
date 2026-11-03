@@ -17,6 +17,7 @@ import { formatBytes } from "../../lib/tether.js";
 import { formatDate, plural, timeAgo } from "../../lib/galleries.js";
 import { SwitchRow } from "../../components/SwitchRow.js";
 import { BackupDestinationsPanel } from "./BackupDestinations.js";
+import { RestorePanel, useRestore } from "./BackupRestore.js";
 
 interface Config {
   enabled: boolean;
@@ -60,6 +61,7 @@ export function BackupsSettingsPage() {
   const sizes = useLoad<Sizes>("/backups/sizes");
   const [form, setForm] = useState<Config | null>(null);
   const [keepText, setKeepText] = useState("");
+  const restore = useRestore();
   const [starting, setStarting] = useState(false);
   const data = overview.data;
   const running = !!data?.status.running || starting;
@@ -324,6 +326,14 @@ export function BackupsSettingsPage() {
                   </a>
                   <Button
                     size="sm"
+                    disabled={!!restore.busy || !!restore.state?.plan}
+                    aria-label={`Restore the backup from ${formatDate(f.createdAt)}`}
+                    onClick={() => void restore.fromBackup(f.name)}
+                  >
+                    Restore
+                  </Button>
+                  <Button
+                    size="sm"
                     variant="ghost"
                     aria-label={`Delete the backup from ${formatDate(f.createdAt)}`}
                     onClick={() => void remove(f)}
@@ -340,6 +350,8 @@ export function BackupsSettingsPage() {
           Download them on your home network when you can.
         </p>
       </Panel>
+
+      <RestorePanel restore={restore} />
     </div>
   );
 }

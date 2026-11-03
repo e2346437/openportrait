@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireOwner } from "../auth.js";
 import { EVERY_HOURS_CHOICES } from "../backup.js";
 import { allProviders, providerFor } from "../backup-destinations.js";
+import { RestoreError } from "../restore.js";
 import { parse } from "../validate.js";
 
 const ConfigBody = z.object({
@@ -92,6 +93,69 @@ export async function backupRoutes(app: FastifyInstance) {
 
   app.delete("/files/:name", async (req, reply) => {
     if (!svc().remove((req.params as { name: string }).name)) return reply.code(404).send({ error: "not_found", message: "That backup no longer exists." });
+    return { ok: true };
+  });
+
+  // ---- Restore ----
+  // Every step is owner only and is never offered to the AI connector. The upload route checks who is calling before
+  // it reads a single byte of the file.
+  const restore = () => app.ctx.restore;
+  const fail = (reply: import("fastify").FastifyReply, err: unknown) => {
+    if (err instanceof RestoreError) return reply.code(400).send({ error: "restore_invalid", message: err.message });
+    throw err;
+  };
+
+  app.get("/restore", async () => restore().state());
+
+  app.post("/restore/from-backup", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {
+    const body = parse(z.object({ name: z.string().min(1).max(200) }), req.body, reply);
+    if (!body) return;
+    try {
+      return { plan: await restore().stageBackup(body.name) };
+    } catch (err) {
+      return fail(reply, err);
+    }
+  });
+
+  app.register(async (up) => {
+    up.addHook("onRequest", requireOwner);
+    up.addContentTypeParser(["application/octet-stream", "application/zip", "application/x-zip-compressed", "application/vnd.sqlite3"], (_req, payload, done) => done(null, payload));
+    up.post("/restore/upload", { config: { rateLimit: { max: 6, timeWindow: "1 minute" } } }, async (req, reply) => {
+      const name = decodeURIComponent(String(req.headers["x-file-name"] ?? "uploaded backup"));
+      try {
+        return { plan: await restore().stageUpload(req.body as import("node:stream").Readable, Number(req.headers["content-length"] ?? 0), name) };
+      } catch (err) {
+        return fail(reply, err);
+      }
+    });
+  });
+
+  app.post("/restore/confirm", async (req, reply) => {
+    const body = parse(z.object({ confirm: z.literal(true), withFiles: z.boolean().default(true) }), req.body, reply);
+    if (!body) return;
+    try {
+      return { plan: await restore().confirm({ withFiles: body.withFiles }) };
+    } catch (err) {
+      return fail(reply, err);
+    }
+  });
+
+  app.post("/restore/restart", async (_req, reply) => {
+    if (restore().state().plan?.phase !== "confirmed") return reply.code(409).send({ error: "nothing_to_apply", message: "There is no confirmed restore waiting for a restart." });
+    restore().restart();
+    return reply.code(202).send({ restarting: true });
+  });
+
+  app.delete("/restore", async (_req, reply) => {
+    try {
+      return { ok: restore().cancel() };
+    } catch (err) {
+      return fail(reply, err);
+    }
+  });
+
+  app.delete("/restore/result", async () => {
+    restore().dismissResult();
     return { ok: true };
   });
 }

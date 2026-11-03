@@ -22,6 +22,9 @@ export const MERGE_FIELDS: Array<{ key: string; label: string }> = [
   { key: "client.address", label: "Client's address" },
   { key: "studio.name", label: "Your studio name" },
   { key: "studio.email", label: "Your studio email" },
+  { key: "studio.phone", label: "Your studio phone" },
+  { key: "studio.address", label: "Your studio's physical address" },
+  { key: "studio.mailingAddress", label: "Your studio's mailing address" },
   { key: "shoot.subject", label: "The shoot's name" },
   { key: "shoot.type", label: "The type of shoot" },
   { key: "shoot.date", label: "The shoot's first date" },
@@ -31,6 +34,14 @@ export const MERGE_FIELDS: Array<{ key: string; label: string }> = [
 ];
 const KNOWN = new Set(MERGE_FIELDS.map((f) => f.key.toLowerCase()));
 const FIELD = /\{\{\s*([A-Za-z.]+)\s*\}\}/g;
+
+/** "12 Harbor St, Suite 2, Portland, ME 04101", or null when nothing is filled in. */
+function oneLine(a: { street: string; unit: string; city: string; state: string; postal: string } | null | undefined): string | null {
+  if (!a) return null;
+  const region = [a.state, a.postal].filter(Boolean).join(" ");
+  const line = [a.street, a.unit, a.city, region].filter(Boolean).join(", ");
+  return line || null;
+}
 
 export const CONSENT = "I have read this agreement and agree to be legally bound by it. I understand that typing my name or drawing my signature here is the same as signing on paper.";
 
@@ -100,6 +111,9 @@ function values(ctx: ServiceContext, c: { contactId: string; shootId?: string | 
     "client.address": address || null,
     "studio.name": ctx.settings.get("studio.name") || null,
     "studio.email": ctx.settings.get("studio.email") || null,
+    "studio.phone": ctx.settings.get("studio.phone") || null,
+    "studio.address": oneLine(ctx.settings.get("studio.physicalAddress")),
+    "studio.mailingaddress": oneLine(ctx.settings.get("studio.mailingAddress") ?? ctx.settings.get("studio.physicalAddress")),
     "shoot.subject": sh?.subject ?? null,
     "shoot.type": sh?.type ?? null,
     "shoot.date": first ? long(Number(first)) : null,
@@ -129,7 +143,7 @@ export function render(ctx: ServiceContext, text: string, c: { contactId: string
 }
 
 /** Fields a booking page's contract may use: only things known before any shoot exists. */
-const BOOKING_FIELDS = new Set(["client.name", "client.firstname", "client.email", "studio.name", "studio.email", "order.title", "order.total", "today"]);
+const BOOKING_FIELDS = new Set(["client.name", "client.firstname", "client.email", "studio.name", "studio.email", "studio.phone", "studio.address", "studio.mailingaddress", "order.title", "order.total", "today"]);
 
 /** Checked when a booking page is saved, so a booking never fails later because a field can't be filled. */
 export function assertBookingTemplate(ctx: ServiceContext, templateId: string) {

@@ -776,6 +776,20 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .backup-acts { display: flex; gap: var(--s2); flex-shrink: 0; }
 @media (max-width: 560px) { .backup-row { flex-direction: column; align-items: stretch; } .backup-acts { justify-content: flex-start; } }
 
+/* Settings > Studio: addresses and hours */
+.plain-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: var(--s3); align-content: start; }
+.plain-fieldset legend { padding: 0; margin-bottom: var(--s3); font-weight: 700; font-size: 14px; }
+.hours-grid { display: grid; gap: var(--s2); }
+.hours-row { display: grid; grid-template-columns: 110px 130px 130px 1fr; gap: var(--s3); align-items: center; }
+.hours-row .input { height: 38px; }
+@media (max-width: 640px) {
+  .hours-row { grid-template-columns: 1fr 1fr; }
+  .hours-row > b { grid-column: 1 / -1; }
+  .hours-row .switch-row { grid-column: 1 / -1; }
+}
+.addr-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--s3); }
+@media (max-width: 420px) { .addr-row { grid-template-columns: 1fr 1fr; } .addr-row > :first-child { grid-column: 1 / -1; } }
+
 /* Extension cards: progress, stat tiles, charts */
 .ext-stats { margin-bottom: 0; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .ext-meter { display: grid; gap: 6px; padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface-2); }

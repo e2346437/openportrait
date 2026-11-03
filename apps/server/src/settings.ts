@@ -2,12 +2,38 @@ import { eq } from "drizzle-orm";
 import { tables, type Db } from "@openportrait/db";
 import type { Secrets } from "./secrets.js";
 
+export interface StudioAddress {
+  street: string;
+  unit: string;
+  city: string;
+  state: string;
+  postal: string;
+}
+export interface StudioDayHours {
+  open: boolean;
+  from: string;
+  to: string;
+}
+export interface StudioHours {
+  /** Monday first. Seven entries. */
+  days: StudioDayHours[];
+  note: string;
+}
+
 /** Every setting the app knows, with its type. Secrets are encrypted at rest. */
 export interface SettingTypes {
   "setup.completedAt": number;
   "studio.name": string;
   "studio.email": string;
   "studio.timezone": string;
+  "studio.phone": string;
+  "studio.website": string;
+  "studio.physicalAddress": StudioAddress;
+  /** Null means "same as the physical address". */
+  "studio.mailingAddress": StudioAddress | null;
+  "studio.showAddress": boolean;
+  /** Null means hours are not shown. */
+  "studio.hours": StudioHours | null;
   /** Set when a logo has been uploaded; changes with each upload. */
   "studio.logoVersion": number;
   "internet.publicUrl": string;

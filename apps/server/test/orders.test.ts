@@ -214,6 +214,34 @@ describe("catalog", () => {
   });
 });
 
+describe("sales tax places", () => {
+  it("keeps several rates, one default, and fixes the rate on each document", async () => {
+    expect((await staff("GET", "/money/tax-rates")).body.rates).toEqual([]);
+    const saved = await staff("PUT", "/money/tax-rates", { rates: [
+      { state: "ME", name: "Maine sales tax", rateBps: 550, registration: "12-345", isDefault: true },
+      { state: "MA", name: "", rateBps: 625 },
+    ] });
+    expect(saved.status).toBe(200);
+    const [me, ma] = saved.body.rates;
+    expect(me).toMatchObject({ isDefault: true, rateBps: 550 });
+    expect(ma.isDefault).toBe(false);
+    expect((await staff("GET", "/money/settings")).body.taxBps).toBe(550);
+
+    contactId = (await staff("POST", "/contacts", { firstName: "Tax", lastName: "Payer", email: "tax@example.com" })).body.id;
+    const lines = [{ description: "Session", quantity: 1, unitCents: 100_000 }];
+    const q1 = await staff("POST", "/orders", { kind: "quote", contactId, title: "A", lines });
+    expect(q1.body).toMatchObject({ taxBps: 550, taxCents: 5_500, taxLabel: "Maine sales tax", taxRateId: me.id });
+    const q2 = await staff("POST", "/orders", { kind: "quote", contactId, title: "B", lines, taxRateId: ma.id });
+    expect(q2.body).toMatchObject({ taxBps: 625, taxCents: 6_250, taxRateId: ma.id });
+
+    // Editing the Maine rate later leaves the saved quote alone until it is edited as a draft, which keeps its own place.
+    await staff("PUT", "/money/tax-rates", { rates: [{ id: me.id, state: "ME", name: "Maine sales tax", rateBps: 600, isDefault: true }, { id: ma.id, state: "MA", name: "", rateBps: 625 }] });
+    const again = await staff("PUT", `/orders/${q2.body.id}`, { contactId, title: "B", lines });
+    expect(again.body).toMatchObject({ taxBps: 625, taxRateId: ma.id });
+    expect((await staff("PUT", "/money/tax-rates", { rates: [{ state: "ME", name: "x", rateBps: 6000 }] })).status).toBe(400);
+  });
+});
+
 describe("AI tools", () => {
   it("keeps every invoicing tool in one switchable group", async () => {
     const { allTools } = await import("../src/ai/registry.js");

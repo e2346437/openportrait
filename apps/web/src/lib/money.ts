@@ -60,6 +60,8 @@ export interface OrderDetail extends OrderSummary {
   creditAvailableCents?: number;
   taxCents: number;
   taxBps: number;
+  taxRateId: string | null;
+  taxLabel: string | null;
   contactEmail: string | null;
   acceptedName: string | null;
   acceptedAt: string | number | null;

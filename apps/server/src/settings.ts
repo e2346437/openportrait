@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { tables, type Db } from "@openportrait/db";
+import type { WatermarkSpec } from "./galleries/watermark.js";
 import type { Secrets } from "./secrets.js";
 
 export interface StudioAddress {
@@ -56,6 +57,10 @@ export interface SettingTypes {
   /** Download lock the publish dialog starts on (docs/GALLERIES.md section 6.4). */
   /** Wording laid over previews of payment-locked photos. Empty means the studio name. */
   "galleries.watermarkText": string;
+  /** How the watermark looks (see galleries/watermark.ts). Missing means the defaults. */
+  "galleries.watermark": Partial<WatermarkSpec>;
+  /** Set when a custom watermark image has been uploaded; changes with each upload. */
+  "galleries.watermarkImageVersion": number;
   "galleries.defaultDownloadLock": "until_paid" | "highlights_early" | "none";
   "ai.enabled": boolean;
   "ai.paused": boolean;

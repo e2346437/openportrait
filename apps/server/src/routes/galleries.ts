@@ -81,7 +81,8 @@ const GallerySettings = z.object({
     .refine((s) => !/[\\/:*?"<>|]/.test(s) && !s.startsWith("."), "Use a plain folder name without slashes."),
   privateFolders: z.array(z.string().trim().min(1).max(60)).max(10),
   defaultDownloadLock: lock,
-  watermarkText: z.string().trim().max(60).default(""),
+  /** Edited from the watermark panel (routes/watermark.ts); only changed here when sent. */
+  watermarkText: z.string().trim().max(60).optional(),
 });
 
 const notFound = (reply: FastifyReply) => reply.code(404).send({ error: "not_found", message: "That gallery no longer exists." });
@@ -494,8 +495,8 @@ export async function ingestRoutes(app: FastifyInstance) {
     settings.set("galleries.deliveryFolder", body.deliveryFolder);
     settings.set("galleries.privateFolders", [...new Set(body.privateFolders.filter(Boolean))]);
     settings.set("galleries.defaultDownloadLock", body.defaultDownloadLock);
-    settings.set("galleries.watermarkText", body.watermarkText);
+    if (body.watermarkText !== undefined) settings.set("galleries.watermarkText", body.watermarkText);
     void galleries.scan();
-    return body;
+    return { ...body, watermarkText: settings.get("galleries.watermarkText") ?? "" };
   });
 }

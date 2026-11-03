@@ -1,7 +1,11 @@
+import fs from "node:fs";
+import path from "node:path";
 import { asc, eq } from "drizzle-orm";
 import { DEFAULT_DESIGN, tables, type Db, type GalleryDesign } from "@openportrait/db";
 import type { Secrets } from "../secrets.js";
+import type { SettingTypes } from "../settings.js";
 import type { Variant } from "./derivatives.js";
+import { DEFAULT_WATERMARK, WatermarkSpec, type WatermarkInput } from "./watermark.js";
 
 const { gallerySet, photo } = tables;
 type Gallery = typeof tables.gallery.$inferSelect;
@@ -29,9 +33,23 @@ export function designOf(g: Pick<Gallery, "design">): GalleryDesign {
   return { ...DEFAULT_DESIGN, ...(g.design ?? {}) };
 }
 
-/** The wording laid over previews of locked photos: the studio's choice, else its name. */
-export function watermarkText(settings: { get(key: "galleries.watermarkText" | "studio.name"): string | undefined }): string {
-  return (settings.get("galleries.watermarkText") || settings.get("studio.name") || "Preview").trim().slice(0, 60);
+/** Everything the renderer needs to lay the studio's mark over a locked preview: look, wording, and the logo or custom image files. */
+export function watermarkInput(
+  settings: { get<K extends "galleries.watermark" | "galleries.watermarkText" | "galleries.watermarkImageVersion" | "studio.name" | "studio.logoVersion">(key: K): SettingTypes[K] | undefined },
+  configDir: string,
+): WatermarkInput {
+  const spec = WatermarkSpec.safeParse(settings.get("galleries.watermark") ?? {});
+  const text = (settings.get("galleries.watermarkText") || settings.get("studio.name") || "Preview").trim().slice(0, 60);
+  const logo = path.join(configDir, "logo.png");
+  const image = path.join(configDir, "watermark.png");
+  return {
+    spec: spec.success ? spec.data : DEFAULT_WATERMARK,
+    text,
+    logoFile: fs.existsSync(logo) ? logo : null,
+    imageFile: fs.existsSync(image) ? image : null,
+    logoVersion: settings.get("studio.logoVersion") ?? 0,
+    imageVersion: settings.get("galleries.watermarkImageVersion") ?? 0,
+  };
 }
 
 /** True while this photo's downloads wait for payment, so its previews carry the watermark. Never true for galleries with no lock. */

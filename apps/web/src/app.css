@@ -840,3 +840,16 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .pos-cell[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
 .pos-cell:disabled { opacity: 0.4; cursor: not-allowed; }
 @media (max-width: 899px) { .wm-layout { grid-template-columns: minmax(0, 1fr); } .wm-preview { position: static; order: -1; } }
+
+/* Questionnaire preview */
+.q-tabs { margin-bottom: var(--s4); }
+.qp { display: grid; gap: var(--s3); }
+.qp-bar { display: flex; flex-wrap: wrap; gap: var(--s3); justify-content: space-between; align-items: center; }
+.qp-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--warn); }
+.qp-frame { margin: 0 auto; width: 100%; border: 1px solid var(--line); border-radius: 20px; background: var(--bg); overflow: hidden; transition: max-width 0.2s; }
+.qp-frame.phone { max-width: 390px; }
+.qp-frame.desktop { max-width: 100%; }
+.qp-page { padding: clamp(12px, 3vw, 28px) clamp(8px, 2vw, 16px); }
+.qp-card { margin: 0 auto; box-shadow: none; padding: clamp(16px, 3vw, 32px); }
+.qp-frame.phone .qp-card { padding: 16px; }
+.q-builder[hidden] { display: none; }

@@ -4,6 +4,7 @@ import { requireUser } from "../auth.js";
 import * as contacts from "../domain/contacts.js";
 import type { ServiceContext } from "../domain/context.js";
 import * as leads from "../domain/leads.js";
+import { NOTE_MAX } from "../domain/richtext.js";
 import * as shoots from "../domain/shoots.js";
 import { SHOOT_STATUSES } from "../domain/shoots.js";
 import { parse } from "../validate.js";
@@ -77,7 +78,7 @@ export async function crmRoutes(app: FastifyInstance) {
   });
   app.get("/tags", async (req) => ({ tags: contacts.listTags(ctx(req)) }));
   app.post("/contacts/:id/notes", async (req, reply) => {
-    const body = parse(z.object({ body: z.string(), leadId: z.string().optional(), shootId: z.string().optional() }), req.body, reply);
+    const body = parse(z.object({ body: z.string().max(NOTE_MAX + 1), leadId: z.string().optional(), shootId: z.string().optional() }), req.body, reply);
     if (!body) return;
     return reply.code(201).send(contacts.addNote(ctx(req), (req.params as { id: string }).id, body.body, body));
   });
@@ -139,7 +140,7 @@ export async function crmRoutes(app: FastifyInstance) {
   });
   app.post("/shoots", async (req, reply) => {
     const body = parse(
-      z.object({ primaryContactId: z.string(), shootTypeId: z.string(), subject: optText(200), events: z.array(EventBody).max(10).optional(), notes: optText(10_000) }),
+      z.object({ primaryContactId: z.string(), shootTypeId: z.string(), subject: optText(200), events: z.array(EventBody).max(10).optional(), notes: optText(NOTE_MAX + 1) }),
       req.body,
       reply,
     );
@@ -148,7 +149,7 @@ export async function crmRoutes(app: FastifyInstance) {
   });
   app.get("/shoots/:id", async (req) => shoots.getShoot(ctx(req), (req.params as { id: string }).id));
   app.patch("/shoots/:id", async (req, reply) => {
-    const body = parse(z.object({ subject: text(200).optional(), shootTypeId: z.string().optional(), status: z.enum(SHOOT_STATUSES).optional(), notes: optText(10_000), primaryContactId: z.string().optional() }), req.body, reply);
+    const body = parse(z.object({ subject: text(200).optional(), shootTypeId: z.string().optional(), status: z.enum(SHOOT_STATUSES).optional(), notes: optText(NOTE_MAX + 1), primaryContactId: z.string().optional() }), req.body, reply);
     if (!body) return;
     return shoots.updateShoot(ctx(req), (req.params as { id: string }).id, body);
   });

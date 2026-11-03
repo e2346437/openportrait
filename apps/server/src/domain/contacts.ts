@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, isNull, like, or, sql, count } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import { DomainError, newId, notFound, type ServiceContext } from "./context.js";
+import { NOTE_MAX, cleanRich, safeRich } from "./richtext.js";
 
 const { contact, tag, contactTag, note, activity, lead, shoot, shootType, leadStage, household } = tables;
 
@@ -176,10 +177,11 @@ export function setContactTags(ctx: ServiceContext, contactId: string, names: st
 
 export function addNote(ctx: ServiceContext, contactId: string, body: string, link: { leadId?: string; shootId?: string } = {}) {
   getContactRow(ctx, contactId);
-  const text = body.trim();
+  const text = cleanRich(body);
   if (!text) throw new DomainError("invalid", "Write something to save.");
+  if (text.length > NOTE_MAX) throw new DomainError("invalid", "That note is too long. Split it into two.");
   const id = newId();
-  ctx.db.insert(note).values({ id, contactId, body: text.slice(0, 10_000), authorId: ctx.actorId, leadId: link.leadId ?? null, shootId: link.shootId ?? null }).run();
+  ctx.db.insert(note).values({ id, contactId, body: text, authorId: ctx.actorId, leadId: link.leadId ?? null, shootId: link.shootId ?? null }).run();
   return ctx.db.select().from(note).where(eq(note.id, id)).get()!;
 }
 
@@ -199,7 +201,7 @@ export function timeline(ctx: ServiceContext, contactId: string, limit = 100) {
     .orderBy(desc(note.createdAt))
     .limit(limit)
     .all()
-    .map((n) => ({ type: "note" as const, id: n.id, at: n.at, text: n.body, by: n.authorName ?? null, leadId: n.leadId, shootId: n.shootId }));
+    .map((n) => ({ type: "note" as const, id: n.id, at: n.at, text: safeRich(n.body), by: n.authorName ?? null, leadId: n.leadId, shootId: n.shootId }));
   const events = ctx.db
     .select({ id: activity.id, at: activity.at, kind: activity.kind, summary: activity.summary, leadId: activity.leadId, shootId: activity.shootId, actorName: tables.user.name })
     .from(activity)

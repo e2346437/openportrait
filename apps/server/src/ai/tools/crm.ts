@@ -3,6 +3,7 @@ import { addNote, getContact, listContacts } from "../../domain/contacts.js";
 import { board, createLead, getLead, moveLead } from "../../domain/leads.js";
 import { SHOOT_STATUSES, createShoot, getShoot, listShoots } from "../../domain/shoots.js";
 import { addTask, listTasks, updateTask } from "../../domain/tasks.js";
+import { plainText } from "../../domain/richtext.js";
 import { defineTool } from "../registry.js";
 import { iso, plain, svc, untrusted } from "./util.js";
 
@@ -92,7 +93,7 @@ defineTool({
   input: { leadId: id("The lead's id.") },
   handler: (ctx, args) => {
     const l = getLead(svc(ctx), args.leadId);
-    return { ...l, name: plain((l as { name?: string }).name), email: plain((l as { email?: string }).email), message: untrusted(l.message), notes: l.notes.map((n) => ({ ...n, body: untrusted(n.body) })) };
+    return { ...l, name: plain((l as { name?: string }).name), email: plain((l as { email?: string }).email), message: untrusted(l.message), notes: l.notes.map((n) => ({ ...n, body: untrusted(plainText(n.body)) })) };
   },
 });
 
@@ -165,7 +166,7 @@ defineTool({
       status: s.status,
       shootType: s.shootType.name,
       client: s.primary ? { ...s.primary, name: plain(s.primary.name), email: plain(s.primary.email), phone: plain(s.primary.phone) } : s.primary,
-      notes: untrusted(s.notes),
+      notes: untrusted(plainText(s.notes ?? "")),
       events: s.events.map((e) => ({ id: e.id, title: plain(e.title), startsAt: iso(e.startsAt), endsAt: iso(e.endsAt), location: plain(e.location) })),
       people: s.contacts.map((c) => ({ contactId: c.contactId, name: plain(c.name), role: plain(c.role) })),
       folder: s.folder?.path ?? null,

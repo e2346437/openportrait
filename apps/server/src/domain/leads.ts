@@ -2,6 +2,7 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import { createContact, displayName, findByEmail, logActivity, type ContactInput } from "./contacts.js";
 import { DomainError, newId, notFound, type ServiceContext } from "./context.js";
+import { safeRich } from "./richtext.js";
 import { createShoot, type EventInput } from "./shoots.js";
 
 const { lead, leadStage, contact, shootType, note } = tables;
@@ -114,7 +115,7 @@ export function getLead(ctx: ServiceContext, id: string) {
     stage,
     shootType: type ?? null,
     contact: { id: c.id, name: displayName(c), email: c.email, phone: c.phone },
-    notes,
+    notes: notes.map((n) => ({ ...n, body: safeRich(n.body) })),
     activity: events.map((a) => ({ id: a.id, at: a.at, kind: a.kind, text: a.summary })),
   };
 }

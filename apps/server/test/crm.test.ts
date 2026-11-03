@@ -219,3 +219,22 @@ describe("settings", () => {
     expect((await call("DELETE", `/lead-stages/${extra.id}`)).status).toBe(204);
   });
 });
+
+describe("formatted notes", () => {
+  it("cleans formatted notes, keeps plain ones, and refuses a note too long to store whole", async () => {
+    const c = (await call("POST", "/contacts", { firstName: "Ada", lastName: "Lee" })).body;
+    const added = await call("POST", `/contacts/${c.id}/notes`, { body: '<p>Prefers <strong>morning</strong> light</p><script>alert(1)</script><p onclick="x()">Hi</p>' });
+    expect(added.status).toBe(201);
+    expect(added.body.body).not.toMatch(/script|onclick/);
+    expect(added.body.body).toContain("<strong>morning</strong>");
+    const plain = await call("POST", `/contacts/${c.id}/notes`, { body: "Two\nlines" });
+    expect(plain.body.body).toBe("Two\nlines");
+    expect((await call("POST", `/contacts/${c.id}/notes`, { body: "<p></p>" })).status).toBe(400);
+    expect((await call("POST", `/contacts/${c.id}/notes`, { body: `<p>${"a".repeat(41_000)}</p>` })).status).toBe(400);
+    const types = (await call("GET", "/shoot-types")).body.types;
+    const s = (await call("POST", "/shoots", { primaryContactId: c.id, shootTypeId: types[0].id, notes: "<p>Bring <em>reflector</em></p><img src=x onerror=y>" })).body.shoot;
+    const got = (await call("GET", `/shoots/${s.id}`)).body;
+    expect(got.notes).toContain("<em>reflector</em>");
+    expect(got.notes).not.toMatch(/onerror|<img/);
+  });
+});

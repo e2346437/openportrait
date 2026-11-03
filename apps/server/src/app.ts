@@ -11,6 +11,8 @@ import { SESSION_COOKIE, lookupSession } from "./auth.js";
 import { BackupService, registerBackupJob } from "./backup.js";
 import { backupRoutes } from "./routes/backups.js";
 import { applyPendingRestore, RestoreService } from "./restore.js";
+import { logRoutes } from "./routes/logs.js";
+import { createLogStream } from "./logs.js";
 import { clientIp } from "./client-ip.js";
 import { crossSiteBlocked, rejectCrossSite } from "./csrf.js";
 import { Secrets } from "./secrets.js";
@@ -146,7 +148,8 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   for (const dir of [config.configDir, config.cacheDir]) fs.mkdirSync(dir, { recursive: true });
 
   const app = Fastify({
-    logger: logger ?? { level: config.logLevel },
+    // The log goes to standard output and to a size-capped file the owner can read in Settings.
+    logger: logger ?? { level: config.logLevel, stream: createLogStream(path.join(config.configDir, "logs")) },
     bodyLimit: 1024 * 1024,
   });
 
@@ -274,6 +277,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(importRoutes, { prefix: "/api/studio/import" });
   await app.register(exportRoutes, { prefix: "/api/studio/export" });
   await app.register(backupRoutes, { prefix: "/api/studio/backups" });
+  await app.register(logRoutes, { prefix: "/api/studio/logs" });
   await app.register(tetherRoutes, { prefix: "/api/studio/tether" });
   await app.register(incomingRoutes, { prefix: "/api/studio/incoming" });
   await app.register(uploadRoutes, { prefix: "/api/studio/upload" });

@@ -66,7 +66,7 @@ export async function bookingRoutes(app: FastifyInstance) {
   // ---- inquiry form ----
   app.get("/inquiry", async (req) => inquiry.inquirySettings(ctx(req)));
   app.put("/inquiry", { preHandler: requireOwner }, async (req, reply) => {
-    const body = parse(z.object({ enabled: z.boolean().optional(), intro: z.string().max(1000).optional(), thanks: z.string().max(1000).optional(), notify: z.boolean().optional() }), req.body, reply);
+    const body = parse(z.object({ enabled: z.boolean().optional(), intro: z.string().max(4000).optional(), thanks: z.string().max(4000).optional(), notify: z.boolean().optional() }), req.body, reply);
     if (!body) return;
     return inquiry.saveInquirySettings(ctx(req), body);
   });

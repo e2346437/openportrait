@@ -4,6 +4,7 @@ import { composeEmail, queueEmail } from "./email.js";
 import { DomainError, linkTo, type ServiceContext } from "./context.js";
 import { displayName } from "./contacts.js";
 import { createLead } from "./leads.js";
+import { cleanRich, htmlToText, isHtml, safeRich } from "./richtext.js";
 
 const { shootType } = tables;
 
@@ -16,8 +17,8 @@ export function publicFormInfo(ctx: ServiceContext) {
   return {
     enabled: ctx.settings.get("inquiry.enabled") ?? true,
     studioName: ctx.settings.get("studio.name") ?? "",
-    intro: ctx.settings.get("inquiry.intro") || DEFAULT_INTRO,
-    thanks: ctx.settings.get("inquiry.thanks") || DEFAULT_THANKS,
+    intro: safeRich(ctx.settings.get("inquiry.intro")) || DEFAULT_INTRO,
+    thanks: safeRich(ctx.settings.get("inquiry.thanks")) || DEFAULT_THANKS,
     shootTypes: types,
   };
 }
@@ -25,8 +26,8 @@ export function publicFormInfo(ctx: ServiceContext) {
 export function inquirySettings(ctx: ServiceContext) {
   return {
     enabled: ctx.settings.get("inquiry.enabled") ?? true,
-    intro: ctx.settings.get("inquiry.intro") ?? "",
-    thanks: ctx.settings.get("inquiry.thanks") ?? "",
+    intro: safeRich(ctx.settings.get("inquiry.intro")),
+    thanks: safeRich(ctx.settings.get("inquiry.thanks")),
     notify: ctx.settings.get("inquiry.notify") ?? true,
     introDefault: DEFAULT_INTRO,
     thanksDefault: DEFAULT_THANKS,
@@ -37,8 +38,8 @@ export function inquirySettings(ctx: ServiceContext) {
 export function saveInquirySettings(ctx: ServiceContext, input: { enabled?: boolean; intro?: string; thanks?: string; notify?: boolean }) {
   const s = ctx.settings;
   if (input.enabled !== undefined) s.set("inquiry.enabled", input.enabled);
-  if (input.intro !== undefined) s.set("inquiry.intro", input.intro.trim().slice(0, 1000));
-  if (input.thanks !== undefined) s.set("inquiry.thanks", input.thanks.trim().slice(0, 1000));
+  if (input.intro !== undefined) s.set("inquiry.intro", cleanRich(input.intro).slice(0, 4000));
+  if (input.thanks !== undefined) s.set("inquiry.thanks", cleanRich(input.thanks).slice(0, 4000));
   if (input.notify !== undefined) s.set("inquiry.notify", input.notify);
   return inquirySettings(ctx);
 }
@@ -72,7 +73,8 @@ export function submitInquiry(ctx: ServiceContext, input: InquiryInput) {
   });
   const studio = ctx.settings.get("studio.name") || "the studio";
   const name = displayName({ firstName, lastName: input.lastName ?? "", email });
-  const thanks = ctx.settings.get("inquiry.thanks") || DEFAULT_THANKS;
+  const thanksRaw = safeRich(ctx.settings.get("inquiry.thanks")) || DEFAULT_THANKS;
+  const thanks = isHtml(thanksRaw) ? htmlToText(thanksRaw) : thanksRaw;
   const toClient = composeEmail(studio, [`Hi ${firstName},`, thanks]);
   queueEmail(ctx, { to: email, toName: name, subject: `We got your message, ${firstName}`, text: toClient.text, html: toClient.html, kind: "inquiry.thanks", contactId: res.lead.contactId });
   const owner = ctx.settings.get("studio.email");

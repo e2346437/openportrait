@@ -4,6 +4,7 @@ import { publicApi } from "../../lib/api.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { PublicMessage, PublicShell } from "./PublicShell.js";
+import { RichText } from "../../components/RichText.js";
 
 interface Info {
   enabled: boolean;
@@ -28,9 +29,9 @@ export function InquirePage() {
     return (
       <PublicShell studio={data.studioName} narrow>
         <h1 className="pub-title">Thank you</h1>
-        <p className="pub-lead" role="status">
-          {data.thanks}
-        </p>
+        <div role="status">
+          <RichText className="pub-lead" text={data.thanks} />
+        </div>
       </PublicShell>
     );
 
@@ -42,7 +43,7 @@ export function InquirePage() {
   return (
     <PublicShell studio={data.studioName} narrow>
       <h1 className="pub-title">Get in touch</h1>
-      <p className="pub-lead">{data.intro}</p>
+      <RichText className="pub-lead" text={data.intro} />
       <form onSubmit={go} noValidate className="form-grid pub-form">
         {err ? (
           <div className="span-2">

@@ -7,6 +7,7 @@ import { displayName, logActivity } from "./contacts.js";
 import { DomainError, linkTo, newId, notFound, type ServiceContext } from "./context.js";
 import { composeEmail, queueEmail } from "./email.js";
 import { isYmd } from "./time.js";
+import { cleanRich, safeRich } from "./richtext.js";
 
 const { questionnaireTemplate, shootTypeQuestionnaire, questionnaire, shoot, shootType, contact } = tables;
 
@@ -141,7 +142,7 @@ export interface TemplateInput {
 function templateValues(input: TemplateInput) {
   const name = input.name.trim().slice(0, 120);
   if (!name) throw new DomainError("invalid", "Give this questionnaire a name.");
-  return { name, intro: input.intro?.trim().slice(0, 2000) || null, fields: cleanFields(input.fields) };
+  return { name, intro: cleanRich(input.intro).slice(0, 8000) || null, fields: cleanFields(input.fields) };
 }
 
 export function createTemplate(ctx: ServiceContext, input: TemplateInput) {
@@ -207,7 +208,7 @@ const present = (ctx: ServiceContext, r: Row) => ({
   shootId: r.shootId,
   templateId: r.templateId,
   title: r.title,
-  intro: r.intro,
+  intro: r.intro === null ? null : safeRich(r.intro),
   fields: r.fields,
   status: r.status,
   origin: r.origin,
@@ -344,7 +345,7 @@ export function publicView(ctx: ServiceContext, token: string) {
   return {
     studioName: ctx.settings.get("studio.name") ?? "",
     title: r.title,
-    intro: r.intro,
+    intro: r.intro === null ? null : safeRich(r.intro),
     fields: r.fields,
     status: r.status === "submitted" ? ("submitted" as const) : ("open" as const),
     answers: r.status === "submitted" ? r.answers : null,

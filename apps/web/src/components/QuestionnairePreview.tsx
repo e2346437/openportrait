@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Callout, Icon } from "@openportrait/ui";
 import type { AnswerValue, Answers, QuestionField } from "../lib/questionnaires.js";
 import { QuestionControl } from "./QuestionControl.js";
+import { RichText } from "./RichText.js";
 
 type Device = "phone" | "desktop";
 const empty = (v: AnswerValue | undefined) => v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
@@ -72,7 +73,7 @@ export function QuestionnairePreview({ studio, title, intro, fields }: { studio:
           <div className="pub-card narrow qp-card">
             {studio ? <p className="pub-studio">{studio}</p> : null}
             <h1 className="pub-title">{title.trim() || "Untitled questionnaire"}</h1>
-            {intro.trim() ? <p className="pub-lead">{intro}</p> : null}
+            {intro.trim() ? <RichText className="pub-lead" text={intro} /> : null}
             {fields.length === 0 ? (
               <p className="hint">No questions yet. Add one in the editor and it shows up here.</p>
             ) : (

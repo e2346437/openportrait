@@ -78,7 +78,7 @@ export interface CardMeter {
 }
 /** Status JSON for a chart: one or more views of the same data, such as by month and by year. */
 export interface CardChart {
-  views: Array<{ key: string; label: string; layout: "bars" | "columns"; points: Array<{ label: string; value: number }>; note?: string }>;
+  views: Array<{ key: string; label: string; layout: "bars" | "columns"; points: Array<{ label: string; short?: string; value: number }>; note?: string }>;
 }
 
 /**

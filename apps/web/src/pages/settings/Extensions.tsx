@@ -20,7 +20,7 @@ export interface SettingsCard {
   actions: Array<{ label: string; route: string; primary?: boolean; when?: { key: string; equals: string | boolean }; fields?: Array<{ name: string; label: string; hint?: string; secret?: boolean; optionsKey?: string; optional?: boolean }>; confirm?: string }>;
 }
 interface Meter { label: string; detail?: string; done: number; total: number; format?: "bytes" | "number"; tone?: Tone }
-interface ChartData { views: Array<{ key: string; label: string; layout: "bars" | "columns"; points: Array<{ label: string; value: number }>; note?: string }> }
+interface ChartData { views: Array<{ key: string; label: string; layout: "bars" | "columns"; points: Array<{ label: string; short?: string; value: number }>; note?: string }> }
 
 export interface ExtensionInfo {
   id: string;
@@ -101,8 +101,8 @@ function CardChartView({ title, format, chart }: { title: string; format?: "byte
           <div className="ext-cols" role="img" aria-label={`${title} by ${v.label}. Use the table view for exact numbers.`} onMouseLeave={() => setHover(null)}>
             {v.points.map((p, i) => (
               <button key={p.label} type="button" className={`ext-col${hover === i ? " on" : ""}`} title={`${p.label}: ${formatValue(p.value, format)}`} onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)} onBlur={() => setHover(null)}>
-                <span className="ext-col-bar" style={{ height: `${Math.max(2, (p.value / max) * 100)}%` }} />
-                <span className="ext-col-label">{p.label}</span>
+                <span className="ext-col-plot"><span className="ext-col-bar" style={{ height: `${Math.max(2, (p.value / max) * 100)}%`, minHeight: 2 }} /></span>
+                <span className="ext-col-label">{p.short ?? p.label}</span>
               </button>
             ))}
           </div>

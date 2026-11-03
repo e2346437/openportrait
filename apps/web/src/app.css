@@ -777,13 +777,13 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .ext-chart-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s3); }
 .ext-chart-head .ext-list-title { margin: 0; }
 .ext-chart-readout { margin: 0; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; min-height: 1.4em; }
-.ext-cols { display: flex; align-items: stretch; gap: 2px; height: 180px; overflow-x: auto; padding-bottom: 2px; border-bottom: 1px solid var(--line-2); }
-.ext-col { flex: 1 0 22px; max-width: 64px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; border: 0; background: none; padding: 0 1px; cursor: default; position: relative; }
+.ext-cols { display: flex; align-items: stretch; gap: 2px; height: 210px; overflow-x: auto; }
+.ext-col { flex: 1 0 44px; max-width: 72px; display: flex; flex-direction: column; border: 0; background: none; padding: 0 1px; cursor: default; font: inherit; }
+.ext-col-plot { flex: 1; display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
 .ext-col-bar { width: 100%; max-width: 28px; background: var(--accent); border-radius: 4px 4px 0 0; opacity: 0.85; }
 .ext-col.on .ext-col-bar, .ext-col:focus-visible .ext-col-bar { opacity: 1; }
 .ext-col:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.ext-col-label { position: absolute; bottom: -22px; font-size: 11px; color: var(--ink-3); white-space: nowrap; }
-.ext-cols { margin-bottom: 24px; }
+.ext-col-label { font-size: 11px; color: var(--ink-3); white-space: nowrap; padding-top: 6px; text-align: center; }
 .ext-chart-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
 .ext-chart-table th, .ext-chart-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .ext-chart-table th:last-child, .ext-chart-table td:last-child { text-align: right; }

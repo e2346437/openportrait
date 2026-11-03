@@ -162,6 +162,13 @@
       "when": 1793652180795,
       "tag": "0022_spooky_king_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1793724936998,
+      "tag": "0023_aberrant_nightcrawler",
+      "breakpoints": true
     }
   ]
 }

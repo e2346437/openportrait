@@ -158,11 +158,18 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
           catalog.data?.items.length ? (
             <select className="input sm" aria-label="Add from your prices" value={pickItem} onChange={(e) => addFromCatalog(e.target.value)}>
               <option value="">Add from your prices…</option>
-              {catalog.data.items.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.name} · {money(i.priceCents)}
-                </option>
-              ))}
+              {(["package", "item"] as const).map((k) => {
+                const group = catalog.data!.items.filter((i) => i.kind === k);
+                return group.length ? (
+                  <optgroup key={k} label={k === "package" ? "Packages" : "Products"}>
+                    {group.map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.name} · {money(i.priceCents)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null;
+              })}
             </select>
           ) : null
         }

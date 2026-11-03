@@ -187,11 +187,12 @@ export class BackupService {
    * Writes one backup archive: a consistent database snapshot plus, when chosen, the galleries and originals.
    * Throws a plain-language Error on a problem; the same text is shown to the owner.
    */
-  async run(trigger: "scheduled" | "manual"): Promise<BackupFile> {
+  async run(trigger: "scheduled" | "manual", opts: { databaseOnly?: boolean; localOnly?: boolean } = {}): Promise<BackupFile> {
     if (this.running) throw new Error("A backup is already running.");
     this.running = true;
     try {
-      const cfg = this.config();
+      // A safety copy taken before a restore holds the database only and stays on this server, so it is quick and certain.
+      const cfg = opts.databaseOnly ? { ...this.config(), includeGalleries: false, includeOriginals: false } : this.config();
       fs.mkdirSync(this.dir, { recursive: true });
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       const name = `openportrait-${trigger === "manual" ? "manual-" : ""}${stamp}.zip`;
@@ -243,7 +244,7 @@ export class BackupService {
 
       if (trigger === "scheduled") this.prune(cfg.keep);
       this.deps.settings.set("backup.lastAt", Date.now());
-      await this.copyOut(final, name, cfg.keep, trigger);
+      if (!opts.localOnly) await this.copyOut(final, name, cfg.keep, trigger);
       this.lastError = "";
       return this.list().find((b) => b.name === name)!;
     } catch (err) {

@@ -10,6 +10,7 @@ import { JobRunner } from "@openportrait/jobs";
 import { SESSION_COOKIE, lookupSession } from "./auth.js";
 import { BackupService, registerBackupJob } from "./backup.js";
 import { backupRoutes } from "./routes/backups.js";
+import { applyPendingRestore, RestoreService } from "./restore.js";
 import { clientIp } from "./client-ip.js";
 import { crossSiteBlocked, rejectCrossSite } from "./csrf.js";
 import { Secrets } from "./secrets.js";
@@ -89,6 +90,7 @@ export interface AppContext {
   /** Where full-size originals are read from; extensions can attach remote storage (see galleries/originals.ts). */
   originals: Originals;
   backups: BackupService;
+  restore: RestoreService;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
   publicUrl(): string;
   /** This server's address on the home network (see lan.ts). */
@@ -148,6 +150,8 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     bodyLimit: 1024 * 1024,
   });
 
+  // A restore the owner confirmed is applied here, before the database opens.
+  const photosPending = applyPendingRestore(config.configDir);
   const db = openDatabase({ file: path.join(config.configDir, "openportrait.db") });
   ensureDefaults(db);
   const secrets = Secrets.load(config.configDir);
@@ -160,6 +164,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   registerDerivativesJob(config);
   const uploads = new UploadManager({ config, db, settings, log: app.log, lanHosts: () => lanHosts(settings, config) });
 
+  const backups = new BackupService({ db, settings, configDir: config.configDir, galleriesDir: config.galleriesDir });
   const ctx: AppContext = {
     config,
     db,
@@ -170,7 +175,8 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     jobs,
     galleries,
     originals,
-    backups: new BackupService({ db, settings, configDir: config.configDir, galleriesDir: config.galleriesDir }),
+    backups,
+    restore: new RestoreService({ configDir: config.configDir, galleriesDir: config.galleriesDir, backups, log: app.log }),
     lan() {
       return lanInfo(settings, config);
     },
@@ -316,6 +322,8 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   }
 
   const scheduleBackup = registerBackupJob(ctx.backups, () => settings);
+  // Photos from a confirmed restore are copied back in the background so start-up stays quick.
+  if (photosPending) ctx.restore.resume();
 
   if (startBackground) {
     tunnel.setToken(settings.get("tunnel.token") || config.tunnelToken);

@@ -15,7 +15,7 @@ export function listShootTypes(ctx: ServiceContext, opts: { includeArchived?: bo
       autoPublish: shootType.autoPublish,
       position: shootType.position,
       archived: sql<boolean>`${shootType.archivedAt} is not null`,
-      shoots: sql<number>`(select count(*) from shoot where shoot.shoot_type_id = ${shootType.id})`,
+      shoots: sql<number>`(select count(*) from shoot where shoot.shoot_type_id = shoot_type.id)`,
     })
     .from(shootType)
     .where(opts.includeArchived ? undefined : isNull(shootType.archivedAt))
@@ -87,7 +87,7 @@ export function reorderShootTypes(ctx: ServiceContext, ids: string[]) {
 
 export function listStages(ctx: ServiceContext) {
   return ctx.db
-    .select({ id: leadStage.id, name: leadStage.name, kind: leadStage.kind, position: leadStage.position, leads: sql<number>`(select count(*) from lead where lead.stage_id = ${leadStage.id})` })
+    .select({ id: leadStage.id, name: leadStage.name, kind: leadStage.kind, position: leadStage.position, leads: sql<number>`(select count(*) from lead where lead.stage_id = lead_stage.id)` })
     .from(leadStage)
     .orderBy(asc(leadStage.position))
     .all();

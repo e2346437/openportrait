@@ -90,7 +90,7 @@ export function LeadsPage() {
 
       {data && totalOpen === 0 && stages.every((s) => s.total === 0) ? (
         <EmptyState icon="lead" title="No leads yet" action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add your first lead</Button>}>
-          When someone asks about a shoot, add them here and move them from first message to booked. Contact-form inquiries will land here on their own once booking pages arrive.
+          When someone asks about a shoot, add them here and move them from first message to booked. Inquiries from your inquiry form land here on their own.
         </EmptyState>
       ) : data ? (
         <div className="board" role="list" aria-label="Lead pipeline">

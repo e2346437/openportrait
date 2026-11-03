@@ -106,7 +106,7 @@ export function AutomationSettingsPage() {
             </li>
           ))}
         </ul>
-        <p className="hint">Built-in reminders and follow-up messages switch on as email and booking features ship. Until then, the work queue is where these routines show up.</p>
+        <p className="hint">These routines remind you. Nothing is sent to clients automatically. They show up on your dashboard, and in the work queue your assistant reads.</p>
       </Panel>
 
       {aiOwns || s.mode === "ai" ? (

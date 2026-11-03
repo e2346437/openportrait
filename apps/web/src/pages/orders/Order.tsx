@@ -8,6 +8,7 @@ import { formatDate, ms } from "../../lib/time.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { OrderEditor } from "./OrderEditor.js";
+import { EmailOffCallout } from "../../components/EmailOffCallout.js";
 import type { PickedContact } from "../../components/ContactPicker.js";
 import { RichText } from "../../components/RichText.js";
 
@@ -91,6 +92,7 @@ function DraftActions({ order, onChanged, onSent }: { order: OrderDetail; onChan
   return (
     <Panel title="Send it" description={order.contactEmail ? `Emails ${order.contactName} (${order.contactEmail}) a private link to view${order.kind === "quote" ? " and accept" : ""} it. Save any changes first.` : `${order.contactName} has no email address. Add one to their contact first.`}>
       {send.error ? <Callout tone="bad">{send.error}</Callout> : null}
+      <EmailOffCallout>It can't be emailed until email is set up.</EmailOffCallout>
       <div className="form-actions">
         <Button variant="primary" icon="mail" loading={send.busy} onClick={doSend} disabled={!order.contactEmail}>
           Send {order.kind}

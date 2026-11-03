@@ -63,7 +63,6 @@ export function SetupPage() {
       <div className="progress" aria-hidden="true">
         <span className="on" />
         <span className={step >= 2 ? "on" : ""} />
-        <span className={step >= 3 ? "on" : ""} />
       </div>
 
       {step === 1 ? (

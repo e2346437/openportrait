@@ -9,6 +9,7 @@ import { SHOOT_STATUS, type ShootDetail, type ShootEvent, type ShootStatus, type
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { TaskList } from "../../components/TaskList.js";
+import { ContractsPanel, GalleriesPanel, OrdersPanel } from "../../components/RelatedPanels.js";
 import { ShootQuestionnaires } from "./ShootQuestionnaires.js";
 import { ExtensionCard, type ExtensionInfo } from "../settings/Extensions.js";
 
@@ -99,9 +100,6 @@ export function ShootDetailPage() {
           <Button icon="edit" onClick={() => setEditing(true)}>
             Edit
           </Button>
-          <Link className="btn" to={`/studio/orders/new?shoot=${shoot.id}`}>
-            <Icon name="receipt" /> New quote
-          </Link>
           <select className="input" aria-label="Status" style={{ width: "auto" }} value={shoot.status} onChange={(e) => void patch({ status: e.target.value as ShootStatus }, "Status updated")}>
             {(Object.keys(SHOOT_STATUS) as ShootStatus[]).map((s) => (
               <option key={s} value={s}>
@@ -167,6 +165,10 @@ export function ShootDetailPage() {
         </div>
 
         <div className="stack">
+          <OrdersPanel shootId={shoot.id} />
+          <ContractsPanel shootId={shoot.id} contactId={shoot.primary.id} />
+          <GalleriesPanel shootIds={[shoot.id]} />
+
           <Panel title="Photo folder" description="Where exports go so they show up in this shoot's gallery.">
             {folder ? (
               <div className="folder-path">

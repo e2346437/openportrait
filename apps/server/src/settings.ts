@@ -16,6 +16,13 @@ export interface SettingTypes {
   "internet.lanUrl": string;
   "tunnel.token": string; // secret
   "backup.lastAt": number;
+  "backup.enabled": boolean;
+  /** Hours between scheduled backups. */
+  "backup.everyHours": number;
+  /** Scheduled backups kept; the oldest are removed. */
+  "backup.keep": number;
+  "backup.includeGalleries": boolean;
+  "backup.includeOriginals": boolean;
   /** Delivery folder inside each shoot folder; its subfolders are gallery sets. */
   "galleries.deliveryFolder": string;
   /** Other shoot subfolders the gallery watcher never reads (camera originals). */

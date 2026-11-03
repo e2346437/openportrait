@@ -7,6 +7,7 @@ import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { QuestionnairePreview } from "../../components/QuestionnairePreview.js";
 import { SwitchRow } from "../../components/SwitchRow.js";
+import { RichTextEditor } from "../../components/RichTextEditor.js";
 
 interface Loaded {
   items: Template[];
@@ -239,7 +240,10 @@ function BuilderDialog({ target, onClose, onSaved }: { target: { template: Templ
         {error ? <Callout tone="bad">{error}</Callout> : null}
         <div className="form-grid">
           <Field className="span-2" label="Name" hint="You'll see this in your list. Clients see it as the title.">{(p) => <TextInput {...p} autoFocus value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />}</Field>
-          <Field className="span-2" label="Message above the questions" hint="Optional. A friendly note about why you're asking.">{(p) => <TextArea {...p} rows={2} maxLength={2000} value={intro} onChange={(e) => setIntro(e.target.value)} />}</Field>
+          <div className="span-2 field">
+            <span className="label" id="q-intro">Message above the questions</span>
+            <RichTextEditor variant="compact" labelledBy="q-intro" value={intro} onChange={setIntro} placeholder="Optional. A friendly note about why you're asking." />
+          </div>
         </div>
 
         <ol className="q-cards">

@@ -66,6 +66,8 @@
 a.check-row:hover { background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
 .check-row .tick { width: 28px; height: 28px; border-radius: 50%; border: 2px dashed var(--line-2); display: grid; place-items: center; }
 .check-row.done .tick { border: 0; background: var(--ok); color: var(--surface); }
+.check-row.info .tick { border: 0; background: var(--surface-2, var(--line)); color: var(--ink-2, currentColor); }
+.check-row.info .tick svg { width: 16px; height: 16px; }
 .check-row.done .tick svg { width: 16px; height: 16px; }
 .check-row b { display: block; font-size: 14.5px; }
 .check-row span { color: var(--ink-3); font-size: 13.5px; }

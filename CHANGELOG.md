@@ -7,6 +7,7 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 Heading toward 1.0.
 
 ### Added
+- Backups can be copied to one or more other places after they are made: a folder or network share built in, and extensions can add more (cloud buckets). Each destination is tested when added, shows its last result, and keeps its own retention.
 - Settings > Backups: choose how often to back up and how many to keep, optionally include gallery photos and originals, download any backup as a zip, start one on demand, and delete old ones.
 - Built-in automation rules now work in the default mode: the dashboard lists leads awaiting a first reply or follow-up and upcoming shoots with no location.
 - Clients and leads, shoots and a studio calendar with two-way Google Calendar sync.

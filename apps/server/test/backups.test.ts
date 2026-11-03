@@ -100,4 +100,68 @@ describe("backups", () => {
     expect((await req("GET", "/files/..%2Fsecret.key")).statusCode).toBe(404);
     expect((await req("GET", "/files/openportrait.db")).statusCode).toBe(404);
   });
+
+  describe("destinations", () => {
+    it("copies each backup to every enabled folder, prunes old ones there, and survives a bad one", async () => {
+      const a = path.join(root, "share-a");
+      const b = path.join(root, "share-b");
+      fs.mkdirSync(a);
+      fs.mkdirSync(b);
+      const make = (name: string, p: string, enabled = true) => req("POST", "/destinations", { kind: "folder", name, enabled, config: { path: p } });
+      expect((await make("USB drive", a)).statusCode).toBe(200);
+      const second = (await make("NAS", b)).json().destination;
+      expect(second.kindLabel).toBe("Folder or network share");
+      await req("PUT", "/config", { enabled: true, everyHours: 24, keep: 2, includeGalleries: false, includeOriginals: false });
+      for (let i = 0; i < 3; i++) {
+        await app.ctx.backups.run("scheduled");
+        await new Promise((r) => setTimeout(r, 5));
+      }
+      expect(fs.readdirSync(a).filter((n) => n.endsWith(".zip"))).toHaveLength(2);
+      expect(fs.readdirSync(b).filter((n) => n.endsWith(".zip"))).toHaveLength(2);
+      // The second share disappears: the backup still succeeds, the first share still gets its copy, and the error is recorded.
+      fs.rmSync(b, { recursive: true });
+      await app.ctx.backups.run("manual");
+      const { destinations } = (await req("GET", "/destinations")).json();
+      expect(destinations.find((d: { name: string }) => d.name === "NAS").lastError).toContain("share-b");
+      expect(destinations.find((d: { name: string }) => d.name === "USB drive").lastError).toBeNull();
+      expect(fs.readdirSync(a).some((n) => n.includes("manual"))).toBe(true);
+    });
+
+    it("rejects folders that don't exist, relative paths, the disk root, and unknown kinds", async () => {
+      const post = (kind: string, p: string) => req("POST", "/destinations", { kind, name: "X", config: { path: p } });
+      expect((await post("folder", path.join(root, "nope"))).statusCode).toBe(400);
+      expect((await post("folder", "relative/dir")).statusCode).toBe(400);
+      expect((await post("folder", "/")).statusCode).toBe(400);
+      expect((await post("ftp", "/tmp")).statusCode).toBe(400);
+    });
+
+    it("stores destinations encrypted and lets an extension add a provider whose secrets are never returned", async () => {
+      const { backupProviders } = await import("../src/extension-hooks.js");
+      const uploaded: Array<Record<string, string>> = [];
+      backupProviders.push({
+        kind: "fake",
+        label: "Fake cloud",
+        fields: [{ name: "bucket", label: "Bucket" }, { name: "key", label: "Access key", secret: true }],
+        check: async () => undefined,
+        upload: async (config) => void uploaded.push(config),
+        list: async () => [],
+        remove: async () => undefined,
+      });
+      try {
+        const res = await req("POST", "/destinations", { kind: "fake", name: "Cloud", config: { bucket: "b1", key: "SUPERSECRET" } });
+        const view = res.json().destination;
+        expect(view.config).toEqual({ bucket: "b1" });
+        expect(view.secretsSet).toEqual(["key"]);
+        expect(JSON.stringify((await req("GET", "/destinations")).json())).not.toContain("SUPERSECRET");
+        const stored = app.ctx.db.$client.prepare("SELECT value FROM setting WHERE key = 'backup.destinations'").get() as { value: string };
+        expect(stored.value).not.toContain("SUPERSECRET");
+        // Leaving the secret blank when editing keeps the saved one.
+        await req("PUT", `/destinations/${view.id}`, { kind: "fake", name: "Cloud 2", config: { bucket: "b2", key: "" } });
+        await app.ctx.backups.run("manual");
+        expect(uploaded).toEqual([{ bucket: "b2", key: "SUPERSECRET" }]);
+      } finally {
+        backupProviders.splice(0, backupProviders.length);
+      }
+    });
+  });
 });

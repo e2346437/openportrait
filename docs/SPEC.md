@@ -207,7 +207,7 @@ Google sync details (as built): shoot times are the source of truth, so one dele
 - **Clients:** no passwords. Magic-link email sign-in to a client portal (quotes, invoices, questionnaires, galleries). Galleries can also have an optional gallery password or a public link.
 - **Exposure:** OpenPortrait assumes it is published through a Cloudflare Tunnel (section 9). No router ports are opened. Port 8080 stays available on the LAN for local access. Other reverse proxies may work but aren't supported.
 - **Secrets:** a session key is generated on first run and stored in `/config`. PayPal and Google secrets are encrypted at rest with that key.
-- **Backups:** a zip in `/config/backups` on a schedule the owner sets (default daily, 14 kept), holding a consistent SQLite snapshot and optionally the gallery photos and the originals/RAW folders. Settings > Backups lists, downloads, deletes and starts backups. The instance key (`secret.key`) is never inside a backup.
+- **Backups:** a zip in `/config/backups` on a schedule the owner sets (default daily, 14 kept), holding a consistent SQLite snapshot and optionally the gallery photos and the originals/RAW folders. Settings > Backups lists, downloads, deletes and starts backups. Backups can also be copied to any number of destinations (built-in: a folder or mounted share; extensions add more through `api.backupProvider`). Destination settings, including any credentials, are stored encrypted. The instance key (`secret.key`) is never inside a backup.
 
 ## 8. Packaging: Docker and Unraid
 

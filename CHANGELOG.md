@@ -7,6 +7,7 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 Heading toward 1.0.
 
 ### Added
+- Data import reads richer JSON files: nested records (name.first, address.city), lists of values, a list under a key such as "clients", a single record, and JSON Lines. Columns are matched automatically like a CSV.
 - A quiet, dismissible note where optional add-on features would appear (QuickBooks Online, Microsoft 365, bucket storage, second shooters). It shows to the owner only and goes away once the add-on is installed.
 - Backups can be copied to one or more other places after they are made: a folder or network share built in, and extensions can add more (cloud buckets). Each destination is tested when added, shows its last result, and keeps its own retention.
 - Settings > Backups: choose how often to back up and how many to keep, optionally include gallery photos and originals, download any backup as a zip, start one on demand, and delete old ones.

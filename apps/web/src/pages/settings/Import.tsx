@@ -97,7 +97,7 @@ export function ImportSettingsPage() {
             <Field label="Where is it from?" hint="Used to label what you import and to avoid importing the same row twice.">
               {(p) => <TextInput {...p} value={source} maxLength={60} onChange={(e) => { setSource(e.target.value); }} />}
             </Field>
-            <Field label="File" hint="A CSV file, or a JSON list of records.">
+            <Field label="File" hint="A CSV file, or a JSON file with a list of records.">
               {(p) => (
                 <div className="row-gap">
                   <input {...p} ref={input} type="file" accept=".csv,.tsv,.txt,.json,text/csv,application/json" hidden onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />

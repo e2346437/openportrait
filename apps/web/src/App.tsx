@@ -39,6 +39,7 @@ import { OrderPage } from "./pages/orders/Order.js";
 import { QuestionnairesSettingsPage } from "./pages/settings/Questionnaires.js";
 import { QuestionnairePage } from "./pages/public/Questionnaire.js";
 import { ImportSettingsPage } from "./pages/settings/Import.js";
+import { BackupsSettingsPage } from "./pages/settings/Backups.js";
 import { PricesSettingsPage } from "./pages/settings/Prices.js";
 import { ReportsPage } from "./pages/reports/Reports.js";
 import { ExtensionPageView } from "./pages/extensions/ExtensionPage.js";
@@ -135,6 +136,7 @@ export function App() {
                     <Route path="ai" element={<ConnectAISettingsPage />} />
                     <Route path="extensions" element={<ExtensionsSettingsPage />} />
                     <Route path="import" element={<ImportSettingsPage />} />
+                    <Route path="backups" element={<BackupsSettingsPage />} />
                     <Route path="account" element={<AccountSettingsPage />} />
                   </Route>
                   <Route path="*" element={<NotFoundPage />} />

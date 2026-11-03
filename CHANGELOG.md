@@ -7,6 +7,7 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 Heading toward 1.0.
 
 ### Added
+- Settings > Backups: choose how often to back up and how many to keep, optionally include gallery photos and originals, download any backup as a zip, start one on demand, and delete old ones.
 - Built-in automation rules now work in the default mode: the dashboard lists leads awaiting a first reply or follow-up and upcoming shoots with no location.
 - Clients and leads, shoots and a studio calendar with two-way Google Calendar sync.
 - Booking pages with special dates, daily limits, deposits and coupons, and automatic shoots from confirmed bookings.

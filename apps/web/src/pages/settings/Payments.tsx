@@ -1,3 +1,4 @@
+import { AddOnPrompt } from "../../components/AddOnPrompt.js";
 import { useEffect, useState, type FormEvent } from "react";
 import { Button, Callout, Field, Panel, Spinner, StatusChip, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
@@ -91,6 +92,8 @@ export function PaymentsSettingsPage() {
           <li>Press “Check these details”. Test with a sandbox buyer account before switching to Live.</li>
         </ol>
       </Panel>
+
+      <AddOnPrompt feature="quickbooks" />
     </div>
   );
 }

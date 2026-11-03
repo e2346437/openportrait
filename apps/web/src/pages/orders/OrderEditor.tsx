@@ -18,6 +18,13 @@ interface MoneySettings {
   currency: string;
   taxBps: number;
 }
+interface TaxRateRow {
+  id: string;
+  state: string;
+  name: string;
+  rateBps: number;
+  isDefault: boolean;
+}
 interface FormLine {
   key: number;
   itemId: string | null;
@@ -42,7 +49,10 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
   const catalog = useLoad<{ items: CatalogItem[] }>("/catalog");
   const settings = useLoad<MoneySettings>("/money/settings");
   const currency = settings.data?.currency ?? "USD";
-  const taxBps = settings.data?.taxBps ?? order?.taxBps ?? 0;
+  const rates = useLoad<{ rates: TaxRateRow[] }>("/money/tax-rates").data?.rates ?? [];
+  const [taxRateId, setTaxRateId] = useState<string | null>(order?.taxRateId ?? null);
+  const pickedRate = rates.find((r) => r.id === taxRateId) ?? rates.find((r) => r.isDefault) ?? rates[0];
+  const taxBps = pickedRate ? pickedRate.rateBps : (settings.data?.taxBps ?? order?.taxBps ?? 0);
 
   const [kind, setKind] = useState<"quote" | "invoice">(order?.kind ?? "quote");
   const [contact, setContact] = useState<PickedContact | null>(order ? { id: order.contactId, name: order.contactName } : (initialContact ?? null));
@@ -112,6 +122,7 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
       intro: intro || null,
       terms,
       validUntil: validUntil || null,
+      taxRateId: pickedRate?.id ?? null,
       discountCents,
       couponCode: couponCode.trim() || null,
       lines: lines.map((l, i) => ({ itemId: l.itemId, description: l.description, detail: l.detail || null, quantity: parsed[i]!.quantity, unitCents: parsed[i]!.unit!, taxable: l.taxable })),
@@ -233,7 +244,19 @@ export function OrderEditor({ order, initialContact, onSaved }: { order: OrderDe
             </dd>
           </div>
           <div>
-            <dt>Tax {taxBps ? `(${(taxBps / 100).toFixed(2).replace(/\.?0+$/, "")}%)` : ""}</dt>
+            <dt>
+              {rates.length > 1 ? (
+                <select className="input sm" aria-label="Tax place" value={pickedRate?.id ?? ""} onChange={(e) => setTaxRateId(e.target.value)}>
+                  {rates.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.state || r.name} · {(r.rateBps / 100).toFixed(2).replace(/\.?0+$/, "") || "0"}%
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <>Tax {taxBps ? `(${(taxBps / 100).toFixed(2).replace(/\.?0+$/, "")}%)` : ""}</>
+              )}
+            </dt>
             <dd>{money(totals.taxCents)}</dd>
           </div>
           <div className="grand">

@@ -5,6 +5,7 @@ import * as coupons from "../domain/coupons.js";
 import * as credits from "../domain/credits.js";
 import * as orders from "../domain/orders.js";
 import * as products from "../domain/products.js";
+import * as tax from "../domain/tax.js";
 import { testPayPal } from "../payments/paypal.js";
 import { DomainError } from "../domain/context.js";
 import { parse } from "../validate.js";
@@ -28,6 +29,7 @@ const OrderBody = z.object({
   discountCents: z.number().optional(),
   couponCode: z.string().max(40).nullish(),
   validUntil: z.string().max(10).nullish(),
+  taxRateId: z.string().max(60).nullish(),
   lines: z.array(Line).max(100),
   schedule: z.array(z.object({ label: z.string().max(100), amountCents: z.number(), dueDate: z.string().max(10).nullish() })).max(24).optional(),
 });
@@ -35,7 +37,7 @@ const Method = z.enum(orders.METHODS);
 const ItemBody = z.object({ kind: z.enum(["package", "item"]).optional(), name: z.string().max(200), description: z.string().max(1000).nullish(), priceCents: z.number(), taxable: z.boolean().optional(), autoPrice: z.boolean().optional(), components: z.array(z.object({ itemId: z.string().max(40), quantity: z.number().int().min(1).max(99) })).max(50).optional() });
 const MoneySettings = z.object({
   currency: z.string().trim().length(3, "Use a three-letter currency code such as USD.").toUpperCase(),
-  taxBps: z.number().int().min(0).max(5000),
+  taxBps: z.number().int().min(0).max(5000).optional(),
   terms: z.string().max(6000),
   paymentInstructions: z.string().max(1000),
   quoteValidDays: z.number().int().min(1).max(365),
@@ -90,12 +92,21 @@ export async function orderRoutes(app: FastifyInstance) {
     quoteValidDays: app.ctx.settings.get("money.quoteValidDays") ?? 30,
   });
   app.get("/money/settings", async () => view());
+  const TaxRates = z.object({
+    rates: z.array(z.object({ id: z.string().max(60).optional(), state: z.string().max(40), name: z.string().max(100), rateBps: z.number().int().min(0).max(5000), registration: z.string().max(60).optional(), isDefault: z.boolean().optional() })).max(60),
+  });
+  app.get("/money/tax-rates", async (req) => ({ rates: tax.listRates(ctx(req)) }));
+  app.put("/money/tax-rates", { preHandler: requireOwner }, async (req, reply) => {
+    const b = parse(TaxRates, req.body, reply);
+    if (!b) return;
+    return { rates: tax.saveRates(ctx(req), b.rates) };
+  });
   app.put("/money/settings", { preHandler: requireOwner }, async (req, reply) => {
     const b = parse(MoneySettings, req.body, reply);
     if (!b) return;
     const s = app.ctx.settings;
     s.set("money.currency", b.currency);
-    s.set("money.taxBps", b.taxBps);
+    if (b.taxBps !== undefined && !s.get("money.taxRates")?.length) s.set("money.taxBps", b.taxBps);
     s.set("money.terms", b.terms);
     s.set("money.paymentInstructions", b.paymentInstructions);
     s.set("money.quoteValidDays", b.quoteValidDays);

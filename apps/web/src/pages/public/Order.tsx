@@ -6,6 +6,7 @@ import { formatMoney, stateLabel, stateTone, type OrderState } from "../../lib/m
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { PublicMessage, PublicShell } from "./PublicShell.js";
+import { RichText } from "../../components/RichText.js";
 
 interface View {
   studioName: string;
@@ -99,7 +100,7 @@ export function OrderViewPage() {
         </div>
         <StatusChip tone={stateTone(v.state)}>{quote && v.state === "sent" ? "Awaiting your answer" : stateLabel[v.state]}</StatusChip>
       </header>
-      {v.intro ? <p className="pub-lead">{v.intro}</p> : null}
+      {v.intro ? <RichText className="pub-lead" text={v.intro} /> : null}
       {v.state === "void" ? <Callout tone="bad" title="This is no longer valid">Please contact the studio.</Callout> : null}
       {v.state === "expired" ? <Callout tone="warn" title="This quote has expired">It was good until {v.validUntil}. Please contact the studio for a new one.</Callout> : null}
       {v.state === "declined" ? <Callout tone="neutral" title="You declined this quote">Changed your mind? Contact the studio.</Callout> : null}
@@ -250,7 +251,7 @@ export function OrderViewPage() {
       {v.terms && !dead ? (
         <section className="doc-section">
           <h2>Terms</h2>
-          <p className="terms">{v.terms}</p>
+          <RichText className="terms" text={v.terms} />
         </section>
       ) : null}
     </PublicShell>

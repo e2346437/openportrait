@@ -6,6 +6,7 @@ import { DomainError, linkTo, newId, notFound, type ServiceContext } from "./con
 import { evaluate as evaluateCoupon } from "./coupons.js";
 import { composeEmail, queueEmail } from "./email.js";
 import { formatMoney, totalsFor } from "./money.js";
+import { cleanRich, safeRich } from "./richtext.js";
 import { resolveRate, type TaxPick } from "./tax.js";
 import { addDays, isYmd, ymdIn } from "./time.js";
 
@@ -152,8 +153,8 @@ function detail(ctx: ServiceContext, o: OrderRow) {
   const c = ctx.db.select().from(contact).where(eq(contact.id, o.contactId)).get();
   return {
     ...summarize(ctx, o),
-    intro: o.intro,
-    terms: o.terms,
+    intro: safeRich(o.intro) || null,
+    terms: o.terms === null ? null : safeRich(o.terms),
     subtotalCents: o.subtotalCents,
     /** The hand-typed discount. The coupon's share is `couponCents`; the two add up to what was taken off. */
     discountCents: o.discountCents - o.couponCents,
@@ -221,7 +222,7 @@ function write(ctx: ServiceContext, id: string, input: OrderInput, rate: TaxPick
   const v = clean(ctx, input, taxBps, existing);
   ctx.db
     .update(order)
-    .set({ title: v.title, intro: input.intro?.trim() || null, terms: input.terms?.trim() ?? null, discountCents: v.totals.discountCents, couponId: v.coupon?.couponId ?? null, couponCode: v.coupon?.code ?? null, couponCents: v.coupon?.cents ?? 0, subtotalCents: v.totals.subtotalCents, taxCents: v.totals.taxCents, totalCents: v.totals.totalCents, taxBps, taxRateId: rate.id, taxLabel: rate.label, validUntil: v.validUntil, shootId: input.shootId ?? null, leadId: input.leadId ?? null, updatedAt: new Date() })
+    .set({ title: v.title, intro: cleanRich(input.intro) || null, terms: input.terms === undefined || input.terms === null ? null : cleanRich(input.terms), discountCents: v.totals.discountCents, couponId: v.coupon?.couponId ?? null, couponCode: v.coupon?.code ?? null, couponCents: v.coupon?.cents ?? 0, subtotalCents: v.totals.subtotalCents, taxCents: v.totals.taxCents, totalCents: v.totals.totalCents, taxBps, taxRateId: rate.id, taxLabel: rate.label, validUntil: v.validUntil, shootId: input.shootId ?? null, leadId: input.leadId ?? null, updatedAt: new Date() })
     .where(eq(order.id, id))
     .run();
   ctx.db.delete(orderLine).where(eq(orderLine.orderId, id)).run();

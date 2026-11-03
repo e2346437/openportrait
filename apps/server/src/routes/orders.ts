@@ -6,6 +6,7 @@ import * as credits from "../domain/credits.js";
 import * as orders from "../domain/orders.js";
 import * as products from "../domain/products.js";
 import * as tax from "../domain/tax.js";
+import { cleanRich, safeRich } from "../domain/richtext.js";
 import { testPayPal } from "../payments/paypal.js";
 import { DomainError } from "../domain/context.js";
 import { parse } from "../validate.js";
@@ -24,8 +25,8 @@ const OrderBody = z.object({
   shootId: z.string().nullish(),
   leadId: z.string().nullish(),
   title: z.string().max(200),
-  intro: z.string().max(3000).nullish(),
-  terms: z.string().max(6000).nullish(),
+  intro: z.string().max(12000).nullish(),
+  terms: z.string().max(24000).nullish(),
   discountCents: z.number().optional(),
   couponCode: z.string().max(40).nullish(),
   validUntil: z.string().max(10).nullish(),
@@ -38,7 +39,7 @@ const ItemBody = z.object({ kind: z.enum(["package", "item"]).optional(), name: 
 const MoneySettings = z.object({
   currency: z.string().trim().length(3, "Use a three-letter currency code such as USD.").toUpperCase(),
   taxBps: z.number().int().min(0).max(5000).optional(),
-  terms: z.string().max(6000),
+  terms: z.string().max(24000),
   paymentInstructions: z.string().max(1000),
   quoteValidDays: z.number().int().min(1).max(365),
 });
@@ -87,7 +88,7 @@ export async function orderRoutes(app: FastifyInstance) {
   const view = () => ({
     currency: app.ctx.settings.get("money.currency") ?? "USD",
     taxBps: app.ctx.settings.get("money.taxBps") ?? 0,
-    terms: app.ctx.settings.get("money.terms") ?? "",
+    terms: safeRich(app.ctx.settings.get("money.terms")),
     paymentInstructions: app.ctx.settings.get("money.paymentInstructions") ?? "",
     quoteValidDays: app.ctx.settings.get("money.quoteValidDays") ?? 30,
   });
@@ -107,7 +108,7 @@ export async function orderRoutes(app: FastifyInstance) {
     const s = app.ctx.settings;
     s.set("money.currency", b.currency);
     if (b.taxBps !== undefined && !s.get("money.taxRates")?.length) s.set("money.taxBps", b.taxBps);
-    s.set("money.terms", b.terms);
+    s.set("money.terms", cleanRich(b.terms));
     s.set("money.paymentInstructions", b.paymentInstructions);
     s.set("money.quoteValidDays", b.quoteValidDays);
     return view();

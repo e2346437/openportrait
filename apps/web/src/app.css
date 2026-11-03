@@ -925,3 +925,13 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .contract-doc hr { border: 0; border-top: 1px solid var(--line-2); margin: 1.2em 0; }
 .contract-doc a { color: var(--accent); text-decoration: underline; }
 .contract-doc.rich p { white-space: normal; }
+.rich > :first-child { margin-top: 0; }
+.rich > :last-child { margin-bottom: 0; }
+.rich p { margin: 0 0 0.7em; white-space: normal; }
+.rich h2 { font-size: 1.1rem; margin: 1.1em 0 0.4em; }
+.rich h3 { font-size: 1rem; margin: 1em 0 0.35em; }
+.rich h4 { font-size: 0.95rem; margin: 1em 0 0.3em; }
+.rich ul, .rich ol { margin: 0 0 0.7em; padding-left: 1.4em; }
+.rich blockquote { margin: 0 0 0.7em; padding-left: 12px; border-left: 3px solid var(--line-2); }
+.rich hr { border: 0; border-top: 1px solid var(--line-2); margin: 1em 0; }
+.rich a { color: var(--accent); text-decoration: underline; }

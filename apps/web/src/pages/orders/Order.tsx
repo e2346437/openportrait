@@ -9,6 +9,7 @@ import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { OrderEditor } from "./OrderEditor.js";
 import type { PickedContact } from "../../components/ContactPicker.js";
+import { RichText } from "../../components/RichText.js";
 
 const METHODS: Array<[string, string]> = [["credit", "Client credit"],["cash", "Cash"], ["check", "Check"], ["venmo", "Venmo"], ["zelle", "Zelle"], ["card", "Card"], ["bank", "Bank transfer"], ["paypal", "PayPal"], ["other", "Other"]];
 
@@ -259,7 +260,7 @@ function OrderRecord({ order: o, onChanged, onEdit }: { order: OrderDetail; onCh
           </Panel>
           {o.terms ? (
             <Panel title="Terms">
-              <p className="terms">{o.terms}</p>
+              <RichText className="terms" text={o.terms} />
             </Panel>
           ) : null}
         </aside>

@@ -91,3 +91,14 @@ export function blocks(html: string): Block[] {
   flush();
   return out;
 }
+
+/** Wording on its way in: plain text keeps its lines, formatted text is cleaned down to the allowed markup. Markup with no words in it counts as empty. */
+export function cleanRich(text: string | null | undefined): string {
+  const t = (text ?? "").replace(/\r\n/g, "\n").trim();
+  if (!isHtml(t)) return t;
+  const out = sanitizeRich(t);
+  return htmlToText(out) || /<hr/i.test(out) ? out : "";
+}
+
+/** The same cleaning for text on its way out to a page. */
+export const safeRich = (text: string | null | undefined): string => (text && isHtml(text) ? sanitizeRich(text) : (text ?? ""));

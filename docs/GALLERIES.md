@@ -154,7 +154,7 @@ Counts of unmatched folders and unsorted incoming photos appear as badges in the
 ### 6.1 Getting in
 
 - The link is `APP_URL/g/<slug>`, for example `/g/smith-family-2026`.
-- Access modes, per gallery: **private link** (the default: an unguessable URL), **password**, or **invited emails only** (magic link, same as the client portal). The default for new galleries is set in Settings › Galleries.
+- Access modes, per gallery: **private link** (the default: an unguessable URL), **password**, or **invited emails only** (magic link, same as the client portal; the client portal and magic-link sign-in are planned, not built yet). The default for new galleries is set in Settings › Galleries.
 - In private-link and password mode, the client is asked for an email only at the first action that needs one (first favorite or first download), never before seeing the photos. This keeps the first visit to zero steps while still tracking who favorited what.
 - **Registration** (optional, per gallery): visitors give their email, or name and email, before any photo is sent. Passwords and registration can be combined. Nothing about the photos is sent until both are satisfied, and changing a password ends every earlier unlock.
 - Signed-in portal clients go straight in, and their galleries are listed in the portal.
@@ -196,7 +196,7 @@ Focal points are stored as percentages (`focal_x`, `focal_y`, 0 to 100) and appl
   - **Lock until paid:** nothing downloads until the balance is paid.
   - **Highlights early:** the Highlights set (any set marked "early") downloads now; the rest unlocks when paid.
   - **No lock:** downloads open as soon as the gallery is published.
-- While anything is locked, the download dialog says why ("Full gallery downloads open once your final balance is paid") and links to the invoice. When the payment clears (PayPal webhook or a manual payment entry), the lock lifts automatically and the client can be emailed.
+- While anything is locked, the download dialog says why ("Full gallery downloads open once your final balance is paid") and links to the invoice. When the payment clears, the photographer lifts the lock from the gallery with the unlock switch. Lifting it automatically when a payment clears (PayPal webhook or a manual payment entry) is planned, not built yet.
 - **Watermark:** previews and thumbnails of photos whose downloads are still waiting on payment carry the studio's mark (Settings › Galleries). The mark is the studio's wording (default the studio name), the studio logo, or a custom image. Wording can use one of six bundled fonts, bold or italic, any color, and a size relative to the photo; every kind has an opacity, a size, and a position (nine spots, or repeated diagonally). Uploaded images are trimmed, kept at 1200 px wide at most, and scaled down for each preview, so no size preparation is needed. Settings shows a live preview drawn by the same code. Paying removes the mark with no extra step, a gallery with no lock never shows one, and downloaded files are never watermarked. Sets marked for early download stay clean.
 - Optional download PIN, separate from the gallery password.
 - **Download** offers everything, one set, or the client's favorites as zip files. They are streamed as they are built, so nothing waits and nothing is stored. A zip over 2 GB is split into numbered parts that each open on any device. Only sets the lock allows are included.
@@ -205,7 +205,7 @@ Focal points are stored as percentages (`focal_x`, `focal_y`, 0 to 100) and appl
 
 ### 6.5 Orders
 
-The gallery links to the client's orders in the portal: an **Order** button opens the client's order and invoice list for the shoot, and when an unpaid balance gates downloads, the download dialog links to that invoice. Print ordering comes after 1.0 (SPEC.md). Until then, a lightweight **Request prints** action on favorites lists sends the photographer a print request (photos plus notes), which they turn into a quote or order in the existing Orders feature.
+*Planned, not built yet:* the gallery links to the client's orders in the portal: an **Order** button opens the client's order and invoice list for the shoot, and when an unpaid balance gates downloads, the download dialog links to that invoice. Print ordering comes after 1.0 (SPEC.md). Until then, a lightweight **Request prints** action on favorites lists is planned: it would send the photographer a print request (photos plus notes), which they turn into a quote or order in the existing Orders feature. It is not built yet.
 
 ### 6.x Gallery emails
 

@@ -7,6 +7,7 @@ import { tables } from "@openportrait/db";
 import { derivativePath, renderVariant, VARIANTS, watermarkedPath } from "../galleries/derivatives.js";
 import { renderWatermarked, watermarkHash } from "../galleries/watermark.js";
 import { newId } from "../galleries/files.js";
+import { allowanceFor, limitMessage } from "../galleries/limits.js";
 import { designOf, downloadState, isWatermarked, loadSetsAndPhotos, photoJson, previewUrl, watermarkInput } from "../galleries/present.js";
 import { verifyPassword } from "../auth.js";
 import { planZip, splitParts, streamZip, zipFilename, type Scope } from "../galleries/zip.js";
@@ -170,6 +171,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
         coverFocalY: g.coverFocalY,
         downloadSize: g.downloadSize,
         downloadLock: g.downloadLock,
+        downloadLimited: g.downloadMaxTimes !== null || g.downloadMaxFiles !== null,
         unlocked: !!g.unlockedAt,
         date: visible.find((p) => p.takenAt)?.takenAt?.getTime() ?? g.publishedAt?.getTime() ?? null,
       },
@@ -350,7 +352,19 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
       ...(visibleSets.length > 1 ? visibleSets.map((s) => describe(`set:${s.id}`, s.name, { kind: "set", setId: s.id })) : []),
       ...lists.map((l) => describe(`favorites:${l.id}`, `Your favorites${lists.length > 1 ? `: ${l.name}` : ""}`, { kind: "favorites", listId: l.id, email: who! })),
     ].filter((d): d is NonNullable<typeof d> => !!d);
-    return { downloads, size: g.downloadSize };
+    const allowance = allowanceFor(db, g, req.user ? null : who);
+    return { downloads: downloads.map((d) => ({ ...d, blocked: req.user ? null : limitMessage(allowance, d.count) })), size: g.downloadSize, allowance };
+  });
+
+  /** What a client may still download, so the page can say so before a click instead of after a failed download. */
+  app.get<{ Params: { slug: string } }>("/:slug/allowance", async (req, reply) => {
+    const g = load(req, reply);
+    if (!g) return;
+    const who = clientEmail(req);
+    if (gateFor(req, g, who)) return reply.code(401).send({ error: "gate", message: "Open the gallery first." });
+    reply.header("Cache-Control", "private, no-store");
+    const allowance = allowanceFor(db, g, req.user ? null : who);
+    return { allowance, blocked: req.user ? null : limitMessage(allowance, 1) };
   });
 
   /** One zip part, streamed as it is built: nothing is stored, and a closed tab stops the work. */
@@ -374,7 +388,10 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     const parts = splitParts(entries);
     const part = Math.min(Math.max(Number(q.part) || 1, 1), parts.length);
     const chosen = parts[part - 1]!;
-    db.insert(downloadEvent).values({ galleryId: g.id, photoId: null, scope: scope.kind === "gallery" ? "gallery" : scope.kind, variant: g.downloadSize === "web" ? "web" : "full", clientEmail: who, ip: app.ctx.ip(req) }).run();
+    // Checked and recorded in the same tick, so two quick requests can't both slip under the cap.
+    const blocked = req.user ? null : limitMessage(allowanceFor(db, g, who), chosen.length);
+    if (blocked) return reply.code(403).send({ error: "limit", message: blocked });
+    db.insert(downloadEvent).values({ galleryId: g.id, photoId: null, scope: scope.kind === "gallery" ? "gallery" : scope.kind, variant: g.downloadSize === "web" ? "web" : "full", fileCount: chosen.length, clientEmail: req.user ? null : who, ip: app.ctx.ip(req) }).run();
     const name = zipFilename(label, part, parts.length);
     const archive = streamZip({ originals: app.ctx.originals, cacheDir: app.ctx.config.cacheDir, gallery: g, entries: chosen, onError: (err) => app.log.warn({ err: String(err) }, "zip entry failed") });
     req.raw.on("close", () => {
@@ -401,6 +418,8 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     if (!state.allowed) {
       return reply.code(403).send({ error: state.reason, message: state.reason === "off" ? "Downloads are turned off for this gallery." : "Downloads open once the gallery is paid for." });
     }
+    const early = req.user ? null : limitMessage(allowanceFor(db, g, who), 1);
+    if (early) return reply.code(403).send({ error: "limit", message: early });
     let body: Readable;
     let size: number;
     let type: string;
@@ -428,7 +447,12 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
       app.log.warn({ err: String(err), photo: p.id }, "original unavailable");
       return reply.code(503).send({ error: "unavailable", message: "That photo can't be downloaded right now. Please try again in a little while." });
     }
-    db.insert(downloadEvent).values({ galleryId: g.id, photoId: p.id, scope: "photo", variant: g.downloadSize === "web" ? "web" : "full", clientEmail: who, ip: app.ctx.ip(req) }).run();
+    const blocked = req.user ? null : limitMessage(allowanceFor(db, g, who), 1);
+    if (blocked) {
+      body.destroy();
+      return reply.code(403).send({ error: "limit", message: blocked });
+    }
+    db.insert(downloadEvent).values({ galleryId: g.id, photoId: p.id, scope: "photo", fileCount: 1, variant: g.downloadSize === "web" ? "web" : "full", clientEmail: req.user ? null : who, ip: app.ctx.ip(req) }).run();
     reply.header("Content-Type", type);
     reply.header("Content-Length", size);
     reply.header("Content-Disposition", `attachment; filename="${name.replace(/["\\\r\n]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(name)}`);

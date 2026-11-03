@@ -1,10 +1,14 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 
 /** The frame around pages clients see: calm, one column, the studio's name, nothing from the back office. */
 export function PublicShell({ studio, children, narrow }: { studio?: string; children: ReactNode; narrow?: boolean }) {
   const [params] = useSearchParams();
   const embed = params.get("embed") === "1";
+  // Clients see the studio's name in the browser tab, not the product's.
+  useEffect(() => {
+    if (studio) document.title = studio;
+  }, [studio]);
   return (
     <div className={`pub${embed ? " embed" : ""}`}>
       <main className={`pub-card${narrow ? " narrow" : ""}`}>

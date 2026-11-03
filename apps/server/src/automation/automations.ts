@@ -79,7 +79,7 @@ defineAutomation({
         id: `shoot-prep:${r.id}`,
         automation: "shoot-prep",
         title: `Add a location for ${r.subject}`,
-        detail: `Shoots ${new Date(r.startsAt).toISOString().slice(0, 10)} and has no location yet.`,
+        detail: `Shoots ${new Date(r.startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: ctx.settings.get("studio.timezone") ?? "UTC" })} and has no location yet.`,
         ref: { type: "shoot", id: r.id },
         since: now,
       }));
@@ -95,7 +95,7 @@ defineAutomation({
       id: `questionnaire-send:${r.id}`,
       automation: "questionnaire-send",
       title: `Send the questionnaire for ${r.subject}`,
-      detail: "This shoot type has a questionnaire that goes out when a shoot is booked. Use shoots_get to see it, then questionnaires_send.",
+      detail: "This shoot type has a questionnaire that goes out when a shoot is booked. It hasn't been sent to the client yet.",
       ref: { type: "shoot", id: r.id },
       since: r.createdAt.getTime(),
     })),

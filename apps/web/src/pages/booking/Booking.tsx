@@ -9,6 +9,7 @@ import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { SwitchRow } from "../../components/SwitchRow.js";
 import { SchedulerDialog, type Scheduler } from "./SchedulerDialog.js";
+import { RichTextEditor } from "../../components/RichTextEditor.js";
 
 interface Booking {
   id: string;
@@ -278,12 +279,16 @@ function InquiryForm() {
                 }
               }}
             >
-              <Field className="span-2" label="Introduction" hint="Shown above the form.">
-                {(p) => <TextArea {...p} rows={2} maxLength={1000} placeholder={data.introDefault} value={intro ?? data.intro} onChange={(e) => setIntro(e.target.value)} />}
-              </Field>
-              <Field className="span-2" label="Thank-you message" hint="Shown after someone sends the form.">
-                {(p) => <TextArea {...p} rows={2} maxLength={1000} placeholder={data.thanksDefault} value={thanks ?? data.thanks} onChange={(e) => setThanks(e.target.value)} />}
-              </Field>
+              <div className="span-2 field">
+                <span className="label" id="inq-intro">Introduction</span>
+                <RichTextEditor variant="compact" labelledBy="inq-intro" placeholder={data.introDefault} value={intro ?? data.intro} onChange={setIntro} />
+                <small className="hint">Shown above the form.</small>
+              </div>
+              <div className="span-2 field">
+                <span className="label" id="inq-thanks">Thank-you message</span>
+                <RichTextEditor variant="compact" labelledBy="inq-thanks" placeholder={data.thanksDefault} value={thanks ?? data.thanks} onChange={setThanks} />
+                <small className="hint">Shown after someone sends the form. The email copy is sent as plain text.</small>
+              </div>
               {save.error ? <div className="span-2"><Callout tone="bad">{save.error}</Callout></div> : null}
               <div className="span-2 form-actions">
                 <Button variant="primary" type="submit" loading={save.busy} disabled={intro === null && thanks === null}>Save</Button>

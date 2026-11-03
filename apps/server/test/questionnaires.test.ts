@@ -71,6 +71,14 @@ const fields = [
 const template = (extra: object = {}) => staff("POST", "/questionnaire-templates", { name: "Details", intro: "Hello", fields, ...extra });
 const idOf = (t: { body: { fields: Array<{ label: string; id: string }> } }, label: string) => t.body.fields.find((f) => f.label === label)!.id;
 
+describe("questionnaire intro formatting", () => {
+  it("keeps allowed formatting and strips scripts", async () => {
+    const t = await template({ intro: '<p>Hi <strong>there</strong><script>x()</script></p>' });
+    expect(t.status).toBe(201);
+    expect(t.body.intro).toBe("<p>Hi <strong>there</strong></p>");
+  });
+});
+
 describe("questionnaire templates", () => {
   it("builds a form, gives each question an id and refuses unusable forms", async () => {
     const t = await template();

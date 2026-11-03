@@ -7,6 +7,7 @@ import { answerText, type AnswerValue, type Answers, type QuestionField } from "
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
 import { PublicMessage, PublicShell } from "./PublicShell.js";
+import { RichText } from "../../components/RichText.js";
 
 interface View {
   studioName: string;
@@ -74,7 +75,7 @@ export function QuestionnairePage() {
   return (
     <PublicShell studio={data.studioName}>
       <h1 className="pub-title">{data.title}</h1>
-      {data.intro ? <p className="pub-lead">{data.intro}</p> : null}
+      {data.intro ? <RichText className="pub-lead" text={data.intro} /> : null}
       <form ref={formRef} onSubmit={go} noValidate className="q-form">
         {err ? <Callout tone="bad">{err}</Callout> : null}
         {data.fields.map((f) => (

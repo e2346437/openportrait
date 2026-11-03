@@ -100,6 +100,18 @@ describe("inquiry form", () => {
     expect(((await staff("GET", "/contacts?q=reyes")).body.items as unknown[]).length).toBe(1);
   });
 
+  it("shows formatted intro and thank-you text safely and emails the thank-you as plain text", async () => {
+    await staff("PUT", "/email", smtp);
+    await staff("PUT", "/inquiry", { intro: '<p>Tell me <strong>everything</strong><script>x()</script></p>', thanks: "<p>Thanks, <em>truly</em>.</p><ul><li>Reply in a day</li></ul>" });
+    const info = (await pub("GET", "/inquiry")).body;
+    expect(info.intro).toBe("<p>Tell me <strong>everything</strong></p>");
+    await pub("POST", "/inquiry", { firstName: "Rae", email: "rae@example.com", shootTypeId: info.shootTypes[0].id });
+    await app.ctx.jobs.drain();
+    const mail = sent.find((m) => m.subject.startsWith("We got your message"))!;
+    expect(mail.text).toContain("Thanks, truly.");
+    expect(mail.text).not.toContain("<em>");
+  });
+
   it("works without email set up, ignores bots, checks the address, and can be turned off", async () => {
     expect((await pub("POST", "/inquiry", { firstName: "Sam", email: "sam@example.com" })).body).toEqual({ ok: true });
     expect(sent).toHaveLength(0);

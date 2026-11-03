@@ -13,7 +13,7 @@ const Field = z.object({
   required: z.boolean().optional(),
   options: z.array(z.string().max(120)).max(60).optional(),
 });
-const TemplateBody = z.object({ name: z.string().max(120), intro: z.string().max(2000).nullish(), fields: z.array(Field).max(120) });
+const TemplateBody = z.object({ name: z.string().max(120), intro: z.string().max(8000).nullish(), fields: z.array(Field).max(120) });
 
 /** Staff side of questionnaires: the form builder, shoot type defaults, and the forms on each shoot. */
 export async function questionnaireRoutes(app: FastifyInstance) {

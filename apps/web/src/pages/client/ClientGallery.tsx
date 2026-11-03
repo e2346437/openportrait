@@ -99,7 +99,16 @@ export function ClientGalleryPage() {
     document.getElementById("photos")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const doDownload = (photoId: string) => {
+  const doDownload = async (photoId: string) => {
+    // A refused download would save an error file, so ask first when the studio has set limits.
+    if (data?.gallery.downloadLimited) {
+      try {
+        const r = await call<{ blocked: string | null }>(`${encodeURIComponent(slug)}/allowance`);
+        if (r.blocked) return setNotice(r.blocked);
+      } catch (e) {
+        return setNotice((e as Error).message);
+      }
+    }
     const a = document.createElement("a");
     a.href = `/api/g/${encodeURIComponent(slug)}/photos/${photoId}/download`;
     a.download = "";
@@ -520,17 +529,36 @@ interface ZipOption {
   count: number;
   bytes: number;
   parts: number;
+  /** Why this one can't be downloaded because of the studio's limits; null when it can. */
+  blocked?: string | null;
 }
+
+interface Allowance {
+  maxTimes: number | null;
+  maxFiles: number | null;
+  timesLeft: number | null;
+  filesLeft: number | null;
+}
+
+const left = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** "2 of 3 downloads and 41 of 50 files left", only for the caps the studio set. */
+const allowanceText = (a: Allowance) =>
+  [a.timesLeft !== null ? `${a.timesLeft} of ${left(a.maxTimes!, "download")}` : null, a.filesLeft !== null ? `${a.filesLeft} of ${left(a.maxFiles!, "file")}` : null].filter(Boolean).join(" and ") + " left";
 
 const sizeText = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(n / 1e6))} MB`);
 
 /** Whole-gallery, per-set and favorites downloads as zip files, split into parts when they are very large. */
 function ZipDialog({ slug, locked, lockMode, onClose }: { slug: string; locked: boolean; lockMode?: string; onClose: () => void }) {
   const [options, setOptions] = useState<ZipOption[] | null>(null);
+  const [allowance, setAllowance] = useState<Allowance | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    call<{ downloads: ZipOption[] }>(`${encodeURIComponent(slug)}/downloads`)
-      .then((r) => setOptions(r.downloads))
+    call<{ downloads: ZipOption[]; allowance: Allowance }>(`${encodeURIComponent(slug)}/downloads`)
+      .then((r) => {
+        setOptions(r.downloads);
+        setAllowance(r.allowance);
+      })
       .catch((e: Error) => setError(e.message));
   }, [slug]);
   const href = (o: ZipOption, part: number) => `/api/g/${encodeURIComponent(slug)}/zip?scope=${o.scope}${o.setId ? `&set=${o.setId}` : ""}${o.listId ? `&list=${o.listId}` : ""}&part=${part}`;
@@ -538,6 +566,12 @@ function ZipDialog({ slug, locked, lockMode, onClose }: { slug: string; locked: 
     <Dialog open onClose={onClose} title="Download photos" description="Each download is a zip file. Large galleries come in several parts so every part opens on any device.">
       {error ? <p className="dr-err">{error}</p> : null}
       {!options && !error ? <Spinner /> : null}
+      {allowance && (allowance.maxTimes !== null || allowance.maxFiles !== null) ? (
+        <p className="lockbar allowance" role="status">
+          <Icon name="download" />
+          {allowanceText(allowance)} for this gallery.
+        </p>
+      ) : null}
       {options && options.length === 0 ? (
         <p className="lockbar">
           <Icon name="lock" />
@@ -553,7 +587,9 @@ function ZipDialog({ slug, locked, lockMode, onClose }: { slug: string; locked: 
                 {plural(o.count, "photo")} · {sizeText(o.bytes)}
               </span>
             </div>
-            {o.parts === 1 ? (
+            {o.blocked ? (
+              <span className="zblocked">{o.blocked}</span>
+            ) : o.parts === 1 ? (
               <a className="btn primary sm" href={href(o, 1)} download>
                 <Icon name="download" /> Download
               </a>

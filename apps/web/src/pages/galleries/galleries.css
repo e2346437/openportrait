@@ -183,3 +183,7 @@ input.input.date { max-width: 200px; }
 .act-txt { overflow-wrap: anywhere; }
 .act-row time { color: var(--ink-3); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 @media (max-width: 720px) { .act-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.limit-input { display: flex; align-items: center; gap: 8px; }
+.limit-input .input { max-width: 140px; }
+.limit-input .unit { color: var(--ink-3); font-size: 13px; }

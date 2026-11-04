@@ -5,6 +5,7 @@ import { SwitchRow } from "../../components/SwitchRow.js";
 import { ApiError } from "../../lib/api.js";
 import { extensionApi, useExtensionPages, type ExtensionPageDef, type PageColumn, type PageField } from "../../lib/extensionPages.js";
 import { formatMoney, moneyInput, parseMoney } from "../../lib/money.js";
+import { Markdown } from "../../components/Markdown.js";
 import { useLoad } from "../../lib/useLoad.js";
 
 type Row = { id: string } & Record<string, unknown>;
@@ -170,7 +171,8 @@ function RecordDialog({ extension, def, row, onClose, onSaved }: { extension: st
   );
 }
 
-function PageBody({ extension, def }: { extension: string; def: ExtensionPageDef }) {
+function PageBody({ extension, def: pageDef }: { extension: string; def: ExtensionPageDef }) {
+  const def = pageDef as ExtensionPageDef & { list: NonNullable<ExtensionPageDef["list"]> };
   const toast = useToast();
   const money = useLoad<{ currency: string }>("/money/settings");
   const currency = money.data?.currency ?? "USD";
@@ -304,6 +306,29 @@ function PageBody({ extension, def }: { extension: string; def: ExtensionPageDef
   );
 }
 
+/** A help page: formatted text the extension ships with itself. */
+function GuideBody({ extension, def }: { extension: string; def: ExtensionPageDef }) {
+  const guide = useLoad<{ markdown?: string; locked?: string }>(`/extensions/${extension}${def.guide!.route}`);
+  const header = <PageHeader title={def.title} description={def.description} />;
+  if (guide.loading) return <>{header}<Spinner label="Loading" /></>;
+  if (guide.error || guide.data?.locked || !guide.data?.markdown) {
+    return (
+      <>
+        {header}
+        <EmptyState icon="key" title="Not available" action={<Link className="btn primary" to="/studio/settings/extensions">Open extension settings</Link>}>
+          {guide.data?.locked ?? "This guide couldn't be loaded. Check that the extension is active."}
+        </EmptyState>
+      </>
+    );
+  }
+  return (
+    <>
+      {header}
+      <Markdown source={guide.data.markdown} />
+    </>
+  );
+}
+
 /** A page an extension added to the sidebar, drawn from its description. */
 export function ExtensionPageView() {
   const { extension = "", slug = "" } = useParams();
@@ -317,5 +342,6 @@ export function ExtensionPageView() {
       </EmptyState>
     );
   }
+  if (found.page.guide) return <GuideBody key={`${extension}/${slug}`} extension={extension} def={found.page} />;
   return <PageBody key={`${extension}/${slug}`} extension={extension} def={found.page} />;
 }

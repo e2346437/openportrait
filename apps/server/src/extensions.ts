@@ -179,8 +179,14 @@ export interface ExtensionPage {
   filter?: { name: string; label: string; optionsRoute: string };
   /** GET; returns numbers for the tiles, and optionally `notice` to show as a warning. */
   summary?: { route: string; tiles: Array<{ key: string; label: string; format?: "text" | "money" | "number"; unit?: string }> };
+  /**
+   * A help page instead of a list: GET returns `{ markdown, locked? }` and the app shows it as formatted text
+   * (headings, paragraphs, lists, tables, bold, code, links and images). Use it for a guide that ships with the extension.
+   * A page has either `guide` or `list`. Return 403 `{ message, locked: true }` to hide it.
+   */
+  guide?: { route: string };
   /** GET; returns `{ rows: [{ id, ... }] }`. */
-  list: { route: string; columns: PageColumn[]; empty: { title: string; text: string } };
+  list?: { route: string; columns: PageColumn[]; empty: { title: string; text: string } };
   /** POST <create> adds a record; PATCH <item>/<id> and DELETE <item>/<id> change or remove one. Bodies are JSON. */
   form?: { title: string; addLabel: string; create: string; item: string; fields: PageField[] };
   /** GET; returns text/csv. */
@@ -356,6 +362,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         },
         page: (page) => {
           if (!SLUG.test(page.slug)) throw new Error(`page slug "${page.slug}" must be lowercase letters, digits and dashes`);
+          if (!page.list && !page.guide) throw new Error(`page "${page.slug}" needs a list or a guide`);
           if (pages.some((p) => p.slug === page.slug)) throw new Error(`duplicate page slug "${page.slug}"`);
           pages.push(page);
         },

@@ -61,6 +61,8 @@ export interface SettingTypes {
   "galleries.watermarkText": string;
   /** How the watermark looks (see galleries/watermark.ts). Missing means the defaults. */
   "galleries.watermark": Partial<WatermarkSpec>;
+  /** Studio default for Protected Proofing (see galleries/proofing.ts). Missing means Balanced, only while downloads are locked. */
+  "galleries.proofing": Partial<{ mode: "light" | "balanced" | "strong"; apply: "locked" | "always" | "off"; maxLongEdge: number | null }>;
   /** Set when a custom watermark image has been uploaded; changes with each upload. */
   "galleries.watermarkImageVersion": number;
   /** JPEG quality (60-100) of "web size" downloads. Missing means 88. */

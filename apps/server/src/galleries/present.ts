@@ -5,6 +5,7 @@ import { DEFAULT_DESIGN, tables, type Db, type GalleryDesign } from "@openportra
 import type { Secrets } from "../secrets.js";
 import type { SettingTypes } from "../settings.js";
 import type { Variant } from "./derivatives.js";
+import { proofFingerprint, resolveProofing, type ProofingPolicy } from "./proofing.js";
 import { DEFAULT_WATERMARK, WatermarkSpec, type WatermarkInput } from "./watermark.js";
 
 const { gallerySet, photo } = tables;
@@ -58,9 +59,26 @@ export function isWatermarked(g: Gallery, set: Pick<GallerySet, "earlyDownload">
   return !d.allowed && d.reason === "locked";
 }
 
-/** Media URL for a thumb or preview; the watermarked flavor when asked, which carries the wording's fingerprint. */
+/** True when previews of this set should be protected right now, by the gallery's effective policy and its download lock. */
+export function previewsProtected(policy: ProofingPolicy, g: Gallery, set: Pick<GallerySet, "earlyDownload"> | null): boolean {
+  if (policy.apply === "off") return false;
+  if (policy.apply === "always") return true;
+  return isWatermarked(g, set);
+}
+
+/** The gallery's effective policy: the studio default with this gallery's own choices on top. */
+export function proofingFor(settings: { get(key: "galleries.proofing"): SettingTypes["galleries.proofing"] | undefined }, g: Pick<Gallery, "proofing">): ProofingPolicy {
+  return resolveProofing(settings.get("galleries.proofing"), g.proofing);
+}
+
+/** Fingerprint naming the protected files of this gallery, or null when the set's previews are served clean. */
+export function proofMarkFor(policy: ProofingPolicy, wm: WatermarkInput, g: Gallery, set: Pick<GallerySet, "earlyDownload"> | null): string | null {
+  return previewsProtected(policy, g, set) ? proofFingerprint(policy, wm) : null;
+}
+
+/** Media URL for a thumb or preview; the protected flavor when asked, which carries a fingerprint of how it was made. */
 export function previewUrl(secrets: Secrets, p: Pick<Photo, "id" | "version">, variant: "thumb" | "preview", mark: string | null): string {
-  return mediaUrl(secrets, p, mark ? `${variant}-wm-${mark}` : variant);
+  return mediaUrl(secrets, p, mark ? `${variant}-pf-${mark}` : variant);
 }
 
 export function photoJson(secrets: Secrets, p: Photo, mark: string | null = null) {

@@ -7,7 +7,8 @@ import { tables } from "@openportrait/db";
 import { hashPassword, requireOwner, requireUser } from "../auth.js";
 import { fillCovers, WEB_QUALITY, webQualityOf } from "../galleries/derivatives.js";
 import { newId, titleFromFolder } from "../galleries/files.js";
-import { designOf, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
+import { designOf, loadSetsAndPhotos, mediaUrl, photoJson, proofingFor } from "../galleries/present.js";
+import { ProofingOverride } from "../galleries/proofing.js";
 import { parse } from "../validate.js";
 import { emailPanel, sendGalleryEmail } from "../galleries/mail.js";
 import { DomainError } from "../domain/context.js";
@@ -45,6 +46,8 @@ const GalleryPatch = z
     coverFocalX: focal,
     coverFocalY: focal,
     design: Design,
+    /** Protected Proofing choices for this gallery; null goes back to the studio default. */
+    proofing: ProofingOverride.nullable(),
     downloadSize: z.enum(["none", "web", "full"]),
     downloadLock: lock,
     downloadMaxTimes: z.number().int().min(1, "A limit must be at least 1.").max(10_000).nullable(),
@@ -164,6 +167,8 @@ export async function galleryRoutes(app: FastifyInstance) {
         coverFocalX: g.coverFocalX,
         coverFocalY: g.coverFocalY,
         design: designOf(g),
+        proofing: g.proofing ?? {},
+        proofingEffective: proofingFor(app.ctx.settings, g),
         downloadSize: g.downloadSize,
         downloadLock: g.downloadLock,
         downloadMaxTimes: g.downloadMaxTimes,

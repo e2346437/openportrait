@@ -1032,3 +1032,11 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .auth-theme { position: absolute; top: 12px; right: 12px; z-index: 2; }
 .auth-main { position: relative; }
 .auth-art .auth-theme { color: var(--inverse-ink); }
+
+/* Protected proofing */
+.proof-preview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); margin: 0; }
+.proof-preview figure { margin: 0; display: grid; gap: var(--s2); min-width: 0; }
+.proof-preview figcaption { font-size: 12px; color: var(--ink-2); }
+.proof-size { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.proof-size .range { flex: 1 1 200px; min-width: 0; }
+@media (max-width: 520px) { .proof-preview { grid-template-columns: minmax(0, 1fr); } }

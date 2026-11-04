@@ -23,9 +23,20 @@ export type Variant = keyof typeof VARIANTS;
 sharp.cache(false);
 sharp.concurrency(2);
 
-export function derivativePath(cacheDir: string, galleryId: string, photoId: string, version: number, variant: Variant): string {
+/** JPEG quality range offered for "web size" downloads (Settings > Galleries). */
+export const WEB_QUALITY = { min: 60, max: 100, default: 88 } as const;
+
+/** The studio's chosen web-size quality, clamped to the supported range. */
+export function webQualityOf(settings: { get(key: "galleries.webQuality"): number | undefined }): number {
+  const q = Math.round(Number(settings.get("galleries.webQuality")));
+  return Number.isFinite(q) ? Math.min(WEB_QUALITY.max, Math.max(WEB_QUALITY.min, q)) : WEB_QUALITY.default;
+}
+
+/** The quality is part of the web file's name, so changing the setting never serves an older render. */
+export function derivativePath(cacheDir: string, galleryId: string, photoId: string, version: number, variant: Variant, quality?: number): string {
   const ext = VARIANTS[variant].format === "jpeg" ? "jpg" : "webp";
-  return path.join(cacheDir, "galleries", galleryId, `${photoId}-v${version}-${variant}.${ext}`);
+  const q = variant === "web" && quality !== undefined && quality !== WEB_QUALITY.default ? `-q${quality}` : "";
+  return path.join(cacheDir, "galleries", galleryId, `${photoId}-v${version}-${variant}${q}.${ext}`);
 }
 
 export function watermarkedPath(cacheDir: string, galleryId: string, photoId: string, version: number, variant: "thumb" | "preview", hash: string): string {
@@ -33,12 +44,12 @@ export function watermarkedPath(cacheDir: string, galleryId: string, photoId: st
 }
 
 /** Renders one variant from the original. Writes to a temp file first so a half-written file is never served. */
-export async function renderVariant(source: string, dest: string, variant: Variant): Promise<void> {
+export async function renderVariant(source: string, dest: string, variant: Variant, quality?: number): Promise<void> {
   const v = VARIANTS[variant];
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const tmp = `${dest}.${process.pid}.tmp`;
   let img = sharp(source, { failOn: "none" }).rotate().resize({ width: v.width, height: v.height, fit: "inside", withoutEnlargement: true });
-  img = v.format === "jpeg" ? img.jpeg({ quality: v.quality, mozjpeg: true }) : img.webp({ quality: v.quality, effort: 4 });
+  img = v.format === "jpeg" ? img.jpeg({ quality: quality ?? v.quality, mozjpeg: true }) : img.webp({ quality: v.quality, effort: 4 });
   // Keep the color profile so wide-gamut exports look right; drop the rest of the metadata.
   await img.keepIccProfile().toFile(tmp);
   fs.renameSync(tmp, dest);

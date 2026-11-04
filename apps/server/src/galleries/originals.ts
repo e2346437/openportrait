@@ -80,6 +80,28 @@ export class Originals {
     return this.store.get(p.remoteKey);
   }
 
+  /**
+   * Checks, before a zip starts, that every file can be read. Local files are checked on disk; for the ones in
+   * the store, the store must be attached and one of them is opened as a probe, which catches an outage without
+   * a request per photo. Returns the first problem, or null.
+   */
+  async unreachable(photos: Array<Pick<Photo, "id" | "relPath" | "remoteKey" | "sizeBytes">>): Promise<{ photo: string; reason: "store_off" | "store_error" } | null> {
+    let probe: (typeof photos)[number] | null = null;
+    for (const p of photos) {
+      if (this.localPath(p)) continue;
+      if (!p.remoteKey || !this.store) return { photo: p.id, reason: "store_off" };
+      probe ??= p;
+    }
+    if (!probe) return null;
+    try {
+      const { stream } = await this.store!.get(probe.remoteKey!);
+      stream.destroy();
+    } catch {
+      return { photo: probe.id, reason: "store_error" };
+    }
+    return null;
+  }
+
   /** A local file path to work from (for resizing). Remote originals are fetched to a temp file; call cleanup() when done. */
   async materialize(p: Pick<Photo, "relPath" | "remoteKey" | "sizeBytes">): Promise<{ file: string; cleanup: () => void }> {
     const local = this.localPath(p);

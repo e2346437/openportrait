@@ -29,7 +29,8 @@ export interface ExtensionPageDef {
   description?: string;
   filter?: { name: string; label: string; optionsRoute: string };
   summary?: { route: string; tiles: Array<{ key: string; label: string; format?: "text" | "money" | "number"; unit?: string }> };
-  list: { route: string; columns: PageColumn[]; empty: { title: string; text: string } };
+  guide?: { route: string };
+  list?: { route: string; columns: PageColumn[]; empty: { title: string; text: string } };
   form?: { title: string; addLabel: string; create: string; item: string; fields: PageField[] };
   export?: { label: string; route: string };
 }

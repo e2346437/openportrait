@@ -80,6 +80,21 @@ describe("extensions", () => {
     expect(rows.json()).toEqual({ rows: [{ id: "1", name: "a" }], zod: "function" });
   });
 
+  it("lets a module add a help page, and rejects a page with neither list nor guide", async () => {
+    const cookie = await boot({
+      "help.mjs": `export function register(api) {
+        api.page({ slug: "guide", title: "Guide", guide: { route: "/guide" } });
+        api.routes(async (r) => { r.get("/guide", async () => ({ markdown: "# Hello" })); });
+      }`,
+      "empty-page.mjs": `export function register(api) { api.page({ slug: "nothing", title: "x" }); }`,
+    });
+    const list = (await app!.inject({ method: "GET", url: "/api/studio/extensions", headers: { cookie } })).json().extensions as Array<{ id: string; status: string; pages: Array<{ slug: string; guide?: { route: string } }> }>;
+    expect(list.find((e) => e.id === "help")!.pages).toMatchObject([{ slug: "guide", guide: { route: "/guide" } }]);
+    expect(list.find((e) => e.id === "empty-page")!.status).toBe("failed");
+    const g = await app!.inject({ method: "GET", url: "/api/studio/extensions/help/guide", headers: { cookie } });
+    expect(g.json()).toEqual({ markdown: "# Hello" });
+  });
+
   it("skips a broken module and still boots", async () => {
     const cookie = await boot({ "bad.mjs": `throw new Error("nope");`, "empty.mjs": `export const x = 1;`, "good.mjs": `export function register() {}` });
     const list = (await app!.inject({ method: "GET", url: "/api/studio/extensions", headers: { cookie } })).json().extensions;

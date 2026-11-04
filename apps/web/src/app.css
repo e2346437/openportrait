@@ -988,3 +988,11 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
   .run-page * { color: #000 !important; }
 }
 .panel-head > .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* Extension guides (formatted text shipped with an add-on) */
+.guide { max-width: 760px; font-size: 0.95rem; line-height: 1.6; }
+.guide .guide-img { display: block; max-width: 100%; height: auto; margin: 0.8em 0; border: 1px solid var(--line-2); border-radius: var(--radius-md, 10px); }
+.guide pre { overflow-x: auto; padding: 10px 12px; background: var(--surface-2, rgba(127,127,127,.1)); border-radius: 8px; font-size: 0.85rem; }
+.guide .table-scroll { overflow-x: auto; margin: 0 0 1em; }
+.guide table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+.guide th, .guide td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line-2); }

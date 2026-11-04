@@ -5,7 +5,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
 import { hashPassword, requireOwner, requireUser } from "../auth.js";
-import { fillCovers } from "../galleries/derivatives.js";
+import { fillCovers, WEB_QUALITY, webQualityOf } from "../galleries/derivatives.js";
 import { newId, titleFromFolder } from "../galleries/files.js";
 import { designOf, loadSetsAndPhotos, mediaUrl, photoJson } from "../galleries/present.js";
 import { parse } from "../validate.js";
@@ -75,6 +75,7 @@ const ListBody = z.object({
 });
 
 const GallerySettings = z.object({
+  webQuality: z.number().int().min(WEB_QUALITY.min).max(WEB_QUALITY.max).optional(),
   deliveryFolder: z
     .string()
     .trim()
@@ -491,6 +492,7 @@ export async function ingestRoutes(app: FastifyInstance) {
     deliveryFolder: settings.get("galleries.deliveryFolder") || "Gallery",
     privateFolders: settings.get("galleries.privateFolders") ?? ["Originals"],
     defaultDownloadLock: settings.get("galleries.defaultDownloadLock") ?? "until_paid",
+    webQuality: webQualityOf(settings),
     watermarkText: settings.get("galleries.watermarkText") ?? "",
   }));
 
@@ -500,8 +502,9 @@ export async function ingestRoutes(app: FastifyInstance) {
     settings.set("galleries.deliveryFolder", body.deliveryFolder);
     settings.set("galleries.privateFolders", [...new Set(body.privateFolders.filter(Boolean))]);
     settings.set("galleries.defaultDownloadLock", body.defaultDownloadLock);
+    if (body.webQuality !== undefined) settings.set("galleries.webQuality", body.webQuality);
     if (body.watermarkText !== undefined) settings.set("galleries.watermarkText", body.watermarkText);
     void galleries.scan();
-    return { ...body, watermarkText: settings.get("galleries.watermarkText") ?? "" };
+    return { ...body, webQuality: webQualityOf(settings), watermarkText: settings.get("galleries.watermarkText") ?? "" };
   });
 }

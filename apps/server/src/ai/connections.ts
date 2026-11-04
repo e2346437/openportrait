@@ -56,8 +56,18 @@ export function createConnection(db: Db, input: { label: string; level: Level; a
   return { connection: view(row), token };
 }
 
+/** Declines everything a connection still has waiting, so nothing it queued can run once its access is gone. */
+export function cancelPendingApprovals(db: Db, connectionId: string, reason: string): void {
+  db.update(tables.aiApproval)
+    .set({ status: "declined", decidedAt: new Date(), result: { error: reason } })
+    .where(and(eq(tables.aiApproval.connectionId, connectionId), eq(tables.aiApproval.status, "pending")))
+    .run();
+}
+
 export function revokeConnection(db: Db, id: string): boolean {
-  return db.update(tables.aiConnection).set({ revokedAt: new Date() }).where(and(eq(tables.aiConnection.id, id), isNull(tables.aiConnection.revokedAt))).run().changes > 0;
+  const revoked = db.update(tables.aiConnection).set({ revokedAt: new Date() }).where(and(eq(tables.aiConnection.id, id), isNull(tables.aiConnection.revokedAt))).run().changes > 0;
+  if (revoked) cancelPendingApprovals(db, id, "This connection was revoked, so the request was cancelled.");
+  return revoked;
 }
 
 /** Resolves a bearer token to a caller, or null if it is unknown, revoked or expired. */

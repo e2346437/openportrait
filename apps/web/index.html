@@ -9,18 +9,7 @@
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <script>
-      try {
-        var t = localStorage.getItem("op-theme");
-        if (t === "light" || t === "dark") {
-          document.documentElement.setAttribute("data-theme", t);
-          var m = document.createElement("meta");
-          m.name = "theme-color";
-          m.content = t === "dark" ? "#151412" : "#f3eee5";
-          document.head.appendChild(m);
-        }
-      } catch (e) {}
-    </script>
+    <script src="/theme-init.js"></script>
     <title>OpenPortrait</title>
   </head>
   <body>

@@ -20,14 +20,14 @@ Each connection has an access level:
 | Level | What the assistant can do |
 |---|---|
 | **Read** | Look at contacts, leads, shoots, the calendar, orders and galleries |
-| **Assist** | Read, plus make internal drafts such as notes, tasks and draft quotes |
-| **Full** | Everything in Assist, plus the actions that reach clients or money, subject to approval |
+| **Assist** | Read, plus make internal drafts such as notes, tasks and draft quotes. It can also ask to send, publish or record money, but every such request waits for your approval |
+| **Full** | The same tools as Assist. Today the two differ only in label; Full is reserved for per-action auto-approval later. Anything that reaches a client or money still asks you first |
 
 Use the per-area switches to limit a connection further, for example to galleries only.
 
 ## Approvals
 
-Anything that reaches a client or touches money goes to **Approvals** first. That includes sending an email, sending a quote or contract, publishing a gallery, confirming a booking, sending a questionnaire, recording a payment, or issuing a credit. You see the exact content and can approve, edit or decline it. Pending items expire after 7 days.
+Anything that reaches a client or touches money goes to **Approvals** first. That includes sending an email, sending a quote or contract, publishing a gallery, confirming a booking, sending a questionnaire, recording a payment, or issuing a credit. You see the exact content and can approve, edit or decline it. Pending items expire after 7 days. Approving checks the connection again at that moment: if it was revoked, expired, lost access to that area or was cut back to read-only after the request was made, the action does not run. Revoking a connection cancels everything it had waiting.
 
 Auto-approval is a setting you can turn on for each kind of action. It is off by default, and new kinds of action always start in approval.
 

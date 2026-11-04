@@ -5,7 +5,7 @@ import { z } from "zod";
 import { tables } from "@openportrait/db";
 import { requireOwner } from "../auth.js";
 import { parse } from "../validate.js";
-import { TOKEN_PREFIX } from "./connections.js";
+import { cancelPendingApprovals, TOKEN_PREFIX } from "./connections.js";
 import { AREAS } from "./registry.js";
 
 const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
@@ -179,6 +179,7 @@ export async function oauthRoutes(app: FastifyInstance) {
     if (replayed) {
       // An old refresh token came back: a copy leaked. Cut the connection off.
       db.update(tables.aiConnection).set({ revokedAt: new Date() }).where(eq(tables.aiConnection.id, replayed.id)).run();
+      cancelPendingApprovals(db, replayed.id, "This connection was revoked, so the request was cancelled.");
       db.insert(tables.auditLog).values({ actorType: "system", connectionId: replayed.id, action: "ai.connection.revoke", detail: { reason: "refresh token reuse" } }).run();
       return oauthError(reply, "invalid_grant", "This sign-in was revoked. Connect again from your AI app.");
     }

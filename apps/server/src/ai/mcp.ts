@@ -10,8 +10,14 @@ import "./tools/index.js";
 
 const LIMIT_PER_MINUTE = 120;
 const hits = new Map<string, { windowStart: number; count: number }>();
-function overLimit(id: string): boolean {
+/** Drops windows that have ended, so the map can't grow past the connections active in the last minute. */
+function evictStale(now: number): void {
+  for (const [id, h] of hits) if (now - h.windowStart > 60_000) hits.delete(id);
+}
+export const rateLimitEntries = () => hits.size;
+export function overLimit(id: string): boolean {
   const now = Date.now();
+  if (hits.size > 100) evictStale(now);
   const h = hits.get(id);
   if (!h || now - h.windowStart > 60_000) {
     hits.set(id, { windowStart: now, count: 1 });

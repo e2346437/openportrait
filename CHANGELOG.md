@@ -6,6 +6,10 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 
 Heading toward 1.0.
 
+### Fixed
+- AI approvals are checked again when you approve: if the connection was revoked, expired, cut back to read-only or lost the area or feature since the request was made, the action no longer runs. Revoking a connection now cancels everything it had waiting.
+- The AI rate limiter forgets connections that have gone quiet instead of growing without bound.
+
 ### Added
 - A day-of timeline on every shoot: add what happens at each time, with length, place and notes, then print it as a one-page run sheet with the shoot details and contacts.
 - Per-client download limits. In a gallery's Settings you can cap how many downloads and how many files each client may take, counted by the email they gave. Clients see what they have left before they download, and you are never counted when you preview.

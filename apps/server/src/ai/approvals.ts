@@ -3,7 +3,7 @@ import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
 import type { AppContext } from "../app.js";
-import { findTool, type Caller, type ToolDef } from "./registry.js";
+import { findTool, toolsFor, type Caller, type ToolDef } from "./registry.js";
 
 const EXPIRES_DAYS = 7;
 /** Most outward actions one connection may queue per day, so a runaway assistant can't flood the inbox. */
@@ -106,7 +106,15 @@ export async function decide(ctx: AppContext, id: string, userId: string, approv
   if (approve) {
     const tool = findTool(r.tool);
     try {
+      // Re-check the connection as it is now. accessExpiresAt is not checked: it only marks the short-lived OAuth access token, which refreshes while the connection itself stays valid.
+      const now = Date.now();
+      if (conn.revokedAt || (conn.expiresAt && conn.expiresAt.getTime() <= now)) {
+        throw new Error("This connection has been revoked or has expired, so the action was not run.");
+      }
       if (!tool) throw new Error("This action isn't available any more.");
+      if (!toolsFor({ level: conn.level, areas: conn.areas }).some((t) => t.name === tool.name)) {
+        throw new Error("This connection is no longer allowed to do this, so the action was not run.");
+      }
       const args = z.object(tool.input).parse(r.args);
       result = await tool.handler(ctx, args as never, { connectionId: conn.id, label: conn.label, level: conn.level, areas: conn.areas });
     } catch (err) {

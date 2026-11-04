@@ -51,6 +51,7 @@ import { runSheetRoutes } from "./routes/runsheet.js";
 import { publicRoutes } from "./routes/public.js";
 import { questionnaireRoutes } from "./routes/questionnaires.js";
 import { registerEmailJob } from "./domain/email.js";
+import { homeRoutes } from "./routes/home.js";
 import { registerGoogleSyncJob } from "./google/job.js";
 import { crmRoutes } from "./routes/crm.js";
 import { importRoutes } from "./routes/import.js";
@@ -287,6 +288,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(bookingRoutes, { prefix: "/api/studio" });
   await app.register(orderRoutes, { prefix: "/api/studio" });
   await app.register(reportRoutes, { prefix: "/api/studio" });
+  await app.register(homeRoutes, { prefix: "/api/studio" });
   await app.register(contractRoutes, { prefix: "/api/studio" });
   await app.register(householdRoutes, { prefix: "/api/studio" });
   await app.register(taskRoutes, { prefix: "/api/studio" });

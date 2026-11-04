@@ -340,7 +340,7 @@ export class GalleryIngest {
           shootFolder: folder.relPath,
           folderPath: root,
           shootId: match?.id ?? null,
-          downloadLock: opts.downloadLock ?? this.deps.settings.get("galleries.defaultDownloadLock") ?? "none",
+          downloadLock: opts.downloadLock ?? this.deps.settings.get("galleries.defaultDownloadLock") ?? "until_paid",
           ...(match?.autoPublish ? { status: "live" as const, publishedAt: new Date() } : {}),
         })
         .run();

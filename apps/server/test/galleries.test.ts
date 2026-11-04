@@ -547,6 +547,13 @@ describe("client gallery", () => {
 });
 
 describe("gallery settings", () => {
+  it("keeps downloads locked until paid by default, for new galleries", async () => {
+    expect((await studio("GET", "/ingest/settings")).json().defaultDownloadLock).toBe("until_paid");
+    await jpeg(path.join(share, "Lock/Gallery/a.jpg"), red);
+    const { detail } = await galleryFromShare();
+    expect(detail.gallery.downloadLock).toBe("until_paid");
+  });
+
   it("lets the owner rename the delivery folder and choose the default lock", async () => {
     const res = await studio("PUT", "/ingest/settings", { deliveryFolder: "Finals", privateFolders: ["Originals", "Culls"], defaultDownloadLock: "until_paid" });
     expect(res.statusCode).toBe(200);

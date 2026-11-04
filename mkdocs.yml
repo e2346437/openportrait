@@ -1,0 +1,48 @@
+site_name: OpenPortrait docs
+site_url: https://docs.openportrait.app/
+site_description: Install, set up and run OpenPortrait, the self-hosted studio CRM for photographers.
+repo_url: https://github.com/e2346437/openportrait
+repo_name: e2346437/openportrait
+edit_uri: edit/main/docs/
+docs_dir: docs
+use_directory_urls: true
+exclude_docs: |
+  releasing.md
+  brand/
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: custom
+      accent: custom
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - content.action.edit
+nav:
+  - Home: index.md
+  - Getting started:
+      - Install with Docker, Compose or Unraid: install-docker.md
+      - Internet access with Cloudflare Tunnel: cloudflare-tunnel.md
+      - Importing your data: import.md
+  - Running your studio:
+      - Email, inquiry form and booking pages: booking.md
+      - Questionnaires: questionnaires.md
+      - Contracts and e-signatures: contracts.md
+      - Quotes, invoices and coupons: orders.md
+      - Galleries: GALLERIES.md
+      - Tasks: tasks.md
+      - Households: households.md
+      - Google Calendar: google-calendar.md
+  - Photos and tethering:
+      - Camera upload: camera-upload.md
+      - Tethering: tethering.md
+  - Website and AI:
+      - Website builder: website.md
+      - Connect your AI: ai-access.md
+  - Developers:
+      - Extensions: extensions.md
+  - Reference:
+      - Accessibility: accessibility.md
+      - Product spec and architecture: SPEC.md

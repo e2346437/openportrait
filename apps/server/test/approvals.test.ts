@@ -153,3 +153,104 @@ describe("business tools", () => {
     expect((await call(token, "contacts_add_note", { contactId: "x", body: "y" })).isError).toBe(true);
   });
 });
+
+describe("approval-time reauthorization", () => {
+  const queue = async (level: "assist" | "full" = "full") => {
+    const token = await connect(level, ["email"]);
+    const { data } = await call(token, "email_test_send", { to: "a@b.co", subject: "x" });
+    return { token, id: data.approvalId as string };
+  };
+  const approve = (id: string) => api("POST", `/approvals/${id}/approve`);
+  const sql = (q: string, ...p: unknown[]) => app.ctx.db.$client.prepare(q).run(...p);
+
+  it("cancels pending requests when the connection is revoked", async () => {
+    const { id } = await queue();
+    const connectionId = app.ctx.db.$client.prepare("SELECT id FROM ai_connection").get() as { id: string };
+    expect((await app.inject({ method: "DELETE", url: `/api/studio/ai/connections/${connectionId.id}`, headers: { cookie } })).statusCode).toBeLessThan(300);
+    expect((await api("GET", "/approvals?status=pending")).json().items).toHaveLength(0);
+    expect((await approve(id)).statusCode).toBe(409);
+    expect(sent).toEqual([]);
+  });
+
+  it("does not run an approval whose connection was revoked behind the queue's back", async () => {
+    const { id } = await queue();
+    sql("UPDATE ai_connection SET revoked_at = ?", Date.now());
+    expect((await approve(id)).json()).toMatchObject({ status: "failed" });
+    expect(sent).toEqual([]);
+  });
+
+  it("does not run an approval once the connection has expired", async () => {
+    const { id } = await queue();
+    sql("UPDATE ai_connection SET expires_at = 1");
+    expect((await approve(id)).json()).toMatchObject({ status: "failed" });
+    expect(sent).toEqual([]);
+  });
+
+  it("does not run an approval after the connection is downgraded to read", async () => {
+    const { id } = await queue();
+    sql("UPDATE ai_connection SET level = 'read'");
+    expect((await approve(id)).json()).toMatchObject({ status: "failed" });
+    expect(sent).toEqual([]);
+  });
+
+  it("does not run an approval after the area is removed", async () => {
+    const { id } = await queue();
+    sql("UPDATE ai_connection SET areas = ?", JSON.stringify(["studio"]));
+    expect((await approve(id)).json()).toMatchObject({ status: "failed" });
+    expect(sent).toEqual([]);
+  });
+
+  it("does not run an approval after its capability group is switched off", async () => {
+    const token = await connect("full", ["email"]);
+    const { data } = await call(token, "email_test_flaky");
+    setCapabilityEnabled("test-group", false);
+    const res = (await approve(data.approvalId)).json();
+    expect(res).toMatchObject({ status: "failed" });
+    expect(res.result.error).toMatch(/no longer allowed/);
+  });
+
+  it("runs the action once, even with duplicate approve clicks", async () => {
+    const { id } = await queue();
+    const [a, b] = await Promise.all([approve(id), approve(id)]);
+    expect([a.statusCode, b.statusCode].sort()).toEqual([200, 409]);
+    expect(sent).toEqual(["a@b.co"]);
+  });
+
+  it("still lets the owner decline after the connection is gone", async () => {
+    const { id } = await queue();
+    sql("UPDATE ai_connection SET revoked_at = ?", Date.now());
+    expect((await api("POST", `/approvals/${id}/decline`)).json().status).toBe("declined");
+  });
+});
+
+describe("permission matrix", () => {
+  it("gives each level only the tiers documented", async () => {
+    const names = async (level: "read" | "assist" | "full") => {
+      const res = await app.inject({ method: "POST", url: "/mcp", payload: { jsonrpc: "2.0", id: 1, method: "tools/list" }, headers: { accept: "application/json, text/event-stream", authorization: `Bearer ${await connect(level, ["email"])}` } });
+      // A level with no tools in scope registers no tools capability at all.
+      if (!res.json().result) return [];
+      return res.json().result.tools.map((t: { name: string }) => t.name);
+    };
+    expect(await names("read")).not.toContain("email_test_send");
+    // Assist and Full may both ask for outward and money actions; every one of them waits for the owner.
+    expect(await names("assist")).toContain("email_test_send");
+    expect(await names("full")).toContain("email_test_send");
+  });
+});
+
+describe("MCP rate limiter", () => {
+  it("forgets connections whose window has ended", async () => {
+    const { overLimit, rateLimitEntries } = await import("../src/ai/mcp.js");
+    const base = rateLimitEntries();
+    for (let i = 0; i < 300; i++) overLimit(`conn-${i}`);
+    expect(rateLimitEntries()).toBeGreaterThan(base);
+    const realNow = Date.now;
+    Date.now = () => realNow() + 120_000;
+    try {
+      overLimit("fresh");
+      expect(rateLimitEntries()).toBeLessThan(5);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+});

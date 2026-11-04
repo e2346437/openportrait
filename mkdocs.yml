@@ -20,9 +20,19 @@ theme:
     - navigation.top
     - search.suggest
     - content.action.edit
+markdown_extensions:
+  - admonition
+  - tables
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
 nav:
   - Home: index.md
   - Getting started:
+      - Start here, choose your setup: start-here.md
       - Install with Docker, Compose or Unraid: install-docker.md
       - Internet access with Cloudflare Tunnel: cloudflare-tunnel.md
       - Importing your data: import.md

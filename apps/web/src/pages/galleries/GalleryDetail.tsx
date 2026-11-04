@@ -24,7 +24,7 @@ export function GalleryDetailPage() {
   const [error, setError] = useState<{ status: number; message: string } | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [emailing, setEmailing] = useState(false);
-  const [defaultLock, setDefaultLock] = useState<DownloadLock>("none");
+  const [defaultLock, setDefaultLock] = useState<DownloadLock>("until_paid");
   const tab = (params.get("tab") as TabId | null) ?? "photos";
 
   const load = useCallback(

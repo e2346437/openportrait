@@ -996,3 +996,9 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .guide .table-scroll { overflow-x: auto; margin: 0 0 1em; }
 .guide table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
 .guide th, .guide td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line-2); }
+
+/* Authorization code: the suggested code sits on a plate so it reads like something to keep, not a form value. */
+.authcode { display: grid; gap: var(--s4); }
+.code-plate { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4) var(--s4) var(--s4) var(--s5); border: 1px solid var(--line-2); border-radius: var(--r-lg); background: var(--surface-2); }
+.code-plate output { font-family: var(--mono); font-size: clamp(20px, 5vw, 28px); font-weight: 600; letter-spacing: 0.04em; color: var(--ink); overflow-wrap: anywhere; }
+.authcode-set { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }

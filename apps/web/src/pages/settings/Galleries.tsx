@@ -11,6 +11,7 @@ interface GallerySettings {
   privateFolders: string[];
   defaultDownloadLock: DownloadLock;
   watermarkText: string;
+  webQuality: number;
 }
 
 /** The studio logo shown on client galleries. */
@@ -94,8 +95,8 @@ export function GallerySettingsPage() {
       .catch((e: Error) => setLoadError(e.message));
   }, []);
 
-  const body = form && { deliveryFolder: form.deliveryFolder, defaultDownloadLock: form.defaultDownloadLock, privateFolders: priv.split(",").map((x) => x.trim()).filter(Boolean) };
-  const dirty = !!saved && !!body && JSON.stringify(body) !== JSON.stringify({ deliveryFolder: saved.deliveryFolder, defaultDownloadLock: saved.defaultDownloadLock, privateFolders: saved.privateFolders });
+  const body = form && { deliveryFolder: form.deliveryFolder, defaultDownloadLock: form.defaultDownloadLock, webQuality: form.webQuality, privateFolders: priv.split(",").map((x) => x.trim()).filter(Boolean) };
+  const dirty = !!saved && !!body && JSON.stringify(body) !== JSON.stringify({ deliveryFolder: saved.deliveryFolder, defaultDownloadLock: saved.defaultDownloadLock, webQuality: saved.webQuality, privateFolders: saved.privateFolders });
   const { busy, error, fieldErrors, submit } = useSubmit(() => api<GallerySettings>("/ingest/settings", { method: "PUT", body }));
 
   const onSubmit = async (e: FormEvent) => {
@@ -132,6 +133,15 @@ export function GallerySettingsPage() {
             </label>
           ))}
         </fieldset>
+      </Panel>
+      <Panel
+        title="Web-size downloads"
+        description="Galleries set to Web size give clients a 2048 px JPEG. This sets how much it is compressed. Full size downloads are never changed."
+      >
+        <Field label={`JPEG quality: ${form.webQuality}`} hint={form.webQuality >= 92 ? "Near-lossless. Files are noticeably larger." : form.webQuality >= 80 ? "Balanced: sharp on screen, a fraction of the original's size." : "Smallest files. Fine detail and skin texture may soften."}>
+          {(p) => <input {...p} type="range" className="range" min={60} max={100} step={1} disabled={!owner} value={form.webQuality} onChange={(e) => setForm({ ...form, webQuality: Number(e.target.value) })} />}
+        </Field>
+        <p className="hint">New quality applies to downloads made after you save. Default is 88.</p>
       </Panel>
       <Panel
         title="Folders"

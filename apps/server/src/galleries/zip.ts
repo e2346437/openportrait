@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { and, eq } from "drizzle-orm";
 import { ZipArchive } from "archiver";
 import { tables, type Db } from "@openportrait/db";
-import { derivativePath, renderVariant } from "./derivatives.js";
+import { derivativePath, renderVariant, WEB_QUALITY } from "./derivatives.js";
 import { downloadState, loadSetsAndPhotos } from "./present.js";
 import type { Originals } from "./originals.js";
 import { LOOSE_SET_NAME } from "./ingest.js";
@@ -82,9 +82,13 @@ export function splitParts(entries: Entry[], max = MAX_PART_BYTES): Entry[][] {
 }
 
 /** Streams one part as a zip. JPEGs don't shrink, so files are stored as they are, which keeps it fast and light on the server. */
-export function streamZip(opts: { originals: Originals; cacheDir: string; gallery: Gallery; entries: Entry[]; onError: (err: Error) => void }) {
+export function streamZip(opts: { originals: Originals; cacheDir: string; webQuality?: number; gallery: Gallery; entries: Entry[]; onError: (err: Error) => void }) {
   const archive = new ZipArchive({ store: true, forceZip64: true });
-  archive.on("error", opts.onError);
+  archive.on("error", (err) => {
+    opts.onError(err);
+    archive.abort();
+  });
+  const quality = opts.webQuality ?? WEB_QUALITY.default;
   archive.on("warning", (w: { code?: string } & Error) => w.code !== "ENOENT" && opts.onError(w));
   void (async () => {
     for (const e of opts.entries) {
@@ -92,11 +96,11 @@ export function streamZip(opts: { originals: Originals; cacheDir: string; galler
       try {
         const date = new Date(e.photo.mtimeMs);
         if (opts.gallery.downloadSize === "web") {
-          const file = derivativePath(opts.cacheDir, opts.gallery.id, e.photo.id, e.photo.version, "web");
+          const file = derivativePath(opts.cacheDir, opts.gallery.id, e.photo.id, e.photo.version, "web", quality);
           if (!fs.existsSync(file)) {
             const src = await opts.originals.materialize(e.photo);
             try {
-              await renderVariant(src.file, file, "web");
+              await renderVariant(src.file, file, "web", quality);
             } finally {
               src.cleanup();
             }
@@ -108,7 +112,11 @@ export function streamZip(opts: { originals: Originals; cacheDir: string; galler
         }
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === "ENOENT") continue; // moved away since the last scan
+        // Any other failure (the store went away mid-zip): stop, so the browser sees a failed download
+        // instead of a "finished" zip that is quietly missing photos.
         opts.onError(err as Error);
+        archive.abort();
+        return;
       }
     }
     void archive.finalize();

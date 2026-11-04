@@ -63,6 +63,8 @@ export interface SettingTypes {
   "galleries.watermark": Partial<WatermarkSpec>;
   /** Set when a custom watermark image has been uploaded; changes with each upload. */
   "galleries.watermarkImageVersion": number;
+  /** JPEG quality (60-100) of "web size" downloads. Missing means 88. */
+  "galleries.webQuality": number;
   "galleries.defaultDownloadLock": "until_paid" | "highlights_early" | "none";
   "ai.enabled": boolean;
   "ai.paused": boolean;

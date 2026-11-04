@@ -4,7 +4,7 @@ import { and, eq, gt, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
-import { derivativePath, renderVariant, VARIANTS, watermarkedPath } from "../galleries/derivatives.js";
+import { derivativePath, renderVariant, VARIANTS, watermarkedPath, webQualityOf } from "../galleries/derivatives.js";
 import { renderWatermarked, watermarkHash } from "../galleries/watermark.js";
 import { newId } from "../galleries/files.js";
 import { allowanceFor, limitMessage } from "../galleries/limits.js";
@@ -391,9 +391,15 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     // Checked and recorded in the same tick, so two quick requests can't both slip under the cap.
     const blocked = req.user ? null : limitMessage(allowanceFor(db, g, who), chosen.length);
     if (blocked) return reply.code(403).send({ error: "limit", message: blocked });
+    // Check the files can be read before any bytes go out: once the zip starts, a failure can only cut it short.
+    const missing = await app.ctx.originals.unreachable(chosen.map((e) => e.photo));
+    if (missing) {
+      app.log.warn({ gallery: g.id, photo: missing.photo, reason: missing.reason }, "zip refused: original unavailable");
+      return reply.code(503).send({ error: "unavailable", message: "Some of these photos can't be downloaded right now. Nothing was sent. Please try again in a little while." });
+    }
     db.insert(downloadEvent).values({ galleryId: g.id, photoId: null, scope: scope.kind === "gallery" ? "gallery" : scope.kind, variant: g.downloadSize === "web" ? "web" : "full", fileCount: chosen.length, clientEmail: req.user ? null : who, ip: app.ctx.ip(req) }).run();
     const name = zipFilename(label, part, parts.length);
-    const archive = streamZip({ originals: app.ctx.originals, cacheDir: app.ctx.config.cacheDir, gallery: g, entries: chosen, onError: (err) => app.log.warn({ err: String(err) }, "zip entry failed") });
+    const archive = streamZip({ originals: app.ctx.originals, cacheDir: app.ctx.config.cacheDir, webQuality: webQualityOf(settings), gallery: g, entries: chosen, onError: (err) => app.log.warn({ err: String(err) }, "zip entry failed") });
     req.raw.on("close", () => {
       if (!reply.raw.writableEnded) archive.abort();
     });
@@ -426,11 +432,12 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     let name = p.filename;
     try {
       if (g.downloadSize === "web") {
-        const file = derivativePath(app.ctx.config.cacheDir, g.id, p.id, p.version, "web");
+        const quality = webQualityOf(settings);
+        const file = derivativePath(app.ctx.config.cacheDir, g.id, p.id, p.version, "web", quality);
         if (!fs.existsSync(file)) {
           const src = await app.ctx.originals.materialize(p);
           try {
-            await renderVariant(src.file, file, "web");
+            await renderVariant(src.file, file, "web", quality);
           } finally {
             src.cleanup();
           }

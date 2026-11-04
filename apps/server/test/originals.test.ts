@@ -99,6 +99,54 @@ describe("remote originals", () => {
     expect(zip.rawPayload.length).toBeGreaterThan(bytes.length);
   });
 
+  it("refuses a zip before sending anything when the store is detached or unreachable", async () => {
+    const { id, slug, photo, cookie } = await setup();
+    offload(photo.id);
+    await studio("POST", `/galleries/${id}/unlock`, {});
+    const zip = () => app.inject({ url: `/api/g/${slug}/zip?scope=gallery`, headers: { cookie } });
+    app.ctx.originals.setStore(null);
+    expect((await zip()).statusCode).toBe(503);
+    // Attached but down (B2 outage): the probe fails, so no half-zip goes out.
+    app.ctx.originals.setStore({ get: async () => { throw new Error("connect ETIMEDOUT"); }, delete: async () => {} });
+    const down = await zip();
+    expect(down.statusCode).toBe(503);
+    expect(down.json().error).toBe("unavailable");
+    expect(app.ctx.db.select().from(tables.downloadEvent).all()).toHaveLength(0); // a failed attempt does not use up the client's download cap
+    app.ctx.originals.setStore(store);
+    expect((await zip()).statusCode).toBe(200);
+  });
+
+  it("stops the zip instead of finishing it short when the store fails part-way", async () => {
+    const { id, slug, photo, cookie } = await setup();
+    offload(photo.id);
+    await studio("POST", `/galleries/${id}/unlock`, {});
+    let calls = 0;
+    // The probe works; the real read then fails.
+    app.ctx.originals.setStore({ get: async () => { if (++calls > 1) throw new Error("connection reset"); return { stream: Readable.from([objects.get("k1")!]), size: 1 }; }, delete: async () => {} });
+    const res = await app.inject({ url: `/api/g/${slug}/zip?scope=gallery`, headers: { cookie } }).catch(() => null);
+    // No complete zip (no end-of-central-directory record) reaches the client.
+    expect(!res || !res.rawPayload.includes(Buffer.from([0x50, 0x4b, 0x05, 0x06]))).toBe(true);
+  });
+
+  it("web-size zips use the studio's JPEG quality", async () => {
+    const { id, slug, photo, cookie } = await setup();
+    await sharp({ create: { width: 2600, height: 1800, channels: 3, noise: { type: "gaussian", mean: 128, sigma: 40 } } }).jpeg().toFile(path.join(share, "Kim/big.jpg"));
+    const past = new Date(Date.now() - 3_600_000);
+    fs.utimesSync(path.join(share, "Kim/big.jpg"), past, past);
+    await studio("POST", "/ingest/rescan");
+    await app.ctx.galleries.syncGallery(id);
+    await app.ctx.jobs.drain();
+    await studio("POST", `/galleries/${id}/unlock`, {});
+    await studio("PATCH", `/galleries/${id}`, { downloadSize: "web" });
+    void photo;
+    const size = async () => (await app.inject({ url: `/api/g/${slug}/zip?scope=gallery`, headers: { cookie } })).rawPayload.length;
+    expect((await studio("GET", "/ingest/settings")).json().webQuality).toBe(88);
+    const high = await size();
+    expect((await app.inject({ method: "PUT", url: "/api/studio/ingest/settings", payload: { ...(await studio("GET", "/ingest/settings")).json(), webQuality: 60 }, headers: { cookie: staff } })).statusCode).toBe(200);
+    expect(await size()).toBeLessThan(high);
+    expect((await app.inject({ method: "PUT", url: "/api/studio/ingest/settings", payload: { ...(await studio("GET", "/ingest/settings")).json(), webQuality: 20 }, headers: { cookie: staff } })).statusCode).toBe(400);
+  });
+
   it("keeps the photo in the gallery after a rescan and rebuilds previews from the store", async () => {
     const { id, photo } = await setup();
     offload(photo.id);

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ThemeToggle } from "../components/ThemeToggle.js";
 import { Mark } from "@openportrait/ui";
 
 export function AuthLayout({ headline, body, children }: { headline: string; body?: string; children: ReactNode }) {
@@ -15,6 +16,7 @@ export function AuthLayout({ headline, body, children }: { headline: string; bod
         </div>
       </aside>
       <main className="auth-main">
+        <ThemeToggle className="auth-theme" />
         <div className="auth-card">{children}</div>
       </main>
     </div>

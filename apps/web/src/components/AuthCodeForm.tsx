@@ -1,4 +1,29 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+
+const QUOTE = "The needs of the many outweigh the needs of the few. Or the one.".split(" ");
+
+/** Easter egg: a faint glyph beside the code. Hover, focus or tap it for a short starfield clip. */
+function Egg() {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="egg" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button type="button" className="egg-glyph" aria-label="A small surprise" aria-expanded={open} onClick={() => setOpen(!open)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}>
+        🖖
+      </button>
+      {open ? (
+        <span className="egg-clip" role="img" aria-label="The needs of the many outweigh the needs of the few. Or the one.">
+          <i className="stars s1" />
+          <i className="stars s2" />
+          <span className="egg-quote" aria-hidden="true">
+            {QUOTE.map((w, i) => (
+              <span key={i} style={{ animationDelay: `${0.5 + i * 0.28}s` }}>{w} </span>
+            ))}
+          </span>
+        </span>
+      ) : null}
+    </span>
+  );
+}
 import { Button, Callout, Field, TextInput } from "@openportrait/ui";
 import { api, type AiStatus } from "../lib/api.js";
 import { useSubmit } from "../lib/useForm.js";
@@ -41,6 +66,7 @@ export function AuthCodeForm({ replacing, onSaved, onSkip }: { replacing?: boole
       ) : (
         <div className="code-plate" role="group" aria-label="Suggested authorization code">
           <output aria-live="polite">{code || "…"}</output>
+          <Egg />
           <Button type="button" variant="ghost" size="sm" icon="refresh" onClick={() => void shuffle()} aria-label="Suggest a different code">
             Another
           </Button>

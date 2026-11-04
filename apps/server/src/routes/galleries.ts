@@ -490,7 +490,7 @@ export async function ingestRoutes(app: FastifyInstance) {
   app.get("/settings", async () => ({
     deliveryFolder: settings.get("galleries.deliveryFolder") || "Gallery",
     privateFolders: settings.get("galleries.privateFolders") ?? ["Originals"],
-    defaultDownloadLock: settings.get("galleries.defaultDownloadLock") ?? "none",
+    defaultDownloadLock: settings.get("galleries.defaultDownloadLock") ?? "until_paid",
     watermarkText: settings.get("galleries.watermarkText") ?? "",
   }));
 

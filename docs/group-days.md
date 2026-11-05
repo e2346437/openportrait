@@ -44,7 +44,9 @@ Open **Incoming**, find the camera folder and choose **Sort by name cards**.
 ![Sorting a camera folder by name cards, with numbered callouts](img/group-day-sort.png)
 
 1. **Tap each photo that shows a name card.** Photos are shown in the order they were taken. Each card is numbered Person 1, Person 2 and so on, and the photos after it count toward that person.
-2. **Type each name as written.** Add an email if you have one so the person can get their gallery later. The heading shows how many photos each person has.
+2. **Type each name as written, or pick someone already here.** As you type, the box suggests people already on the day. Add an email if you have one so the person can get their gallery later. The heading shows how many photos each person has.
+
+    If you type only a name and it matches someone already on the day (capitals and extra spaces do not matter), that person is reused and the photos join their shoot. A second name card for the same person never creates a duplicate. If you add an email, the email decides who the person is instead.
 3. **Choose the group day** the people belong to.
 4. **Create people and sort.** Each person gets a shoot, a folder and their photos in it. Photos before the first name card stay in Incoming.
 
@@ -123,3 +125,4 @@ Leave a person off the page by switching **Show on the organisation's page** off
 - A person's gallery is an ordinary gallery. Everything in the [client galleries guide](galleries-guide.md) applies to it, including protected proofing.
 - The organisation's page never shows email addresses, invoices or downloads.
 - Photos not under a name card stay in Incoming. Nothing is deleted.
+- Two different people with exactly the same name and no email are treated as one person. Add an email to one of them to keep them apart.

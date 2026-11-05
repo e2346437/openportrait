@@ -5,6 +5,7 @@ import { useSession } from "../../lib/session.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { WatermarkPanel } from "./WatermarkPanel.js";
 import { BrandImagePanel } from "../../components/BrandImagePanel.js";
+import { ProofingPanel } from "./ProofingPanel.js";
 import { LOCK_LABELS, type DownloadLock } from "../../lib/galleries.js";
 
 interface GallerySettings {
@@ -60,6 +61,7 @@ export function GallerySettingsPage() {
       alt="Studio logo"
     />
     <WatermarkPanel owner={owner} />
+    <ProofingPanel owner={owner} />
     <form onSubmit={onSubmit} noValidate className="stack">
       {error ? <Callout tone="bad">{error}</Callout> : null}
       <Panel

@@ -63,6 +63,8 @@ export interface SettingTypes {
   "galleries.watermarkText": string;
   /** How the watermark looks (see galleries/watermark.ts). Missing means the defaults. */
   "galleries.watermark": Partial<WatermarkSpec>;
+  /** Studio default for Protected Proofing (see galleries/proofing.ts). Missing means Balanced, only while downloads are locked. */
+  "galleries.proofing": Partial<{ mode: "light" | "balanced" | "strong"; apply: "locked" | "always" | "off"; maxLongEdge: number | null }>;
   /** Set when a custom watermark image has been uploaded; changes with each upload. */
   "galleries.watermarkImageVersion": number;
   /** JPEG quality (60-100) of "web size" downloads. Missing means 88. */
@@ -70,6 +72,9 @@ export interface SettingTypes {
   "galleries.defaultDownloadLock": "until_paid" | "highlights_early" | "none";
   "ai.enabled": boolean;
   "ai.paused": boolean;
+  /** Argon2 hash of the owner's authorization code for sensitive AI actions (see ai/authcode.ts). Empty means none set. */
+  "ai.authCodeHash": string;
+  "ai.authCodeSetAt": number;
   "automation.mode": "built-in" | "ai";
   /** Per-automation owner, keyed by automation id. Missing means "follow the mode". */
   "automation.overrides": Record<string, "built-in" | "ai" | "off">;

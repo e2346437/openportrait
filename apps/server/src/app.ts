@@ -24,6 +24,7 @@ import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
 import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
 import { watermarkRoutes } from "./routes/watermark.js";
+import { proofingRoutes } from "./routes/proofing.js";
 import { siteRoutes } from "./routes/site.js";
 import { registerFreeTemplates } from "./site/templates.js";
 import { mcpRoutes } from "./ai/mcp.js";
@@ -267,6 +268,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(galleryRoutes, { prefix: "/api/studio/galleries" });
   await app.register(ingestRoutes, { prefix: "/api/studio/ingest" });
   await app.register(watermarkRoutes, { prefix: "/api/studio/watermark" });
+  await app.register(proofingRoutes, { prefix: "/api/studio/proofing" });
   registerFreeTemplates();
   await app.register(siteRoutes, { prefix: "/api/studio/site" });
   // Client pages and their media are public; the private link (and signed media URLs) are the key.

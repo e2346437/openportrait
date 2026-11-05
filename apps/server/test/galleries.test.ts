@@ -324,20 +324,20 @@ describe("watermark", () => {
 
     // No lock: nothing is marked.
     await studio("POST", `/galleries/${id}/publish`, { downloadLock: "none" });
-    expect(find(await photos(), "f1.jpg").preview).not.toContain("-wm-");
+    expect(find(await photos(), "f1.jpg").preview).not.toContain("-pf-");
 
     // Locked until paid: marked. Highlights early: only the early set is clean.
     await studio("POST", `/galleries/${id}/publish`, { downloadLock: "highlights_early" });
     let list = await photos();
-    expect(find(list, "f1.jpg").preview).toContain("preview-wm-");
-    expect(find(list, "h1.jpg").preview).not.toContain("-wm-");
+    expect(find(list, "f1.jpg").preview).toContain("preview-pf-");
+    expect(find(list, "h1.jpg").preview).not.toContain("-pf-");
     const clean = await app.inject(find(list, "h1.jpg").preview);
     const marked = await app.inject(find(list, "f1.jpg").preview);
     expect(marked.statusCode).toBe(200);
     expect(marked.headers["content-type"]).toBe("image/webp");
     expect(marked.rawPayload.equals(clean.rawPayload)).toBe(false);
     // The watermark really is in the pixels: the marked version differs from the same photo unmarked.
-    const unmarkedSame = await app.inject(find(await photos(), "f1.jpg").preview.replace("-wm-", "-x-"));
+    const unmarkedSame = await app.inject(find(await photos(), "f1.jpg").preview.replace("-pf-", "-x-"));
     expect(unmarkedSame.statusCode).toBe(404); // a variant you can't sign is refused
     const a = await sharp(clean.rawPayload).raw().toBuffer();
     const b = await sharp(marked.rawPayload).raw().toBuffer();
@@ -352,7 +352,7 @@ describe("watermark", () => {
     // Paid: previews are clean again, and the downloaded file was never marked.
     await studio("POST", `/galleries/${id}/unlock`, { locked: false });
     list = await photos();
-    expect(find(list, "f1.jpg").preview).not.toContain("-wm-");
+    expect(find(list, "f1.jpg").preview).not.toContain("-pf-");
     const photo = (await studio("GET", `/galleries/${id}`)).json().photos.find((p: { filename: string }) => p.filename === "f1.jpg");
     const dl = await app.inject({ method: "GET", url: `/api/g/${slug}/photos/${photo.id}/download`, headers: { cookie } });
     expect(dl.statusCode).toBe(200);

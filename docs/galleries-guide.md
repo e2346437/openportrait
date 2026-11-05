@@ -85,6 +85,28 @@ Previews that carry the watermark are also re-drawn smaller, with the marks spre
 
 This deters casual copying and lowers the quality of anything copied. It does not stop screenshots or every attempt to recreate a photo, so keep downloads locked until you are paid.
 
+```mermaid
+flowchart TD
+    A[Client opens a gallery] --> B{Protect previews setting}
+    B -- Never --> C[Clean preview]
+    B -- Always --> D[Protected preview]
+    B -- While downloads are locked --> E{Downloads locked?}
+    E -- Yes --> D
+    E -- No, or paid --> C
+    D --> F[Re-drawn smaller on your server, with an irregular textured watermark]
+```
+
+![Protected proofing settings with numbered callouts](img/galleries-protected-proofing.png)
+
+1. **Strength** sets the preview size: Light 1800 px, Balanced 1400 px (default) or Strong 1000 px.
+2. **Protect previews** chooses when it applies: while downloads are locked (default), always, or never.
+3. **Preview size** fine-tunes the size from 600 to 2048 px. The side-by-side sample shows the original and what a client sees.
+4. **Save protection** applies the choice to every gallery that follows the studio default.
+
+Each gallery can override this in its own **Settings** tab.
+
+**Trade-offs.** Stronger protection gives a copier less to work with, but previews look softer on high-density screens. Check one on your phone. It deters casual copying. It cannot stop screenshots or all AI recreation, so it does not replace locking downloads. It is free, and originals are never touched.
+
 ## Favorites and proofing
 
 - Each gallery has a **Favorites** list. Add more lists with a limit, such as "Album picks (40)".

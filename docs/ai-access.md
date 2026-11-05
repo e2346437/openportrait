@@ -11,6 +11,11 @@ Go to **Settings > Connect your AI** (owner only) and switch it on. Remote assis
 - **Claude and ChatGPT** (custom connectors): paste the address into the connector. The assistant opens an OpenPortrait sign-in and consent page, and you approve the access it asks for.
 - **Claude Code, Cursor and scripts:** create an access token on the same page. The token is shown once, so copy it then. It is stored only as a hash.
 
+![Connect your AI settings with the access switch highlighted](img/ai-access-toggle.png)
+
+1. The status line says whether AI access is on or off.
+2. The switch is the only control that turns access on. Turning it off stops every connected assistant at once.
+
 The page confirms the connection the first time the assistant calls OpenPortrait. **Test connection** runs a harmless read.
 
 ## Choose what it can do
@@ -39,6 +44,10 @@ Client-written text, such as inquiry messages and questionnaire answers, is pass
 - An assistant can only email people who are already your contacts.
 - Every call is written to the activity log with the connection, the tool, the result, and who approved it. **Settings > Connect your AI > Activity** shows it as a timeline.
 - No tool returns passwords, tokens or the tunnel secret, and no tool can change access settings.
+
+## Give it a good brief
+
+A connected assistant works best when it knows what OpenPortrait is and how approvals work. Paste the [starter prompt](ai-prompt.md) into your assistant's instructions.
 
 ## Stop it
 

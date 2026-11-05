@@ -52,6 +52,7 @@ nav:
   - Website and AI:
       - Website builder: website.md
       - Connect your AI: ai-access.md
+      - A starter prompt for your AI: ai-prompt.md
   - Developers:
       - Extensions: extensions.md
   - Reference:

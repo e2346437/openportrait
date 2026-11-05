@@ -144,3 +144,50 @@ describe("group day folders", () => {
     expect((await call("POST", `/shoots/${s.id}/group-day`, {})).status).toBe(400);
   });
 });
+
+describe("sorting by name cards", () => {
+  function drop(name: string, secondsAgo: number) {
+    const incoming = path.join(app.ctx.config.incomingDir, "Z9");
+    fs.mkdirSync(incoming, { recursive: true });
+    const f = path.join(incoming, name);
+    fs.writeFileSync(f, name);
+    const t = new Date(Date.now() - secondsAgo * 1000);
+    fs.utimesSync(f, t, t);
+    return `Z9/${name}`;
+  }
+
+  it("assigns every frame from a name card to the next to that person and moves the files", async () => {
+    const day = await makeDay();
+    const stray = drop("A0.nef", 600);
+    const c1 = drop("A1.nef", 500);
+    const a2 = drop("A2.nef", 490);
+    const a3 = drop("A3.nef", 480);
+    const c2 = drop("A4.nef", 400);
+    const b1 = drop("A5.nef", 390);
+    const r = await call("POST", "/incoming/sort", { parentId: day, paths: [b1, c2, a3, stray, c1, a2], cards: [{ path: c1, name: "Jane Smith", email: "jane@example.com" }, { path: c2, name: "Marcus Webb" }] });
+    expect(r.status).toBe(200);
+    expect(r.body.leftOver).toBe(1);
+    expect(r.body.moved).toBe(5);
+    expect(r.body.people.map((p: { subject: string; frames: number }) => [p.subject, p.frames])).toEqual([["Jane Smith", 3], ["Marcus Webb", 2]]);
+    const jane = (await call("GET", `/shoots/${day}`)).body.children.find((c: { subject: string }) => c.subject === "Jane Smith");
+    expect(fs.readdirSync(path.join(galleries, jane.folderPath, "Originals", "RAW")).sort()).toEqual(["A1.nef", "A2.nef", "A3.nef"]);
+    expect(fs.existsSync(path.join(app.ctx.config.incomingDir, "Z9", "A0.nef"))).toBe(true);
+  });
+
+  it("changes nothing when a request is wrong", async () => {
+    const day = await makeDay();
+    const a = drop("B1.nef", 300);
+    expect((await call("POST", "/incoming/sort", { parentId: day, paths: [a], cards: [{ path: "Z9/nope.nef", name: "X" }] })).status).toBe(400);
+    expect((await call("POST", "/incoming/sort", { parentId: day, paths: [a], cards: [{ path: a, name: " " }] })).status).toBe(400);
+    expect((await call("GET", `/shoots/${day}`)).body.children).toHaveLength(0);
+    expect(fs.existsSync(path.join(app.ctx.config.incomingDir, a))).toBe(true);
+  });
+
+  it("refuses an ordinary shoot", async () => {
+    const types = (await call("GET", "/shoot-types")).body.types as Array<{ id: string }>;
+    const c = (await call("POST", "/contacts", { firstName: "A", lastName: "B" })).body;
+    const s = (await call("POST", "/shoots", { primaryContactId: c.id, shootTypeId: types[0]!.id })).body.shoot;
+    const a = drop("C1.nef", 300);
+    expect((await call("POST", "/incoming/sort", { parentId: s.id, paths: [a], cards: [{ path: a, name: "X" }] })).status).toBe(400);
+  });
+});

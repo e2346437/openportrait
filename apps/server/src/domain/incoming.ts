@@ -4,7 +4,7 @@ import path from "node:path";
 import { DomainError, type ServiceContext } from "./context.js";
 import { incomingSubfolderHooks } from "../extension-hooks.js";
 import { resolveInside, safeSegment } from "./folders.js";
-import { folderSettings, getShoot, listShoots } from "./shoots.js";
+import { addChild, folderSettings, getShoot, listShoots } from "./shoots.js";
 import { scanPhotos } from "./tether.js";
 import { ymdIn } from "./time.js";
 
@@ -151,6 +151,70 @@ export async function moveToShoot(ctx: ServiceContext, shootId: string, paths: s
       fs.rmSync(target, { force: true });
       skip(p, `Couldn't copy it: ${(err as Error).message}`);
     }
+  }
+  return result;
+}
+
+export interface NameCard {
+  /** The Incoming path of the frame showing the person's name (the whiteboard photo). */
+  path: string;
+  name: string;
+  email?: string | null;
+}
+
+export interface SortResult {
+  people: Array<{ shootId: string; subject: string; frames: number; created: boolean; matched: boolean }>;
+  moved: number;
+  skipped: MoveResult["skipped"];
+  /** Frames taken before the first name card; they stay in Incoming. */
+  leftOver: number;
+}
+
+/**
+ * Splits a pile of frames from one group day into people. Frames are put in the order they were taken; each name card
+ * starts a person, and every frame up to the next card belongs to them (the card itself is their first frame).
+ * Nothing moves until the whole request checks out, so a typo doesn't leave a half-sorted day.
+ */
+export async function sortByNameCards(ctx: ServiceContext, parentId: string, input: { paths: string[]; cards: NameCard[] }): Promise<SortResult> {
+  const parent = getShoot(ctx, parentId);
+  if (parent.kind !== "group_day") throw new DomainError("invalid", "Make this shoot a group day first.", 400);
+  const paths = [...new Set(input.paths)];
+  if (!input.cards.length) throw new DomainError("invalid", "Mark at least one name card.", 400);
+  const stamped = paths.map((p) => {
+    let st: fs.Stats;
+    try {
+      st = fs.statSync(resolveInside(ctx.config.incomingDir, p));
+    } catch {
+      throw new DomainError("invalid", `${p} is no longer in Incoming. Reload and try again.`, 409);
+    }
+    return { p, t: st.mtimeMs };
+  });
+  stamped.sort((a, b) => a.t - b.t || a.p.localeCompare(b.p, undefined, { numeric: true }));
+  const order = stamped.map((s) => s.p);
+  const seen = new Set<string>();
+  for (const c of input.cards) {
+    if (!order.includes(c.path)) throw new DomainError("invalid", "A name card isn't among the selected photos.", 400);
+    if (seen.has(c.path)) throw new DomainError("invalid", "A photo can only start one person.", 400);
+    seen.add(c.path);
+    if (!c.name.trim()) throw new DomainError("invalid", "Every name card needs a name.", 400);
+  }
+  const byPath = new Map(input.cards.map((c) => [c.path, c]));
+  const groups: Array<{ card: NameCard; files: string[] }> = [];
+  let leftOver = 0;
+  for (const p of order) {
+    const card = byPath.get(p);
+    if (card) groups.push({ card, files: [p] });
+    else if (groups.length) groups[groups.length - 1]!.files.push(p);
+    else leftOver++;
+  }
+  const result: SortResult = { people: [], moved: 0, skipped: [], leftOver };
+  for (const g of groups) {
+    const added = addChild(ctx, parentId, { name: g.card.name, email: g.card.email });
+    if (added.folderError) throw new DomainError("folder", `${g.card.name}: ${added.folderError}`, 409);
+    const moved = await moveToShoot(ctx, added.child.id, g.files);
+    result.moved += moved.moved;
+    result.skipped.push(...moved.skipped);
+    result.people.push({ shootId: added.child.id, subject: added.child.subject, frames: moved.moved, created: !added.duplicate, matched: added.matched });
   }
   return result;
 }

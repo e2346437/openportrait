@@ -187,3 +187,12 @@ input.input.date { max-width: 200px; }
 .limit-input { display: flex; align-items: center; gap: 8px; }
 .limit-input .input { max-width: 140px; }
 .limit-input .unit { color: var(--ink-3); font-size: 13px; }
+
+/* Storage tab */
+.storage-rows { display: grid; gap: var(--s5); }
+.storage-row { display: grid; gap: var(--s3); }
+.storage-row + .storage-row { padding-top: var(--s5); border-top: 1px solid var(--line); }
+.storage-row-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--s2) var(--s4); }
+.storage-row-head h3 { margin: 0; font-size: 15px; }
+.storage-row-head .hint { margin: 2px 0 0; }
+.storage-row .segmented { max-width: 100%; flex-wrap: wrap; }

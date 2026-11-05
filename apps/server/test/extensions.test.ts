@@ -213,4 +213,33 @@ describe("extension mail sender", () => {
     g.__ready = false;
     expect(await view()).toMatchObject({ configured: false });
   });
+
+  it("creates camera logins for an add-on without storing or auditing the password, and lists its crew panel", async () => {
+    const cookie = await boot({
+      "crew.mjs": `export function register(api) {
+        api.crewPanel("/crew");
+        api.routes(async (r) => {
+          r.post("/cam", async (req) => api.createCameraLogin({ label: req.body.label }));
+          r.post("/reset", async (req) => ({ password: await api.resetCameraLogin(req.body.id) }));
+          r.post("/off", async (req) => { api.setCameraLoginDisabled(req.body.id, req.body.off); return {}; });
+        });
+      }`,
+    });
+    const owner = { cookie };
+    const post = (url: string, payload: object) => app!.inject({ method: "POST", url, payload, headers: owner });
+    expect((await app!.inject({ url: "/api/studio/extensions", headers: owner })).json().extensions[0].crewPanel).toBe("/crew");
+    const cam = (await post("/api/studio/extensions/crew/cam", { label: "Maya's camera" })).json();
+    expect(cam.password.length).toBeGreaterThanOrEqual(16);
+    expect(cam.folder).toBe("Maya's camera");
+    const reset = (await post("/api/studio/extensions/crew/reset", { id: cam.id })).json();
+    expect(reset.password).not.toBe(cam.password);
+    await post("/api/studio/extensions/crew/off", { id: cam.id, off: true });
+    const list = (await app!.inject({ url: "/api/studio/upload", headers: owner })).json();
+    expect(list.accounts.find((a: { id: string }) => a.id === cam.id).disabled).toBe(true);
+    expect(JSON.stringify(list)).not.toContain(cam.password);
+    const audit = JSON.stringify(app!.ctx.db.$client.prepare("SELECT action, detail FROM audit_log").all());
+    expect(audit).toContain("upload.camera_added");
+    expect(audit).not.toContain(cam.password);
+    expect(audit).not.toContain(reset.password);
+  });
 });

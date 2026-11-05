@@ -241,6 +241,21 @@ export interface ExtensionApi {
   limitUsersToShoots(fn: ShootScopeHook): void;
   /** Creates a "staff" sign-in with a generated password, shown once to the owner. Rejects an email already in use. */
   createStaffLogin(input: { email: string; name: string }): Promise<{ id: string; password: string }>;
+  /**
+   * Creates a camera upload login (jailed to its own folder in Incoming, upload only) with a generated password,
+   * returned once and never stored in readable form. Recorded in Activity without the password.
+   */
+  createCameraLogin(input: { label: string }): Promise<{ id: string; label: string; username: string; folder: string; password: string }>;
+  /** Replaces a camera login's password with a new generated one, returned once. The old password stops working for new sign-ins at once. */
+  resetCameraLogin(id: string): Promise<string>;
+  /** Turns a camera login off or on. A disabled login can't sign in; photos it already sent stay in Incoming. */
+  setCameraLoginDisabled(id: string, disabled: boolean): void;
+  /**
+   * Replaces the built-in "add-on" prompt on each shoot with a crew panel: add people (creating them on the spot),
+   * set up or fix their camera logins, and see whether each camera has connected. `route` is under this extension's
+   * routes and must answer the contract in docs/extensions.md ("Crew panel").
+   */
+  crewPanel(route: string): void;
   /** Runs when the app shuts down. */
   onClose(fn: () => void | Promise<void>): void;
   /** Adds to the website builder: more templates, fields in its "More" tab, pages, CSS, and files. Can be undone when no longer allowed. */
@@ -263,6 +278,8 @@ export interface ExtensionInfo {
   cards: SettingsCard[];
   reports: ReportSection[];
   shootCards: SettingsCard[];
+  /** Route of the crew panel this add-on shows on each shoot, if any. */
+  crewPanel?: string;
   pages: ExtensionPage[];
 }
 
@@ -316,6 +333,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       const reports: ReportSection[] = [];
       const shootCards: SettingsCard[] = [];
       const pages: ExtensionPage[] = [];
+      let crewPanel: string | undefined;
       await mod.register({
         id,
         appVersion: VERSION,
@@ -350,6 +368,24 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
           ctx.db.insert(tables.user).values({ id: userId, email: mail, name: name.trim().slice(0, 80) || mail, passwordHash: await hashPassword(password), role: "staff" }).run();
           ctx.db.insert(tables.auditLog).values({ action: "auth.staff_created", detail: { userId, via: id } }).run();
           return { id: userId, password };
+        },
+        createCameraLogin: async ({ label }) => {
+          const { account, password } = await ctx.uploads.accounts.create({ label });
+          ctx.db.insert(tables.auditLog).values({ action: "upload.camera_added", detail: { label: account.label, username: account.username, via: id } }).run();
+          return { id: account.id, label: account.label, username: account.username, folder: account.folder, password };
+        },
+        resetCameraLogin: async (cameraId) => {
+          const password = await ctx.uploads.accounts.resetPassword(cameraId);
+          ctx.db.insert(tables.auditLog).values({ action: "upload.camera_password_reset", detail: { id: cameraId, via: id } }).run();
+          return password;
+        },
+        setCameraLoginDisabled: (cameraId, disabled) => {
+          ctx.uploads.accounts.update(cameraId, { disabled });
+          ctx.db.insert(tables.auditLog).values({ action: disabled ? "upload.camera_disabled" : "upload.camera_enabled", detail: { id: cameraId, via: id } }).run();
+        },
+        crewPanel: (route) => {
+          if (!/^\/[\w\-/{}]*$/.test(route)) throw new Error(`crew panel route "${route}" must be a path such as /crew`);
+          crewPanel = route;
         },
         backupProvider: (provider) => {
           if (provider.kind === "folder") throw new Error('backup provider kind "folder" is built in');
@@ -389,6 +425,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       info.cards = cards;
       info.reports = reports;
       info.shootCards = shootCards;
+      info.crewPanel = crewPanel;
       info.pages = pages;
       info.status = "loaded";
       app.log.info({ extension: id, sha256: info.sha256 }, "extension loaded");

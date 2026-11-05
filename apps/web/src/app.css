@@ -1017,3 +1017,23 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 @keyframes egg-word { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes egg-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .egg-clip .stars { animation: none; } .egg-quote span { animation: none; opacity: 1; } .egg-clip { animation: none; } }
+
+/* ---- shoot crew panel ---- */
+.crew-list { list-style: none; margin: 0; padding: 0; }
+.crew-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.crew-row:first-child { border-top: 0; }
+.crew-who { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; }
+.crew-who small { color: var(--ink-3); }
+.crew-cam { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.crew-menu { position: relative; }
+.crew-menu-pop { position: absolute; right: 0; top: 100%; z-index: 20; min-width: 220px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 6px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18); display: flex; flex-direction: column; }
+.crew-menu-pop button { background: none; border: 0; text-align: left; padding: 9px 10px; border-radius: 8px; font: inherit; color: var(--ink); cursor: pointer; }
+.crew-menu-pop button:hover, .crew-menu-pop button:focus-visible { background: var(--surface-2); }
+.crew-menu-pop button.danger { color: var(--bad); }
+.crew-pick { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: var(--r); padding: 4px; }
+.crew-pick button { display: flex; align-items: center; gap: var(--s3); background: none; border: 0; padding: 9px 10px; border-radius: 8px; font: inherit; color: var(--ink); text-align: left; cursor: pointer; min-height: 44px; }
+.crew-pick button:hover, .crew-pick button:focus-visible { background: var(--surface-2); }
+.crew-pick small { margin-left: auto; color: var(--ink-3); }
+.crew-plus { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 700; flex: none; }
+.crew-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+@media (max-width: 560px) { .crew-two { grid-template-columns: minmax(0, 1fr); } .crew-cam { width: 100%; } .crew-menu-pop { left: 0; right: auto; max-width: calc(100vw - 48px); } }

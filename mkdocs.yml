@@ -37,6 +37,7 @@ nav:
       - Internet access with Cloudflare Tunnel: cloudflare-tunnel.md
       - Importing your data: import.md
   - Running your studio:
+      - The Home screen: home.md
       - Email, inquiry form and booking pages: booking.md
       - Questionnaires: questionnaires.md
       - Contracts and e-signatures: contracts.md

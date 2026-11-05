@@ -8,13 +8,7 @@ Pages in this guide cover the open-source app. Pro add-on features are documente
 
 ## Find your way around
 
-**Home** shows your next shoots and a short setup checklist. Each row of the checklist opens the right settings page.
-
-![Home screen with numbered callouts](img/dashboard-home.png)
-
-1. **This week** lists your next shoots and anything waiting on you.
-2. **Get your studio ready** is the setup checklist. Rows tick off as you finish them.
-3. **Set up** jumps straight to the page for that step, such as putting your studio online.
+**Home** is your daily overview. See [The Home screen](home.md).
 
 **Leads** is a board of inquiries. Drag a card to the next stage as the conversation moves on.
 

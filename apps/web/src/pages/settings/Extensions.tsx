@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { Button, Callout, EmptyState, Field, Panel, Segmented, Spinner, StatusChip, TextInput, useToast } from "@openportrait/ui";
+import { CrewPanel } from "../../components/CrewPanel.js";
 import { api } from "../../lib/api.js";
 import { useLoad } from "../../lib/useLoad.js";
 
@@ -282,6 +283,7 @@ export function ExtensionsSettingsPage() {
   return (
     <div className="stack">
       {cards.map(({ id, card }) => <ExtensionCard key={`${id}/${card.title}`} id={id} card={card} />)}
+      {data.extensions.filter((e) => e.status === "loaded" && e.crewPanel).map((e) => <CrewPanel key={`${e.id}/crew`} extId={e.id} route={e.crewPanel!} />)}
       {failed.map((e) => <Callout key={e.id} tone="warn" title={`The “${e.id}” extension didn't load`}>{e.error}</Callout>)}
       {!cards.length && !failed.length ? <EmptyState icon="sparkle" title="No extensions installed">Extensions add optional features. Put one in the extensions folder of your config directory and restart.</EmptyState> : null}
     </div>

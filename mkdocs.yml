@@ -42,6 +42,7 @@ nav:
       - Questionnaires: questionnaires.md
       - Contracts and e-signatures: contracts.md
       - Quotes, invoices and coupons: orders.md
+      - Group days: group-days.md
       - Client galleries, step by step: galleries-guide.md
       - Galleries design notes: GALLERIES.md
       - Tasks: tasks.md

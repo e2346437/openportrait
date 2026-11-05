@@ -1,10 +1,12 @@
 import crypto from "node:crypto";
+import { and, asc, eq } from "drizzle-orm";
+import { tables } from "@openportrait/db";
 import fs from "node:fs";
 import path from "node:path";
-import { DomainError, type ServiceContext } from "./context.js";
+import { DomainError, newId, type ServiceContext } from "./context.js";
 import { incomingSubfolderHooks } from "../extension-hooks.js";
 import { resolveInside, safeSegment } from "./folders.js";
-import { addChild, folderSettings, getShoot, listShoots } from "./shoots.js";
+import { addChild, ensureChildFolder, folderSettings, getShoot, listChildren, listShoots } from "./shoots.js";
 import { scanPhotos } from "./tether.js";
 import { ymdIn } from "./time.js";
 
@@ -156,6 +158,8 @@ export async function moveToShoot(ctx: ServiceContext, shootId: string, paths: s
 }
 
 export interface NameCard {
+  /** A person already on the day. Their existing shoot is used instead of making one. */
+  childId?: string | null;
   /** The Incoming path of the frame showing the person's name (the whiteboard photo). */
   path: string;
   name: string;
@@ -209,12 +213,76 @@ export async function sortByNameCards(ctx: ServiceContext, parentId: string, inp
   }
   const result: SortResult = { people: [], moved: 0, skipped: [], leftOver };
   for (const g of groups) {
-    const added = addChild(ctx, parentId, { name: g.card.name, email: g.card.email });
+    let added: ReturnType<typeof addChild>;
+    if (g.card.childId) {
+      const child = listChildren(ctx, parentId).find((c) => c.id === g.card.childId);
+      if (!child) throw new DomainError("invalid", `${g.card.name} isn't on this day any more.`, 409);
+      added = { child, matched: true, duplicate: true, folderError: child.folderPath ? null : ensureChildFolder(ctx, child.id) };
+    } else added = addChild(ctx, parentId, { name: g.card.name, email: g.card.email });
     if (added.folderError) throw new DomainError("folder", `${g.card.name}: ${added.folderError}`, 409);
     const moved = await moveToShoot(ctx, added.child.id, g.files);
     result.moved += moved.moved;
     result.skipped.push(...moved.skipped);
     result.people.push({ shootId: added.child.id, subject: added.child.subject, frames: moved.moved, created: !added.duplicate, matched: added.matched });
   }
+  return result;
+}
+
+// ---- marks made while shooting (the live view), applied when the day is sorted ----
+
+const { subjectMark } = tables;
+
+export function listMarks(ctx: ServiceContext, parentId: string) {
+  getShoot(ctx, parentId);
+  return ctx.db.select().from(subjectMark).where(eq(subjectMark.parentId, parentId)).orderBy(asc(subjectMark.createdAt)).all();
+}
+
+export function addMark(ctx: ServiceContext, parentId: string, input: { path: string; name: string; email?: string | null; childId?: string | null }) {
+  const parent = getShoot(ctx, parentId);
+  if (parent.kind !== "group_day") throw new DomainError("invalid", "Make this shoot a group day first.", 400);
+  const name = input.name.trim();
+  if (!name) throw new DomainError("invalid", "Add a name.", 400);
+  try {
+    statSafe(ctx, input.path);
+  } catch {
+    throw new DomainError("invalid", "That photo is no longer in Incoming.", 409);
+  }
+  if (input.childId && !listChildren(ctx, parentId).some((c) => c.id === input.childId)) throw new DomainError("invalid", "That person isn't on this day.", 400);
+  const values = { id: newId(), parentId, path: input.path, name, email: input.email?.trim().toLowerCase() || null, childId: input.childId ?? null };
+  ctx.db
+    .insert(subjectMark)
+    .values(values)
+    .onConflictDoUpdate({ target: [subjectMark.parentId, subjectMark.path], set: { name: values.name, email: values.email, childId: values.childId } })
+    .run();
+  return listMarks(ctx, parentId);
+}
+
+export function removeMark(ctx: ServiceContext, parentId: string, markPath: string) {
+  ctx.db.delete(subjectMark).where(and(eq(subjectMark.parentId, parentId), eq(subjectMark.path, markPath))).run();
+  return listMarks(ctx, parentId);
+}
+
+function statSafe(ctx: ServiceContext, rel: string) {
+  return fs.statSync(resolveInside(ctx.config.incomingDir, rel));
+}
+
+/** Sorts the frames around the saved marks: every ready frame in the camera folders the marks came from. Clears the marks it used. */
+export async function applyMarks(ctx: ServiceContext, parentId: string): Promise<SortResult> {
+  const marks = listMarks(ctx, parentId).filter((m) => {
+    try {
+      statSafe(ctx, m.path);
+      return true;
+    } catch {
+      return false; // the frame was moved or deleted since
+    }
+  });
+  if (!marks.length) throw new DomainError("invalid", "No name cards are marked yet.", 400);
+  const folders = new Set(marks.map((m) => (m.path.includes("/") ? m.path.slice(0, m.path.lastIndexOf("/")) : "")));
+  const now = Date.now();
+  const paths = scanPhotos(ctx.config.incomingDir)
+    .filter((f) => folders.has(f.rel.includes("/") ? f.rel.slice(0, f.rel.lastIndexOf("/")) : "") && now - f.mtimeMs >= QUIET_MS)
+    .map((f) => f.rel);
+  const result = await sortByNameCards(ctx, parentId, { paths, cards: marks.map((m) => ({ path: m.path, name: m.name, email: m.email, childId: m.childId })) });
+  ctx.db.delete(subjectMark).where(eq(subjectMark.parentId, parentId)).run();
   return result;
 }

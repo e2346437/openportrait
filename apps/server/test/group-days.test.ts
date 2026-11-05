@@ -12,7 +12,7 @@ let root: string;
 let cookie: string;
 let galleries: string;
 
-async function call(method: "GET" | "POST" | "PATCH", url: string, payload?: unknown) {
+async function call(method: "GET" | "POST" | "PATCH" | "DELETE", url: string, payload?: unknown) {
   const res = await app.inject({ method, url: `/api/studio${url}`, headers: { cookie }, payload: payload as object | undefined });
   return { status: res.statusCode, body: res.body ? res.json() : null };
 }
@@ -189,5 +189,52 @@ describe("sorting by name cards", () => {
     const s = (await call("POST", "/shoots", { primaryContactId: c.id, shootTypeId: types[0]!.id })).body.shoot;
     const a = drop("C1.nef", 300);
     expect((await call("POST", "/incoming/sort", { parentId: s.id, paths: [a], cards: [{ path: a, name: "X" }] })).status).toBe(400);
+  });
+});
+
+describe("marks made while shooting", () => {
+  function drop(name: string, secondsAgo: number) {
+    const incoming = path.join(app.ctx.config.incomingDir, "Z9");
+    fs.mkdirSync(incoming, { recursive: true });
+    const f = path.join(incoming, name);
+    fs.writeFileSync(f, name);
+    const t = new Date(Date.now() - secondsAgo * 1000);
+    fs.utimesSync(f, t, t);
+    return `Z9/${name}`;
+  }
+
+  it("saves marks, then sorts the whole folder from them, reusing a person picked from the list", async () => {
+    const day = await makeDay();
+    const listed = (await call("POST", `/shoots/${day}/people`, { name: "Priya Nair", email: "priya@acme.example" })).body.child;
+    const c1 = drop("M1.nef", 300);
+    drop("M2.nef", 290);
+    const c2 = drop("M3.nef", 200);
+    drop("M4.nef", 190);
+    expect((await call("POST", `/incoming/days/${day}/marks`, { path: c1, name: "Priya Nair", childId: listed.id })).body.marks).toHaveLength(1);
+    await call("POST", `/incoming/days/${day}/marks`, { path: c2, name: "Marcus Webb" });
+    expect((await call("GET", `/incoming/days/${day}/marks`)).body.marks).toHaveLength(2);
+    const r = await call("POST", `/incoming/days/${day}/apply`);
+    expect(r.status).toBe(200);
+    expect(r.body.moved).toBe(4);
+    const kids = (await call("GET", `/shoots/${day}`)).body.children as Array<{ id: string; subject: string }>;
+    expect(kids).toHaveLength(2);
+    expect(kids.some((k) => k.id === listed.id)).toBe(true);
+    expect((await call("GET", `/incoming/days/${day}/marks`)).body.marks).toHaveLength(0);
+  });
+
+  it("replaces a mark on the same frame and removes marks", async () => {
+    const day = await makeDay();
+    const c1 = drop("N1.nef", 100);
+    await call("POST", `/incoming/days/${day}/marks`, { path: c1, name: "Wrong Name" });
+    const r = await call("POST", `/incoming/days/${day}/marks`, { path: c1, name: "Right Name" });
+    expect(r.body.marks).toHaveLength(1);
+    expect(r.body.marks[0].name).toBe("Right Name");
+    expect((await call("DELETE", `/incoming/days/${day}/marks?path=${encodeURIComponent(c1)}`)).body.marks).toHaveLength(0);
+  });
+
+  it("refuses to apply with nothing marked, or to mark a missing frame", async () => {
+    const day = await makeDay();
+    expect((await call("POST", `/incoming/days/${day}/apply`)).status).toBe(400);
+    expect((await call("POST", `/incoming/days/${day}/marks`, { path: "Z9/none.nef", name: "X" })).status).toBe(409);
   });
 });

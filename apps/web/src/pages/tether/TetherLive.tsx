@@ -4,6 +4,7 @@ import { Icon, Spinner } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { formatBytes, isLight, isLocalHost, loadBg, parseBg, photoUrl, saveBg, useTether, type TetherPhoto } from "../../lib/tether.js";
 import { BackgroundPicker } from "./BackgroundPicker.js";
+import { DaySession } from "./DaySession.js";
 import "./tether.css";
 
 type Shown = { photo: TetherPhoto; failed: boolean };
@@ -13,6 +14,7 @@ export function TetherLivePage() {
   const { source = "incoming" } = useParams();
   const [search, setSearch] = useSearchParams();
   const bg = parseBg(search.get("bg")) ?? loadBg();
+  const day = source === "incoming" ? search.get("day") : null;
   const light = isLight(bg);
 
   const [shown, setShown] = useState<Shown | null>(null);
@@ -148,7 +150,7 @@ export function TetherLivePage() {
   }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input")) return;
+      if ((e.target as HTMLElement).closest("input, textarea, select")) return;
       wake();
       if (e.key === "f" || e.key === "F") void toggleFullscreen();
       if (e.key === "ArrowLeft") step(-1);
@@ -261,6 +263,8 @@ export function TetherLivePage() {
           </div>
         )}
       </header>
+
+      {day ? <DaySession day={day} shown={shown?.photo ?? null} history={history} visible={showChrome} onActivity={wake} /> : null}
 
       <footer className="tether-bottom" aria-hidden={!showChrome && up.length === 0}>
         {lead ? (

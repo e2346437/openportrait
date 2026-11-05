@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { contact } from "./people.js";
 
 const now = sql`(unixepoch('subsec') * 1000)`;
@@ -165,4 +165,26 @@ export const shootTypeTask = sqliteTable(
     position: integer().notNull().default(0),
   },
   (t) => [index("shoot_type_task_type_idx").on(t.shootTypeId)],
+);
+
+/**
+ * A frame the photographer flagged as a person's name card while shooting a group day (the whiteboard photo).
+ * Kept until the day's frames are sorted, so the sorting can happen at the end or on another screen.
+ */
+export const subjectMark = sqliteTable(
+  "subject_mark",
+  {
+    id: text().primaryKey(),
+    parentId: text()
+      .notNull()
+      .references(() => shoot.id, { onDelete: "cascade" }),
+    /** The frame's path inside Incoming. */
+    path: text().notNull(),
+    name: text().notNull(),
+    email: text(),
+    /** Set when the card is for a person already on the day (picked from the list). */
+    childId: text(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [index("subject_mark_parent_idx").on(t.parentId, t.createdAt), uniqueIndex("subject_mark_path_idx").on(t.parentId, t.path)],
 );

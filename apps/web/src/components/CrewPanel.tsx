@@ -17,6 +17,9 @@ interface CrewPerson {
   name: string;
   roleLabel: string;
   detail?: string;
+  /** Dollars, "150.00", or null when no fee is set. */
+  fee?: string | null;
+  paid?: boolean;
   camera: CameraStatus;
   signin?: boolean;
 }
@@ -61,6 +64,9 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
   const [menu, setMenu] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState<CrewPerson | null>(null);
   const [removing, setRemoving] = useState<CrewPerson | null>(null);
+  const [feeFor, setFeeFor] = useState<CrewPerson | null>(null);
+  const [feeText, setFeeText] = useState("");
+  const feeSave = useSubmit(() => api(`/extensions/${extId}/shoots/${encodeURIComponent(shootId)}/fee`, { method: "POST", body: { photographerId: feeFor!.id, fee: feeText } }));
 
   // Camera health changes while a shooter is setting up: keep it fresh.
   useEffect(() => {
@@ -88,9 +94,11 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
       title="Photographers"
       description="Who is shooting this one. Files from a second shooter's camera are filed under their name."
       actions={
-        <Button variant="primary" icon="plus" onClick={() => setAdding({})}>
-          Add photographer
-        </Button>
+        data.people.length ? (
+          <Button variant="primary" icon="plus" onClick={() => setAdding({})}>
+            Add photographer
+          </Button>
+        ) : undefined
       }
     >
       {data.message ? <Callout tone="warn">{data.message}</Callout> : null}
@@ -130,6 +138,25 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
                             </button>
                           </>
                         )}
+                        <button role="menuitem" type="button" onClick={() => { setMenu(null); setFeeText(p.fee ?? ""); setFeeFor(p); }}>{p.fee ? "Change fee…" : "Set fee…"}</button>
+                        {p.fee && !p.paid ? (
+                          <button
+                            role="menuitem"
+                            type="button"
+                            onClick={async () => {
+                              setMenu(null);
+                              try {
+                                await api(`/extensions/${extId}/shoots/${encodeURIComponent(shootId)}/paid`, { method: "POST", body: { photographerId: p.id } });
+                                toast(`Marked ${p.name} paid`);
+                                reload();
+                              } catch (e) {
+                                toast(e instanceof Error ? e.message : "That didn't work.", "bad");
+                              }
+                            }}
+                          >
+                            Mark fee paid
+                          </button>
+                        ) : null}
                         <button role="menuitem" type="button" className="danger" onClick={() => { setMenu(null); setRemoving(p); }}>Remove from this shoot</button>
                       </div>
                     ) : null}
@@ -171,6 +198,34 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
         }
       >
         <p>You'll see the new password once, to give to {confirmReset?.name}.</p>
+      </Dialog>
+      <Dialog
+        open={feeFor !== null}
+        onClose={() => setFeeFor(null)}
+        title={`Fee for ${feeFor?.name ?? ""}`}
+        description="A record of what you'll pay them for this shoot. Nothing is paid from here."
+        footer={
+          <>
+            <Button onClick={() => setFeeFor(null)}>Cancel</Button>
+            <Button
+              variant="primary"
+              loading={feeSave.busy}
+              onClick={async () => {
+                if ((await feeSave.submit()) !== undefined) {
+                  setFeeFor(null);
+                  reload();
+                }
+              }}
+            >
+              Save fee
+            </Button>
+          </>
+        }
+      >
+        {feeSave.error ? <Callout tone="bad">{feeSave.error}</Callout> : null}
+        <Field label="Fee (dollars)" error={feeSave.fieldErrors.fee}>
+          {(p) => <TextInput {...p} inputMode="decimal" value={feeText} onChange={(e) => setFeeText(e.target.value)} autoFocus placeholder="150" />}
+        </Field>
       </Dialog>
       <Dialog
         open={removing !== null}

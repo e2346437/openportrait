@@ -1015,4 +1015,4 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .crew-pick small { margin-left: auto; color: var(--ink-3); }
 .crew-plus { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 700; flex: none; }
 .crew-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
-@media (max-width: 560px) { .crew-two { grid-template-columns: minmax(0, 1fr); } .crew-cam { width: 100%; } }
+@media (max-width: 560px) { .crew-two { grid-template-columns: minmax(0, 1fr); } .crew-cam { width: 100%; } .crew-menu-pop { left: 0; right: auto; max-width: calc(100vw - 48px); } }

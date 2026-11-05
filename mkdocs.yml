@@ -56,5 +56,6 @@ nav:
   - Developers:
       - Extensions: extensions.md
   - Reference:
+      - Light and dark appearance: appearance.md
       - Accessibility: accessibility.md
       - Product spec and architecture: SPEC.md

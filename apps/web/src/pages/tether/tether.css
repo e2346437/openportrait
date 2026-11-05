@@ -98,3 +98,43 @@
 .tether.calm .tether-nav { opacity: 0; pointer-events: none; }
 .tether-latest { position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); width: auto; height: 40px; padding: 0 18px; border-radius: 99px; font: 600 14px/1 var(--sans, inherit); z-index: 2; background: var(--accent, #c2461f); border-color: transparent; color: #fff; }
 @media (max-width: 560px) { .tether-nav { width: 44px; height: 44px; } }
+
+/* Group day controls: one pill pair at the bottom, everything else opens on demand. */
+.day-pill-wrap { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); display: flex; gap: 8px; z-index: 3; transition: opacity 0.3s; max-width: calc(100vw - 24px); }
+.day-pill-wrap.calm { opacity: 0; pointer-events: none; }
+.day-pill { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--glass-line); background: var(--glass); color: var(--fg); font: 600 13px/1 inherit; cursor: pointer; backdrop-filter: blur(10px); white-space: nowrap; min-width: 0; }
+.day-pill b { overflow: hidden; text-overflow: ellipsis; max-width: 30vw; }
+.day-pill span { color: var(--fg-2); font-weight: 500; }
+.day-pill i, .day-list i { width: 8px; height: 8px; border-radius: 50%; background: #77726a; flex: none; }
+.day-pill i.on, .day-list i.on { background: var(--accent, #e46a40); }
+.day-pill svg { width: 16px; height: 16px; }
+.day-pill kbd, .day-btn kbd { font: 600 11px var(--mono, monospace); border: 1px solid var(--glass-line); border-radius: 4px; padding: 1px 5px; color: var(--fg-2); background: transparent; }
+.day-pill:disabled { opacity: 0.45; cursor: default; }
+.day-pill:hover:not(:disabled), .day-btn:hover { border-color: var(--fg-2); }
+.day-pill:focus-visible, .day-btn:focus-visible, .day-in:focus-visible { outline: 2px solid var(--accent, #e46a40); outline-offset: 2px; }
+.day-sheet { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); width: min(380px, calc(100vw - 24px)); max-height: 60vh; overflow: auto; z-index: 4; background: #1d1c19; color: #f1ebe0; border: 1px solid #34322d; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); }
+.day-sheet h4 { margin: 0; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #a29b8d; font-weight: 600; }
+.day-in { width: 100%; background: #12110f; color: inherit; border: 1px solid #34322d; border-radius: 10px; padding: 10px 12px; font: inherit; }
+.day-sugg { display: flex; flex-direction: column; gap: 2px; }
+.day-sugg button { text-align: left; background: transparent; border: 0; color: inherit; padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit; display: flex; flex-direction: column; }
+.day-sugg button:hover, .day-sugg button[aria-selected="true"] { background: #2a2825; }
+.day-sugg small { color: #a29b8d; }
+.day-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.day-btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid #34322d; background: transparent; color: inherit; font: 600 13px/1 inherit; cursor: pointer; }
+.day-btn.primary { background: var(--accent, #e46a40); border-color: var(--accent, #e46a40); color: #1a0d07; }
+.day-btn.primary kbd { color: #1a0d07; border-color: rgba(26, 13, 7, 0.4); }
+.day-btn:disabled { opacity: 0.5; cursor: default; }
+.day-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.day-list li { display: flex; align-items: center; gap: 10px; padding: 7px 4px; }
+.day-list li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.day-list small { color: #a29b8d; }
+.day-list button { background: transparent; border: 0; color: #a29b8d; cursor: pointer; display: grid; place-items: center; padding: 4px; border-radius: 6px; }
+.day-list button svg { width: 16px; height: 16px; }
+.day-list .day-start { color: var(--accent, #e46a40); font: 600 12.5px/1 inherit; padding: 6px 8px; }
+.day-empty { margin: 0; color: #a29b8d; font-size: 13.5px; }
+.day-note { position: absolute; left: 50%; top: 76px; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 999px; font: 600 13.5px/1.2 inherit; background: #1f3a2a; color: #d6f2e0; border: 1px solid #2f5a42; max-width: calc(100vw - 24px); }
+.day-note.bad { background: #4a1f1a; color: #ffd9d2; border-color: #7a3328; }
+.day-note button { background: transparent; border: 0; color: inherit; cursor: pointer; display: grid; place-items: center; }
+.day-note svg { width: 16px; height: 16px; }
+@media (max-width: 560px) { .day-pill-wrap { bottom: 72px; } .day-pill.alt kbd, .day-pill kbd { display: none; } }
+@media (max-width: 560px) { .day-note { top: 128px; } }

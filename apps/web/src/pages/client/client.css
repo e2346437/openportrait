@@ -236,3 +236,28 @@ section.next { border-top: 1px solid var(--g-line); padding: var(--s7) max(16px,
 .allowance { padding-top: 0; padding-bottom: 12px; font-weight: 500; }
 .zips .zblocked { max-width: 260px; font-size: 13px; color: var(--g-ink-2); text-align: right; line-height: 1.35; }
 @media (max-width: 520px) { .zips .zblocked { max-width: none; text-align: left; } }
+
+/* The organisation's page for a group day */
+.dp { padding-bottom: 64px; }
+.dp-head { max-width: 1200px; margin: 0 auto; padding: 48px 24px 24px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.dp-head.slim { padding-top: 24px; }
+.dp-studio { font-weight: 700; letter-spacing: 0.24em; font-size: 12px; text-transform: uppercase; }
+.dp-studio img { max-height: 36px; display: block; }
+.dp-head h1 { font: 400 clamp(36px, 6vw, 72px) / 1 var(--serif); letter-spacing: -0.015em; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+.client.f-sans .dp-head h1 { font-family: var(--sans); font-weight: 600; }
+.dp-head p { margin: 0; color: var(--g-ink-2); max-width: 60ch; }
+.dp-search { display: flex; align-items: center; gap: 8px; margin-top: 8px; width: min(420px, 100%); background: var(--g-tile); border: 1px solid var(--g-line); border-radius: 99px; padding: 0 14px; }
+.dp-search svg { width: 18px; height: 18px; color: var(--g-ink-2); flex: none; }
+.dp-search input { flex: 1; min-width: 0; background: transparent; border: 0; padding: 12px 0; font: inherit; color: inherit; outline: none; }
+.dp-search:focus-within { border-color: var(--accent); }
+.dp-empty { max-width: 1200px; margin: 24px auto; padding: 0 24px; color: var(--g-ink-2); display: grid; justify-items: start; }
+.dp-grid { list-style: none; margin: 0 auto; padding: 8px 24px 0; max-width: 1200px; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 20px 16px; }
+.dp-card { width: 100%; background: transparent; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; display: flex; flex-direction: column; gap: 4px; }
+.dp-card b { font-weight: 600; margin-top: 8px; overflow-wrap: anywhere; }
+.dp-card small { color: var(--g-ink-2); }
+.dp-thumb { display: grid; place-items: center; aspect-ratio: 4 / 5; border-radius: 6px; background: var(--g-tile) center / cover; overflow: hidden; color: var(--g-ink-2); transition: transform 0.15s; }
+.dp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dp-card:hover .dp-thumb { transform: translateY(-2px); }
+.dp-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.dp .tiles, .dp > div { max-width: 1400px; margin-left: auto; margin-right: auto; padding-left: 16px; padding-right: 16px; }
+@media (prefers-reduced-motion: reduce) { .dp-thumb { transition: none; } }

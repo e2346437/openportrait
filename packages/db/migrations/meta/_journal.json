@@ -204,6 +204,13 @@
       "when": 1793892254247,
       "tag": "0028_real_talkback",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1793894091489,
+      "tag": "0029_acoustic_iron_patriot",
+      "breakpoints": true
     }
   ]
 }

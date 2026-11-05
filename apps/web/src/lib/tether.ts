@@ -59,8 +59,8 @@ export function saveBg(hex: string) {
 }
 
 /** The live view's link. The colour rides in the query so a bookmarked link keeps its look. */
-export function liveLink(origin: string, source: string, bg: string): string {
-  return `${origin.replace(/\/+$/, "")}/studio/tether/${encodeURIComponent(source)}?bg=${bg.slice(1)}`;
+export function liveLink(origin: string, source: string, bg: string, day?: string | null): string {
+  return `${origin.replace(/\/+$/, "")}/studio/tether/${encodeURIComponent(source)}?bg=${bg.slice(1)}${day && source === "incoming" ? `&day=${encodeURIComponent(day)}` : ""}`;
 }
 
 export function photoUrl(source: string, photo: TetherPhoto): string {

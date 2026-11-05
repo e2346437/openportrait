@@ -11,6 +11,10 @@ import "@openportrait/ui/base.css";
 import "./app.css";
 import { App } from "./App.js";
 
+import { applyTheme, readTheme } from "./lib/theme.js";
+
+applyTheme(readTheme());
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

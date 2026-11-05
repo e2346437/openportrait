@@ -24,6 +24,12 @@ export function isImageFile(name: string): boolean {
   return IMAGE_EXT.has(ext);
 }
 
+/** Any file worth tracking in an Originals folder: everything except hidden, system and half-written files. */
+export function isTrackableFile(name: string): boolean {
+  if (name.startsWith(".") || IGNORED_NAMES.has(name)) return false;
+  return !PARTIAL_EXT.has(path.extname(name).toLowerCase());
+}
+
 /** Joins a share-relative path onto a root and refuses anything that escapes it. */
 export function resolveInside(root: string, rel: string): string {
   const abs = path.resolve(root, rel);

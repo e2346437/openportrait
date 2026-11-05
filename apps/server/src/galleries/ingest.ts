@@ -147,6 +147,13 @@ export class GalleryIngest {
       .where(and(eq(photo.state, "missing"), isNotNull(photo.missingSince), lt(photo.missingSince, new Date(Date.now() - MISSING_PURGE_MS))))
       .run();
 
+    // Keep the Originals/RAW folders in step too, so an extension can move those files.
+    try {
+      this.originals?.raw.scan();
+    } catch (err) {
+      this.deps.logger.warn({ err: String(err) }, "scanning Originals folders failed");
+    }
+
     if (result.waiting > 0) this.scheduleFollowUp();
     return result;
   }

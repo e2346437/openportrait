@@ -6,8 +6,10 @@ import { pipeline } from "node:stream/promises";
 import { and, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { tables, type Db } from "@openportrait/db";
 import { resolveInside } from "./files.js";
+import { RawFiles } from "./raw.js";
+import { DEFAULT_RAW_SUBDIR } from "../domain/folders.js";
 
-const { photo } = tables;
+const { photo, gallery } = tables;
 type Photo = typeof tables.photo.$inferSelect;
 
 /**
@@ -50,9 +52,14 @@ export interface PendingOriginal {
 export class Originals {
   private store: OriginalStore | null = null;
 
+  /** Files in each shoot's Originals/RAW folder, tracked the same way so they can be moved too. */
+  readonly raw: RawFiles;
+
   constructor(
-    private readonly deps: { db: Db; galleriesDir: string },
-  ) {}
+    private readonly deps: { db: Db; galleriesDir: string; rawSubdir?: () => string },
+  ) {
+    this.raw = new RawFiles({ db: deps.db, galleriesDir: deps.galleriesDir, rawSubdir: deps.rawSubdir ?? (() => DEFAULT_RAW_SUBDIR) });
+  }
 
   /** An extension calls this with its store, or with null to detach it. Files already in the store stay there. */
   setStore(store: OriginalStore | null): void {
@@ -140,13 +147,23 @@ export class Originals {
    * Local originals that are ready to move: previews exist, and the file has not changed for `settleMs`.
    * The extension uploads each one, checks it, then calls markRemote.
    */
-  pending(limit: number, settleMs = 10 * 60_000): PendingOriginal[] {
+  pending(limit: number, settleMs = 10 * 60_000, defaultOffsite = true): PendingOriginal[] {
+    // A gallery set to "local" is never offered; "offsite" always is; "default" follows the studio-wide choice.
     const rows = this.deps.db
-      .select()
+      .select({ p: photo })
       .from(photo)
-      .where(and(eq(photo.state, "ready"), isNull(photo.remoteKey), lt(photo.mtimeMs, Date.now() - settleMs)))
+      .innerJoin(gallery, eq(photo.galleryId, gallery.id))
+      .where(
+        and(
+          eq(photo.state, "ready"),
+          isNull(photo.remoteKey),
+          lt(photo.mtimeMs, Date.now() - settleMs),
+          defaultOffsite ? sql`${gallery.storageGallery} != 'local'` : sql`${gallery.storageGallery} = 'offsite'`,
+        ),
+      )
       .limit(limit * 4)
-      .all();
+      .all()
+      .map((r) => r.p);
     const out: PendingOriginal[] = [];
     for (const p of rows) {
       const file = this.localPath(p);
@@ -172,13 +189,28 @@ export class Originals {
   }
 
   /** Photos whose original is in the store, for bringing them back to the galleries folder. */
-  remote(limit: number): RemoteOriginal[] {
+  remote(limit: number, shootFolder?: string): RemoteOriginal[] {
     return this.deps.db
-      .select()
+      .select({ p: photo })
       .from(photo)
-      .where(isNotNull(photo.remoteKey))
+      .innerJoin(gallery, eq(photo.galleryId, gallery.id))
+      .where(shootFolder === undefined ? isNotNull(photo.remoteKey) : and(isNotNull(photo.remoteKey), eq(gallery.shootFolder, shootFolder)))
       .limit(limit)
       .all()
+      .map((r) => r.p)
+      .map((p) => ({ id: p.id, remoteKey: p.remoteKey!, file: resolveInside(this.deps.galleriesDir, p.relPath), sizeBytes: p.sizeBytes, mtimeMs: p.mtimeMs }));
+  }
+
+  /** Photos whose original is in the store although their gallery was set to keep files on this server. */
+  wantedLocal(limit: number): RemoteOriginal[] {
+    return this.deps.db
+      .select({ p: photo })
+      .from(photo)
+      .innerJoin(gallery, eq(photo.galleryId, gallery.id))
+      .where(and(isNotNull(photo.remoteKey), eq(gallery.storageGallery, "local")))
+      .limit(limit)
+      .all()
+      .map((r) => r.p)
       .map((p) => ({ id: p.id, remoteKey: p.remoteKey!, file: resolveInside(this.deps.galleriesDir, p.relPath), sizeBytes: p.sizeBytes, mtimeMs: p.mtimeMs }));
   }
 
@@ -193,7 +225,7 @@ export class Originals {
   }
 
   /** How many originals are local and how many are in the store, with their sizes in bytes. */
-  counts(): { local: number; remote: number; localBytes: number; remoteBytes: number } {
+  counts(shootFolder?: string): { local: number; remote: number; localBytes: number; remoteBytes: number } {
     const row = this.deps.db
       .select({
         remote: sql<number>`coalesce(sum(case when ${photo.remoteKey} is not null then 1 else 0 end), 0)`,
@@ -202,6 +234,7 @@ export class Originals {
         totalBytes: sql<number>`coalesce(sum(${photo.sizeBytes}), 0)`,
       })
       .from(photo)
+      .where(shootFolder === undefined ? undefined : sql`${photo.galleryId} in (select ${gallery.id} from ${gallery} where ${gallery.shootFolder} = ${shootFolder})`)
       .get();
     const remote = row?.remote ?? 0;
     const remoteBytes = row?.remoteBytes ?? 0;

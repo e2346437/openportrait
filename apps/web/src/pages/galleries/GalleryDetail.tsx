@@ -9,11 +9,12 @@ import { DesignTab } from "./DesignTab.js";
 import { FavoritesTab } from "./FavoritesTab.js";
 import { PhotosTab } from "./PhotosTab.js";
 import { SettingsTab } from "./SettingsTab.js";
+import { StorageTab } from "./StorageTab.js";
 
 export type Reload = (next?: GalleryDetail) => void;
 export type Patch = (path: string, body: unknown, method?: string) => Promise<GalleryDetail | undefined>;
 
-type TabId = "photos" | "design" | "favorites" | "activity" | "settings";
+type TabId = "photos" | "design" | "favorites" | "storage" | "activity" | "settings";
 
 export function GalleryDetailPage() {
   const { id = "" } = useParams();
@@ -170,6 +171,8 @@ export function GalleryDetailPage() {
           { id: "photos", label: "Photos", icon: "image", count: counts.photos },
           { id: "design", label: "Design", icon: "palette" },
           { id: "favorites", label: "Favorites", icon: "heart" },
+          // Only when remote storage is connected, or some of this gallery's files are already in it.
+          ...(data.storage.attached || data.storage.originals.remote + data.storage.gallery.remote > 0 ? [{ id: "storage" as const, label: "Storage", icon: "cloud" as const }] : []),
           { id: "activity", label: "Activity", icon: "clock" },
           { id: "settings", label: "Settings", icon: "gear" },
         ]}
@@ -178,6 +181,7 @@ export function GalleryDetailPage() {
         {tab === "photos" ? <PhotosTab data={data} patch={patch} reload={load} /> : null}
         {tab === "design" ? <DesignTab data={data} patch={patch} /> : null}
         {tab === "favorites" ? <FavoritesTab data={data} patch={patch} /> : null}
+        {tab === "storage" ? <StorageTab data={data} patch={patch} /> : null}
         {tab === "activity" ? <ActivityTab data={{ ...data, gallery: g }} /> : null}
         {tab === "settings" ? <SettingsTab data={{ ...data, gallery: g }} patch={patch} onDeleted={() => navigate("/studio/galleries")} /> : null}
       </div>

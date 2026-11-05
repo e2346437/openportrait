@@ -20,6 +20,7 @@ import { Settings } from "./settings.js";
 import { TunnelManager } from "./tunnel.js";
 import { registerDerivativesJob } from "./galleries/derivatives.js";
 import { GalleryIngest } from "./galleries/ingest.js";
+import { tickCheckouts } from "./domain/storage-checkout.js";
 import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
 import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
@@ -29,6 +30,7 @@ import { siteRoutes } from "./routes/site.js";
 import { registerFreeTemplates } from "./site/templates.js";
 import { mcpRoutes } from "./ai/mcp.js";
 import { Originals } from "./galleries/originals.js";
+import { DEFAULT_RAW_SUBDIR } from "./domain/folders.js";
 import { enforceShootScope, shootScopeFor } from "./scope.js";
 import { loadExtensions, extensionRoutes } from "./extensions.js";
 import { oauthRoutes, oauthStudioRoutes } from "./ai/oauth.js";
@@ -165,7 +167,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   const tunnel = new TunnelManager(app.log);
   const jobs = new JobRunner(db, { logger: app.log });
   const galleries = new GalleryIngest({ db, settings, galleriesDir: config.galleriesDir, settleSeconds: config.ingestSettleSeconds, logger: app.log });
-  const originals = new Originals({ db, galleriesDir: config.galleriesDir });
+  const originals = new Originals({ db, galleriesDir: config.galleriesDir, rawSubdir: () => settings.get("folders.rawSubdir") ?? DEFAULT_RAW_SUBDIR });
   galleries.setOriginals(originals);
   registerDerivativesJob(config);
   const uploads = new UploadManager({ config, db, settings, log: app.log, lanHosts: () => lanHosts(settings, config) });
@@ -343,11 +345,14 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     const hourly = setInterval(() => scheduleBackup(db), 3_600_000);
     fs.mkdirSync(config.galleriesDir, { recursive: true });
     const stopWatcher = startGalleryWatcher({ dir: config.galleriesDir, ingest: galleries, rescanMinutes: config.watchRescanMinutes, settleSeconds: config.ingestSettleSeconds, logger: app.log });
+    // Check Out: notice when files are back, and send idle shoots offsite again.
+    const checkoutTimer = setInterval(() => tickCheckouts({ db, settings, config, actorId: null, publicUrl: ctx.publicUrl }, originals), 60_000);
     const googleTimer = setInterval(() => requestSync(db, 0), 5 * 60_000);
     setTimeout(() => requestSync(db, 0), 10_000).unref();
     app.addHook("onClose", async () => {
       clearInterval(hourly);
       clearInterval(googleTimer);
+      clearInterval(checkoutTimer);
       await stopWatcher();
       await uploads.stop();
       await jobs.stop();

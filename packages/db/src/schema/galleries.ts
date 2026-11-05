@@ -59,6 +59,25 @@ export const gallery = sqliteTable(
     /** Per-client caps (null = no cap): how many separate downloads, and how many files in total. */
     downloadMaxTimes: integer(),
     downloadMaxFiles: integer(),
+    /**
+     * Where this gallery's files go when an extension attaches remote storage. "default" follows the studio-wide
+     * choice; "local" keeps them on this server; "offsite" moves them even if the studio default is off.
+     * `storageOriginals` covers the shoot's Originals/RAW folder, `storageGallery` the delivered images.
+     */
+    storageOriginals: text({ enum: ["default", "local", "offsite"] }).notNull().default("default"),
+    storageGallery: text({ enum: ["default", "local", "offsite"] }).notNull().default("default"),
+    /**
+     * Check Out: the shoot's offsite files were brought back for editing. `checkoutPrev` remembers the storage
+     * choices so Check In can restore them; the totals measure progress; the gallery returns offsite on its own
+     * after `checkoutReturnDays` without changes.
+     */
+    checkedOutAt: integer({ mode: "timestamp_ms" }),
+    checkoutFolders: text({ enum: ["originals", "gallery", "both"] }),
+    checkoutReturnDays: integer().notNull().default(14),
+    checkoutPrev: text(),
+    checkoutTotalFiles: integer().notNull().default(0),
+    checkoutTotalBytes: integer().notNull().default(0),
+    checkoutReadyAt: integer({ mode: "timestamp_ms" }),
     unlockedAt: integer({ mode: "timestamp_ms" }),
     expiresAt: integer({ mode: "timestamp_ms" }),
     publishedAt: integer({ mode: "timestamp_ms" }),
@@ -127,6 +146,30 @@ export const photo = sqliteTable(
     index("photo_gallery_idx").on(t.galleryId, t.setId, t.sort),
     index("photo_hash_idx").on(t.galleryId, t.contentHash),
   ],
+);
+
+/**
+ * A file in a shoot's Originals/RAW folder, tracked so an extension can move it to remote storage and bring it
+ * back. These files never become gallery photos and are never served to clients. `shootFolder` matches
+ * `gallery.shootFolder`, which is how a gallery's storage choice reaches them.
+ */
+export const rawFile = sqliteTable(
+  "raw_file",
+  {
+    id: text().primaryKey(),
+    shootFolder: text().notNull(),
+    /** Relative to GALLERIES_DIR. */
+    relPath: text().notNull(),
+    filename: text().notNull(),
+    sizeBytes: integer().notNull(),
+    mtimeMs: integer().notNull(),
+    /** Set when an extension has moved the file out of the Originals folder. */
+    remoteKey: text(),
+    missingSince: integer({ mode: "timestamp_ms" }),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+    updatedAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [uniqueIndex("raw_file_path_idx").on(t.relPath), index("raw_file_folder_idx").on(t.shootFolder)],
 );
 
 /** A folder seen on the share that is not (yet) a gallery: the Unmatched folders inbox. */

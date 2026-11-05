@@ -298,11 +298,11 @@ export function Tabs<T extends string>({ value, onChange, tabs, label }: { value
 }
 
 /** A row of mutually exclusive choices (a styled radio group). */
-export function Segmented<T extends string | number>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: Array<{ value: T; label: ReactNode }>; label: string }) {
+export function Segmented<T extends string | number>({ value, onChange, options, label, disabled }: { value: T; onChange: (v: T) => void; options: Array<{ value: T; label: ReactNode }>; label: string; disabled?: boolean }) {
   return (
     <div className="seg" role="radiogroup" aria-label={label}>
       {options.map((o) => (
-        <button key={String(o.value)} type="button" role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)}>
+        <button key={String(o.value)} type="button" role="radio" aria-checked={value === o.value} disabled={disabled} onClick={() => onChange(o.value)}>
           {o.label}
         </button>
       ))}

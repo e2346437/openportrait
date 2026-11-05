@@ -195,4 +195,7 @@ input.input.date { max-width: 200px; }
 .storage-row-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--s2) var(--s4); }
 .storage-row-head h3 { margin: 0; font-size: 15px; }
 .storage-row-head .hint { margin: 2px 0 0; }
-.storage-row .segmented { max-width: 100%; flex-wrap: wrap; }
+.storage-row .seg, .storage-seg { display: flex; width: 100%; }
+.storage-row .seg button, .storage-seg button { flex: 1 1 auto; padding: 0 8px; white-space: normal; line-height: 1.2; }
+.seg button:disabled { opacity: 0.5; cursor: not-allowed; }
+.storage-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }

@@ -64,6 +64,18 @@ export const gallery = sqliteTable(
      */
     storageOriginals: text({ enum: ["default", "local", "offsite"] }).notNull().default("default"),
     storageGallery: text({ enum: ["default", "local", "offsite"] }).notNull().default("default"),
+    /**
+     * Check Out: the shoot's offsite files were brought back for editing. `checkoutPrev` remembers the storage
+     * choices so Check In can restore them; the totals measure progress; the gallery returns offsite on its own
+     * after `checkoutReturnDays` without changes.
+     */
+    checkedOutAt: integer({ mode: "timestamp_ms" }),
+    checkoutFolders: text({ enum: ["originals", "gallery", "both"] }),
+    checkoutReturnDays: integer().notNull().default(14),
+    checkoutPrev: text(),
+    checkoutTotalFiles: integer().notNull().default(0),
+    checkoutTotalBytes: integer().notNull().default(0),
+    checkoutReadyAt: integer({ mode: "timestamp_ms" }),
     unlockedAt: integer({ mode: "timestamp_ms" }),
     expiresAt: integer({ mode: "timestamp_ms" }),
     publishedAt: integer({ mode: "timestamp_ms" }),

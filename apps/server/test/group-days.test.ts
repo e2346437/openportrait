@@ -174,6 +174,17 @@ describe("sorting by name cards", () => {
     expect(fs.existsSync(path.join(app.ctx.config.incomingDir, "Z9", "A0.nef"))).toBe(true);
   });
 
+  it("reuses someone already on the day when only their name is typed", async () => {
+    const day = await makeDay();
+    const one = drop("D1.nef", 300);
+    const two = drop("D2.nef", 200);
+    await call("POST", "/incoming/sort", { parentId: day, paths: [one], cards: [{ path: one, name: "Dana Reyes", email: "dana@example.com" }] });
+    const r = await call("POST", "/incoming/sort", { parentId: day, paths: [two], cards: [{ path: two, name: "  dana reyes " }] });
+    expect(r.status).toBe(200);
+    expect(r.body.people[0].created).toBe(false);
+    expect((await call("GET", `/shoots/${day}`)).body.children).toHaveLength(1);
+  });
+
   it("changes nothing when a request is wrong", async () => {
     const day = await makeDay();
     const a = drop("B1.nef", 300);

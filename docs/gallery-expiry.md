@@ -69,7 +69,15 @@ A restored gallery comes back as a **draft** with a fresh expiry date. It is not
 ## Good to know
 
 - **Back up the Archive folder.** If the zip is the only copy of a shoot, losing it loses the shoot. Include the Archive folder in your regular backups.
-- **Favorites may not come back.** The zip holds photos, not what clients picked. After a restore, old favorites lists may not carry over, so ask the client to choose again if it matters.
+- **Favorites may not come back.** See Known issues below.
 - **Reminders go to the people on the shoot.** That is the main contact and anyone added to the shoot. Visitors who only registered to view a gallery are not emailed. A gallery with no shoot, or whose people have no email address, sends no reminders.
 - **An empty gallery can't be archived.**
 - **Archive folder.** It starts with an underscore, so OpenPortrait never reads it as a gallery.
+
+## Known issues
+
+**Restored photos can lose their favorites and download counts.** OpenPortrait forgets photos that have been missing from the share for more than 30 days. If a gallery's photos were missing for longer than that before you restore it, the restore unpacks them from the zip and they are added again as new photos. Anything tied to the old photos, such as clients' favorite picks and per-photo download counts, may not carry over.
+
+- Restoring within 30 days of the photos going missing keeps them.
+- This matters mainly when the photos have been removed from your share after archiving. Photos that stayed in the shoot folder are untouched by a restore.
+- If it matters, ask the client to choose their favorites again after the restore.

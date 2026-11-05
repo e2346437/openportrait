@@ -135,7 +135,7 @@ What to take from it:
 - **Part of the gain is simply covering more of the photo and showing it smaller**, not the irregular layout alone. This test cannot separate those.
 - **Strong makes the client's own preview softer too.** Its unattacked preview scores 0.72 against the original. Check one on a phone before you choose it.
 - **Guessing the mark automatically did about the same against every option** (0.74 to 0.81), so the irregular layout did not clearly make the mark harder to find.
-- **Learned and generative tools are not covered by these numbers.** General-purpose hosted image editors declined every request to remove a watermark in our trial, which helps against casual use, but policies change and tools you run yourself have no such filter. Keep downloads locked until you are paid.
+- **Learned and generative tools are not covered by these numbers.** General-purpose hosted image editors declined or returned no image when asked to remove a watermark in our trial, which helps against casual use, but policies change and tools you run yourself have no such filter. Keep downloads locked until you are paid.
 
 ## Favorites and proofing
 

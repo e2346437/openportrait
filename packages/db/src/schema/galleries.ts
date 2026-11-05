@@ -46,6 +46,8 @@ export const gallery = sqliteTable(
     coverFocalY: real().notNull().default(50),
     /** Null means DEFAULT_DESIGN (or the studio default from Settings). */
     design: text({ mode: "json" }).$type<Partial<GalleryDesign>>(),
+    /** This gallery's own Protected Proofing choices (docs/PROOFING.md). Null follows the studio default. */
+    proofing: text({ mode: "json" }).$type<{ mode?: "light" | "balanced" | "strong"; apply?: "locked" | "always" | "off"; maxLongEdge?: number | null }>(),
     accessMode: text({ enum: ["link", "password", "invited"] }).notNull().default("link"),
     passwordHash: text(),
     /** Who must give contact details before seeing photos. */

@@ -218,7 +218,15 @@ export async function sortByNameCards(ctx: ServiceContext, parentId: string, inp
       const child = listChildren(ctx, parentId).find((c) => c.id === g.card.childId);
       if (!child) throw new DomainError("invalid", `${g.card.name} isn't on this day any more.`, 409);
       added = { child, matched: true, duplicate: true, folderError: child.folderPath ? null : ensureChildFolder(ctx, child.id) };
-    } else added = addChild(ctx, parentId, { name: g.card.name, email: g.card.email });
+    } else {
+      // A name typed with no email is matched to someone already on the day, so a second card for the same person doesn't make a duplicate.
+      const key = g.card.name.trim().toLowerCase();
+      const same = g.card.email?.trim() ? [] : listChildren(ctx, parentId).filter((c) => c.subject.trim().toLowerCase() === key);
+      if (same.length === 1) {
+        const child = same[0]!;
+        added = { child, matched: true, duplicate: true, folderError: child.folderPath ? null : ensureChildFolder(ctx, child.id) };
+      } else added = addChild(ctx, parentId, { name: g.card.name, email: g.card.email });
+    }
     if (added.folderError) throw new DomainError("folder", `${g.card.name}: ${added.folderError}`, 409);
     const moved = await moveToShoot(ctx, added.child.id, g.files);
     result.moved += moved.moved;

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { Button, Callout, Field, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { plural } from "../../lib/galleries.js";
@@ -35,6 +35,19 @@ export function NameCardSort({ files, days, thumb: Thumb, onClose, onDone }: { f
   const [cards, setCards] = useState<Record<string, Card>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [people, setPeople] = useState<string[]>([]);
+  useEffect(() => {
+    if (!dayId) return;
+    let live = true;
+    api<{ items: Array<{ subject: string }> }>(`/shoots?parentId=${encodeURIComponent(dayId)}&limit=200`).then(
+      (r) => live && setPeople(r.items.map((i) => i.subject)),
+      () => live && setPeople([]),
+    );
+    return () => {
+      live = false;
+    };
+  }, [dayId]);
 
   const marked = ordered.filter((f) => cards[f.path]);
   const firstMark = ordered.findIndex((f) => cards[f.path]);
@@ -93,9 +106,14 @@ export function NameCardSort({ files, days, thumb: Thumb, onClose, onDone }: { f
 
       {marked.length ? (
         <div className="stack" aria-label="People">
+          <datalist id="sort-people">
+            {people.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
           {marked.map((f, i) => (
             <div key={f.path} className="form-grid" style={{ alignItems: "end" }}>
-              <Field label={`Person ${i + 1} (${plural(counts[i]!, "photo")})`}>{(p) => <TextInput {...p} autoComplete="off" value={cards[f.path]!.name} maxLength={120} placeholder="Name as written" onChange={(e) => edit(f.path, { name: e.target.value })} />}</Field>
+              <Field label={`Person ${i + 1} (${plural(counts[i]!, "photo")})`}>{(p) => <TextInput {...p} list="sort-people" autoComplete="off" value={cards[f.path]!.name} maxLength={120} placeholder="Name as written, or pick someone already here" onChange={(e) => edit(f.path, { name: e.target.value })} />}</Field>
               <Field label="Email">{(p) => <TextInput {...p} type="email" autoComplete="off" value={cards[f.path]!.email} maxLength={200} placeholder="Optional" onChange={(e) => edit(f.path, { email: e.target.value })} />}</Field>
             </div>
           ))}

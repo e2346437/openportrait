@@ -54,10 +54,21 @@ Nothing moves until you choose **Create people and sort**, and cancelling leaves
 
 If you shoot tethered, open **Tethering**, choose the **Incoming** source and pick your day under **Shooting a group day?**. The live view then shows two controls over the photos:
 
-- **Name card (M).** Press **M** on a frame that shows a name card. A small sheet asks for the name. If the person is already on the list you can pick them from the suggestions.
-- **People (N).** Press **N** to open the list of people so far, with a frame count for each. Remove a mistaken card with the **x**, or use **Start here** next to someone you already added.
+- **Name card (M).** Press **M** on a frame that shows a name card. A small sheet asks for the name.
+- **People (N).** Press **N** to open the list of people so far, with a frame count for each.
 
-When the day is done, choose **Finish and sort**. The photos are sorted the same way as from Incoming.
+![The live view's name card sheet with numbered callouts](img/group-day-live-name-card.png)
+
+1. **Name as written.** Type the name on the card.
+2. **Email.** Optional. Add it so the person can get their gallery later.
+3. **Start.** Press **Enter**. Every photo from here belongs to this person until the next name card. **Esc** cancels.
+4. **The two controls.** The first shows who you are on now and how many frames they have. The second marks the current frame as a name card.
+
+![The live view's people list with numbered callouts](img/group-day-live-people.png)
+
+1. **People (N) and Name card (M).** The same controls, always within reach.
+2. **The list.** Everyone marked so far with their frame count, and **Still to come**, which lists people already on the day. Choose **Start here** next to someone to make the current frame their name card. A mistaken card is removed with the **x** beside it.
+3. **Finish and sort.** Sorts the photos the same way as **Sort by name cards** in Incoming. Photos before the first card stay in Incoming.
 
 ## Billing: shared costs and one invoice per person
 

@@ -11,6 +11,7 @@ Heading toward 1.0.
 - The AI rate limiter forgets connections that have gone quiet instead of growing without bound.
 
 ### Added
+- Extension settings cards can show a connection block (a clear tick or warning with title, detail and buttons) and keep their form closed behind an Edit button, pre-filled with the saved values. Secret fields show "Saved" and never receive the stored secret.
 - A day-of timeline on every shoot: add what happens at each time, with length, place and notes, then print it as a one-page run sheet with the shoot details and contacts.
 - Per-client download limits. In a gallery's Settings you can cap how many downloads and how many files each client may take, counted by the email they gave. Clients see what they have left before they download, and you are never counted when you preview.
 - Data import reads richer JSON files: nested records (name.first, address.city), lists of values, a list under a key such as "clients", a single record, and JSON Lines. Columns are matched automatically like a CSV.

@@ -54,15 +54,29 @@ export interface SettingsCard {
       removeRoute?: string;
       removeConfirm?: string;
     }>;
+    /**
+     * A connection block shown above everything else: a round tick or warning, a title and a detail line.
+     * `titleKey`, `detailKey` and `toneKey` name keys of the status JSON (`toneKey` is "ok" or "bad").
+     * Hidden unless `show` matches. Actions marked `inline` become its buttons.
+     */
+    connection?: { show?: { key: string; equals: string | boolean }; titleKey: string; detailKey?: string; toneKey: string };
   };
   actions: Array<{
     label: string;
     route: string;
     primary?: boolean;
+    /** Shown as a button in the connection block instead of in the card body. */
+    inline?: boolean;
+    /**
+     * The form stays hidden while status[when.key] === when.equals, and an Edit button in the connection block opens it.
+     * `prefillKey` names an object in the status JSON whose values fill the fields when it opens.
+     */
+    collapsed?: { when: { key: string; equals: string | boolean }; editLabel?: string; prefillKey?: string };
     /** Only offered when status[key] === equals. */
     when?: { key: string; equals: string | boolean };
     /** A field with `optionsKey` is a dropdown filled from an array of { value, label } in the status JSON. */
-    fields?: Array<{ name: string; label: string; hint?: string; secret?: boolean; optionsKey?: string; optional?: boolean }>;
+    /** A secret field with `savedKey` shows "Saved" while status[savedKey] is true. The saved value is never sent to the page. */
+    fields?: Array<{ name: string; label: string; hint?: string; secret?: boolean; optionsKey?: string; optional?: boolean; savedKey?: string }>;
     confirm?: string;
   }>;
 }

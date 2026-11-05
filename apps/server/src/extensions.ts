@@ -32,7 +32,21 @@ export interface SettingsCard {
     route: string;
     /** Picks a status chip from a key of the status JSON. */
     chip?: { key: string; values: Record<string, { label: string; tone: "ok" | "warn" | "bad" | "neutral" }> };
-    rows?: Array<{ key: string; label: string; format?: "date" | "text" }>;
+    rows?: Array<{ key: string; label: string; format?: "date" | "text" | "copy" }>;
+    /** Key of a one-line string in the status JSON. A card that has one folds down to it on the Extensions page while it is healthy. */
+    summary?: string;
+    /** Headline facts in a strip at the top: `data[key]` is the value, `data[subKey]` a smaller line under it. Empty values are skipped. */
+    facts?: Array<{ key: string; label: string; subKey?: string; mono?: boolean }>;
+    /** Which optional features are on. `data[key]` lists the ids that are; an item may link to another card of the same extension by its title. */
+    features?: { key: string; title: string; items: Array<{ id: string; label: string; hint?: string; card?: string }> };
+    /** Rows tucked into a "Technical details" disclosure. */
+    details?: Array<{ key: string; label: string; format?: "date" | "text" | "copy" }>;
+    /** Setup steps. `data[key]` is an array of `{ label, detail?, state: "done" | "now" | "todo" }`. */
+    steps?: { key: string };
+    /** Plain links to other sites, shown as buttons. */
+    links?: Array<{ label: string; href: string; when?: { key: string; equals: string | boolean } }>;
+    /** Open on first sight even while healthy, such as the license card. The owner's own choice wins afterwards. */
+    startOpen?: boolean;
     /** A key whose string value is shown as a warning when present. */
     notice?: string;
     /** Progress bars. `data[key]` is a {@link CardMeter}, or null/absent when nothing is in progress. */
@@ -71,6 +85,8 @@ export interface SettingsCard {
     label: string;
     route: string;
     primary?: boolean;
+    /** A quiet red button for removing or releasing something. */
+    danger?: boolean;
     /** Shown as a button in the connection block instead of in the card body. */
     inline?: boolean;
     /**
@@ -300,6 +316,8 @@ export interface ExtensionInfo {
   shootCards: SettingsCard[];
   /** Route of the crew panel this add-on shows on each shoot, if any. */
   crewPanel?: string;
+  /** How many of this add-on's cards were registered before the crew panel, so the Extensions page can draw the panel in that spot. */
+  crewPanelAt?: number;
   pages: ExtensionPage[];
 }
 
@@ -354,6 +372,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       const shootCards: SettingsCard[] = [];
       const pages: ExtensionPage[] = [];
       let crewPanel: string | undefined;
+      let crewPanelAt: number | undefined;
       await mod.register({
         id,
         appVersion: VERSION,
@@ -406,6 +425,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         crewPanel: (route) => {
           if (!/^\/[\w\-/{}]*$/.test(route)) throw new Error(`crew panel route "${route}" must be a path such as /crew`);
           crewPanel = route;
+          crewPanelAt = cards.length;
         },
         backupProvider: (provider) => {
           if (provider.kind === "folder") throw new Error('backup provider kind "folder" is built in');
@@ -446,6 +466,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       info.reports = reports;
       info.shootCards = shootCards;
       info.crewPanel = crewPanel;
+      info.crewPanelAt = crewPanelAt;
       info.pages = pages;
       info.status = "loaded";
       app.log.info({ extension: id, sha256: info.sha256 }, "extension loaded");

@@ -37,6 +37,8 @@ export interface SettingTypes {
   "studio.hours": StudioHours | null;
   /** Set when a logo has been uploaded; changes with each upload. */
   "studio.logoVersion": number;
+  /** Set when a sign-in photo has been uploaded; changes with each upload. */
+  "studio.signInPhotoVersion": number;
   "internet.publicUrl": string;
   "internet.trustCloudflare": boolean;
   /** The server's address on the home network (host IP and the port mapped to the container). */

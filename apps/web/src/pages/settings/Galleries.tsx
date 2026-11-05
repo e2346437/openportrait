@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Button, Callout, Field, Panel, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { WatermarkPanel } from "./WatermarkPanel.js";
+import { BrandImagePanel } from "../../components/BrandImagePanel.js";
 import { ProofingPanel } from "./ProofingPanel.js";
 import { LOCK_LABELS, type DownloadLock } from "../../lib/galleries.js";
 
@@ -13,68 +14,6 @@ interface GallerySettings {
   defaultDownloadLock: DownloadLock;
   watermarkText: string;
   webQuality: number;
-}
-
-/** The studio logo shown on client galleries. */
-function LogoPanel({ owner }: { owner: boolean }) {
-  const toast = useToast();
-  const input = useRef<HTMLInputElement>(null);
-  const [logo, setLogo] = useState<string | null | undefined>(undefined);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    api<{ logo: string | null }>("/branding")
-      .then((r) => setLogo(r.logo))
-      .catch(() => setLogo(null));
-  }, []);
-
-  const upload = async (file: File) => {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/studio/branding/logo", { method: "PUT", credentials: "same-origin", headers: { "content-type": file.type }, body: file });
-      const data = (await res.json().catch(() => ({}))) as { logo?: string; message?: string };
-      if (!res.ok) throw new Error(data.message ?? "That file couldn't be used. Try a PNG, JPEG or WebP image under 5 MB.");
-      setLogo(data.logo ?? null);
-      toast("Logo saved");
-    } catch (e) {
-      toast((e as Error).message, "bad");
-    } finally {
-      setBusy(false);
-      if (input.current) input.current.value = "";
-    }
-  };
-
-  return (
-    <Panel title="Logo" description="Shown at the top of client galleries. A PNG with a transparent background works best. Without one, your studio name is used.">
-      <div className="logo-row">
-        <div className="logo-preview" aria-busy={logo === undefined}>
-          {logo ? <img src={logo} alt="Studio logo" /> : <span className="muted">No logo yet</span>}
-        </div>
-        {owner ? (
-          <div className="logo-acts">
-            <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-            <Button icon="plus" loading={busy} onClick={() => input.current?.click()}>
-              {logo ? "Replace logo" : "Upload logo"}
-            </Button>
-            {logo ? (
-              <Button
-                variant="ghost"
-                onClick={async () => {
-                  await api("/branding/logo", { method: "DELETE" });
-                  setLogo(null);
-                  toast("Logo removed");
-                }}
-              >
-                Remove
-              </Button>
-            ) : null}
-          </div>
-        ) : (
-          <span className="hint">Only the studio owner can change this.</span>
-        )}
-      </div>
-    </Panel>
-  );
 }
 
 export function GallerySettingsPage() {
@@ -114,7 +53,13 @@ export function GallerySettingsPage() {
 
   return (
     <div className="stack">
-    <LogoPanel owner={owner} />
+    <BrandImagePanel
+      kind="logo"
+      owner={owner}
+      title="Logo"
+      description="Shown at the top of client galleries. A PNG with a transparent background works best. Without one, your studio name is used."
+      alt="Studio logo"
+    />
     <WatermarkPanel owner={owner} />
     <ProofingPanel owner={owner} />
     <form onSubmit={onSubmit} noValidate className="stack">

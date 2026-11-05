@@ -6,6 +6,7 @@ import { useSubmit } from "../../lib/useForm.js";
 import { WatermarkPanel } from "./WatermarkPanel.js";
 import { BrandImagePanel } from "../../components/BrandImagePanel.js";
 import { ProofingPanel } from "./ProofingPanel.js";
+import { SwitchRow } from "../../components/SwitchRow.js";
 import { LOCK_LABELS, type DownloadLock } from "../../lib/galleries.js";
 
 interface GallerySettings {
@@ -14,6 +15,8 @@ interface GallerySettings {
   defaultDownloadLock: DownloadLock;
   watermarkText: string;
   webQuality: number;
+  expiryMonths: number;
+  expiryReminders: boolean;
 }
 
 export function GallerySettingsPage() {
@@ -35,8 +38,8 @@ export function GallerySettingsPage() {
       .catch((e: Error) => setLoadError(e.message));
   }, []);
 
-  const body = form && { deliveryFolder: form.deliveryFolder, defaultDownloadLock: form.defaultDownloadLock, webQuality: form.webQuality, privateFolders: priv.split(",").map((x) => x.trim()).filter(Boolean) };
-  const dirty = !!saved && !!body && JSON.stringify(body) !== JSON.stringify({ deliveryFolder: saved.deliveryFolder, defaultDownloadLock: saved.defaultDownloadLock, webQuality: saved.webQuality, privateFolders: saved.privateFolders });
+  const body = form && { deliveryFolder: form.deliveryFolder, defaultDownloadLock: form.defaultDownloadLock, webQuality: form.webQuality, expiryMonths: form.expiryMonths, expiryReminders: form.expiryReminders, privateFolders: priv.split(",").map((x) => x.trim()).filter(Boolean) };
+  const dirty = !!saved && !!body && JSON.stringify(body) !== JSON.stringify({ deliveryFolder: saved.deliveryFolder, defaultDownloadLock: saved.defaultDownloadLock, webQuality: saved.webQuality, expiryMonths: saved.expiryMonths, expiryReminders: saved.expiryReminders, privateFolders: saved.privateFolders });
   const { busy, error, fieldErrors, submit } = useSubmit(() => api<GallerySettings>("/ingest/settings", { method: "PUT", body }));
 
   const onSubmit = async (e: FormEvent) => {
@@ -89,6 +92,23 @@ export function GallerySettingsPage() {
           {(p) => <input {...p} type="range" className="range" min={60} max={100} step={1} disabled={!owner} value={form.webQuality} onChange={(e) => setForm({ ...form, webQuality: Number(e.target.value) })} />}
         </Field>
         <p className="hint">New quality applies to downloads made after you save. Default is 88.</p>
+      </Panel>
+      <Panel
+        title="Expiry and archive"
+        description="A gallery expires a set time after you first publish it. It is then packed into one zip in an Archive folder next to your shoots and taken offline. Nothing is deleted, and you can restore it from the shoot's gallery."
+      >
+        <Field label="Expire galleries after" hint="Applies to galleries you publish from now on. Galleries that are already published keep their dates, and you can change any gallery's date on its Settings tab.">
+          {(p) => (
+            <select {...p} className="input" disabled={!owner} value={form.expiryMonths} onChange={(e) => setForm({ ...form, expiryMonths: Number(e.target.value) })}>
+              <option value={0}>Never</option>
+              {[1, 3, 6, 12, 18, 24, 36].map((m) => (
+                <option key={m} value={m}>{m === 1 ? "1 month" : m % 12 === 0 ? `${m / 12} ${m === 12 ? "year" : "years"} (${m} months)` : `${m} months`}</option>
+              ))}
+              {![0, 1, 3, 6, 12, 18, 24, 36].includes(form.expiryMonths) ? <option value={form.expiryMonths}>{form.expiryMonths} months</option> : null}
+            </select>
+          )}
+        </Field>
+        <SwitchRow checked={form.expiryReminders} onChange={(v) => setForm({ ...form, expiryReminders: v })} disabled={!owner} label="Email clients before it expires" hint="The people attached to the shoot get a reminder 90, 30 and 7 days before, with a link to download their photos. Needs email set up in Settings." />
       </Panel>
       <Panel
         title="Folders"

@@ -21,6 +21,7 @@ import { TunnelManager } from "./tunnel.js";
 import { registerDerivativesJob } from "./galleries/derivatives.js";
 import { GalleryIngest } from "./galleries/ingest.js";
 import { tickCheckouts } from "./domain/storage-checkout.js";
+import { tickExpiry } from "./domain/gallery-expiry.js";
 import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
 import { masterRoutes } from "./routes/master.js";
@@ -349,12 +350,17 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     const stopWatcher = startGalleryWatcher({ dir: config.galleriesDir, ingest: galleries, rescanMinutes: config.watchRescanMinutes, settleSeconds: config.ingestSettleSeconds, logger: app.log });
     // Check Out: notice when files are back, and send idle shoots offsite again.
     const checkoutTimer = setInterval(() => tickCheckouts({ db, settings, config, actorId: null, publicUrl: ctx.publicUrl }, originals), 60_000);
+    // Gallery expiry: reminders to attached clients, then a zip in the Archive folder.
+    const expiryCtx = { db, settings, config, actorId: null, publicUrl: ctx.publicUrl };
+    const expiryTimer = setInterval(() => void tickExpiry(expiryCtx, originals, (msg, err) => app.log.warn({ err: String(err) }, msg)), 3_600_000);
+    setTimeout(() => void tickExpiry(expiryCtx, originals, (msg, err) => app.log.warn({ err: String(err) }, msg)), 60_000).unref();
     const googleTimer = setInterval(() => requestSync(db, 0), 5 * 60_000);
     setTimeout(() => requestSync(db, 0), 10_000).unref();
     app.addHook("onClose", async () => {
       clearInterval(hourly);
       clearInterval(googleTimer);
       clearInterval(checkoutTimer);
+      clearInterval(expiryTimer);
       await stopWatcher();
       await uploads.stop();
       await jobs.stop();

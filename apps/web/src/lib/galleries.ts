@@ -53,6 +53,18 @@ export interface FavoriteListInfo {
   maxCount: number | null;
 }
 
+export interface ArchiveItem {
+  id: string;
+  fileName: string;
+  folder: string;
+  sizeBytes: number;
+  fileCount: number;
+  reason: "expired" | "manual";
+  createdAt: number;
+  restoredAt: number | null;
+  exists: boolean;
+}
+
 export interface GalleryDetail {
   gallery: {
     id: string;
@@ -86,6 +98,8 @@ export interface GalleryDetail {
     views: number;
     downloads: number;
   };
+  /** Expiry: the zips made when this gallery expired or was archived by hand. */
+  archive: { archivedAt: number | null; items: ArchiveItem[] };
   /** What is where, per folder. `attached` is whether any remote storage is available. */
   storage: { attached: boolean; originals: FolderCounts; gallery: FolderCounts; checkout: Checkout };
   sets: StudioSet[];
@@ -117,6 +131,8 @@ export interface FolderCounts {
 }
 
 export interface GallerySummary {
+  expiresAt: number | null;
+  archivedAt: number | null;
   id: string;
   title: string;
   slug: string;

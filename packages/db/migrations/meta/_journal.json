@@ -211,6 +211,13 @@
       "when": 1793894091489,
       "tag": "0029_acoustic_iron_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1793894849043,
+      "tag": "0030_large_sasquatch",
+      "breakpoints": true
     }
   ]
 }

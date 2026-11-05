@@ -127,6 +127,8 @@ Average similarity to the original across the five photos (1.0 is identical, so 
 | Saved again as a low-quality JPEG | 0.85 | 0.89 | 0.83 | 0.69 |
 | Repaired by inpainting, mark outlined by guesswork | 0.81 | 0.81 | 0.77 | 0.74 |
 | Repaired by inpainting, exact mark outline (best case) | 0.96 | 0.96 | 0.93 | 0.88 |
+| Repaired by a learned inpainting model, exact mark outline (best case) | 0.97 | 0.97 | 0.94 | 0.90 |
+| Repaired by a learned inpainting model, mark outlined by guesswork | 0.82 | 0.81 | 0.78 | 0.74 |
 | Share of the photo the mark covers | 9% | 7% | 12% | 23% |
 
 What to take from it:
@@ -135,7 +137,20 @@ What to take from it:
 - **Part of the gain is simply covering more of the photo and showing it smaller**, not the irregular layout alone. This test cannot separate those.
 - **Strong makes the client's own preview softer too.** Its unattacked preview scores 0.72 against the original. Check one on a phone before you choose it.
 - **Guessing the mark automatically did about the same against every option** (0.74 to 0.81), so the irregular layout did not clearly make the mark harder to find.
-- **Learned and generative tools are not covered by these numbers.** General-purpose hosted image editors declined or returned no image when asked to remove a watermark in our trial, which helps against casual use, but policies change and tools you run yourself have no such filter. Keep downloads locked until you are paid.
+- **A learned model did a little better than the classical tool**, by about 0.01 to 0.02 in every column, but the order stayed the same: the old grid was easiest to clean up and Strong the hardest.
+- **Generative tools are not covered by these numbers.** General-purpose hosted image editors declined or returned no image when asked to remove a watermark in our trial, which helps against casual use, but policies change and tools you run yourself have no such filter. Keep downloads locked until you are paid.
+
+#### What a learned model leaves behind
+
+We also tried LaMa, an open-weight inpainting model that runs on an ordinary computer, again handed the exact mark outline. The top row is the preview as served, the bottom row is what the model made of it. On the old grid and Light it returned a clean face. On Strong it left smudges and changed the eye region, so what it recovered is less faithful to the original.
+
+![Face example: each preview as served and after a learned-model removal attempt](img/proofing-learned-face.png)
+
+Fine text is harder to repair. Where marks crossed letters, the model invented its own, and on Strong several words came back unreadable.
+
+![Text example: each preview as served and after a learned-model removal attempt](img/proofing-learned-text.png)
+
+Remember what this does not show. Strong also hides more of the photo for your client, and part of the difference comes from covering more of it, not only from the layout. It is a small test on five public sample images with one watermark look, so treat these pictures as examples and not as a promise about any particular tool.
 
 ## Favorites and proofing
 

@@ -78,6 +78,10 @@ export const gallery = sqliteTable(
     checkoutTotalFiles: integer().notNull().default(0),
     checkoutTotalBytes: integer().notNull().default(0),
     checkoutReadyAt: integer({ mode: "timestamp_ms" }),
+    /** The smallest reminder (days left) already emailed to the shoot's clients; 0 means none yet. Reset when the expiry date changes. */
+    expiryReminderDays: integer().notNull().default(0),
+    /** Set when the gallery expired and its zip was made. The gallery is then hidden from clients and kept in the archive. */
+    archivedAt: integer({ mode: "timestamp_ms" }),
     unlockedAt: integer({ mode: "timestamp_ms" }),
     expiresAt: integer({ mode: "timestamp_ms" }),
     publishedAt: integer({ mode: "timestamp_ms" }),
@@ -146,6 +150,25 @@ export const photo = sqliteTable(
     index("photo_gallery_idx").on(t.galleryId, t.setId, t.sort),
     index("photo_hash_idx").on(t.galleryId, t.contentHash),
   ],
+);
+
+/**
+ * The zip made when a gallery expires (or is archived by hand). The gallery's own files are never deleted; the
+ * zip is the safe copy that can be downloaded or restored from. `relPath` is relative to GALLERIES_DIR.
+ */
+export const galleryArchive = sqliteTable(
+  "gallery_archive",
+  {
+    id: text().primaryKey(),
+    galleryId: text().notNull().references(() => gallery.id, { onDelete: "cascade" }),
+    relPath: text().notNull(),
+    sizeBytes: integer().notNull(),
+    fileCount: integer().notNull(),
+    reason: text({ enum: ["expired", "manual"] }).notNull(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+    restoredAt: integer({ mode: "timestamp_ms" }),
+  },
+  (t) => [index("gallery_archive_gallery_idx").on(t.galleryId)],
 );
 
 /**

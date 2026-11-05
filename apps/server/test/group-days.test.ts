@@ -238,3 +238,98 @@ describe("marks made while shooting", () => {
     expect((await call("POST", `/incoming/days/${day}/marks`, { path: "Z9/none.nef", name: "X" })).status).toBe(409);
   });
 });
+
+describe("group day billing", () => {
+  async function photographed(day: string, name: string, email: string, frames = 2) {
+    const child = (await call("POST", `/shoots/${day}/people`, { name, email })).body.child as { id: string; folderPath: string };
+    const raw = path.join(galleries, child.folderPath, "Originals", "RAW");
+    for (let i = 0; i < frames; i++) fs.writeFileSync(path.join(raw, `${name.replace(/\W/g, "")}${i}.jpg`), "x");
+    return child;
+  }
+
+  it("splits cents so the shares add up exactly", async () => {
+    const { splitCents, splitByWeight } = await import("../src/domain/groupbilling.js");
+    expect(splitCents(26000, 8)).toEqual(Array(8).fill(3250));
+    expect(splitCents(10000, 3)).toEqual([3334, 3333, 3333]);
+    expect(splitCents(5, 0)).toEqual([]);
+    expect(splitByWeight(10000, [4, 1, 1]).reduce((a, b) => a + b, 0)).toBe(10000);
+    expect(splitByWeight(10000, [4, 1, 1])).toEqual([6667, 1667, 1666]);
+  });
+
+  it("makes one draft invoice per photographed person with their share, and skips the rest", async () => {
+    const day = await makeDay();
+    await call("POST", `/shoots/${day}/costs`, { label: "Location fee", amountCents: 20000 });
+    await call("POST", `/shoots/${day}/costs`, { label: "Travel", amountCents: 6000 });
+    const a = await photographed(day, "Smith Family", "s@x.example");
+    await photographed(day, "Lee Family", "l@x.example");
+    await photographed(day, "Ortiz Family", "o@x.example");
+    await call("POST", `/shoots/${day}/people`, { name: "No Show", email: "n@x.example" });
+    const billing = (await call("GET", `/shoots/${day}/billing`)).body;
+    expect(billing.totalCostCents).toBe(26000);
+    expect(billing.billableCount).toBe(3);
+    expect(billing.people.map((p: { shareCents: number }) => p.shareCents)).toEqual([8667, 8667, 8666, 0]);
+    const r = await call("POST", `/shoots/${day}/invoices`, { lines: [{ description: "Mini session", unitCents: 17500 }] });
+    expect(r.status).toBe(201);
+    expect(r.body.created.map((c: { totalCents: number }) => c.totalCents)).toEqual([26167, 26167, 26166]);
+    expect(r.body.skipped.map((s: { subject: string }) => s.subject)).toEqual(["No Show"]);
+    const inv = (await call("GET", `/orders/${r.body.created[0].orderId}`)).body;
+    expect(inv.state).toBe("draft");
+    expect(inv.lines.map((l: { description: string }) => l.description)).toEqual(["Mini session", "Share of location and travel"]);
+    // A second run doesn't double-bill anyone.
+    const again = await call("POST", `/shoots/${day}/invoices`, { lines: [{ description: "Mini session", unitCents: 17500 }] });
+    expect(again.body.created).toHaveLength(0);
+    expect(again.body.skipped.filter((s: { reason: string }) => s.reason === "Already has an invoice.")).toHaveLength(3);
+    void a;
+  });
+
+  it("weights the split by headcount when asked", async () => {
+    const day = await makeDay();
+    await call("POST", `/shoots/${day}/costs`, { label: "Location", amountCents: 10000 });
+    const big = await photographed(day, "Big Family", "b@x.example");
+    await photographed(day, "Solo", "so@x.example");
+    expect((await call("PATCH", `/shoots/${big.id}`, { headcount: 4 })).status).toBe(200);
+    expect((await call("PATCH", `/shoots/${big.id}`, { headcount: 0 })).status).toBe(400);
+    const b = (await call("GET", `/shoots/${day}/billing?split=per_person`)).body;
+    expect(b.people.map((p: { shareCents: number }) => p.shareCents)).toEqual([8000, 2000]);
+  });
+
+  it("recounts the per-person line on a draft day invoice", async () => {
+    const day = await makeDay("parent");
+    await photographed(day, "One", "1@x.example");
+    await photographed(day, "Two", "2@x.example");
+    await photographed(day, "Three", "3@x.example");
+    const org = (await call("GET", `/shoots/${day}`)).body.primary.id;
+    const o = (await call("POST", "/orders", { kind: "invoice", contactId: org, shootId: day, title: "Acme headshot day", lines: [{ description: "Session fee", unitCents: 60000 }, { description: "Per person", quantity: 1, unitCents: 3500 }] })).body;
+    const lineId = o.lines[1].id as string;
+    const r = await call("POST", `/orders/${o.id}/recount`, { lineId });
+    expect(r.status).toBe(200);
+    expect(r.body.count).toBe(3);
+    expect(r.body.order.lines[1].quantity).toBe(3);
+    expect(r.body.order.totalCents).toBe(60000 + 3 * 3500);
+    expect(r.body.order.schedule.reduce((n: number, s: { amountCents: number }) => n + s.amountCents, 0)).toBe(70500);
+  });
+
+  it("refuses to recount a sent invoice", async () => {
+    const day = await makeDay("parent");
+    await photographed(day, "One", "1@x.example");
+    const org = (await call("GET", `/shoots/${day}`)).body.primary.id;
+    const o = (await call("POST", "/orders", { kind: "invoice", contactId: org, shootId: day, title: "T", lines: [{ description: "Per person", unitCents: 3500 }] })).body;
+    await call("POST", `/orders/${o.id}/send`);
+    expect((await call("POST", `/orders/${o.id}/recount`, { lineId: o.lines[0].id })).status).toBe(400);
+  });
+
+  it("unlocks only the galleries of people on the day", async () => {
+    const { tables } = await import("@openportrait/db");
+    const day = await makeDay("parent");
+    const kid = await photographed(day, "One", "1@x.example");
+    const db = app.ctx.db;
+    const base = { status: "live" as const, accessMode: "link" as const, downloadLock: "until_paid" as const };
+    db.insert(tables.gallery).values({ id: "g1", slug: "g1", title: "One", shootFolder: kid.folderPath, folderPath: `${kid.folderPath}/Gallery`, ...base }).run();
+    db.insert(tables.gallery).values({ id: "g2", slug: "g2", title: "Other", shootFolder: "2026/Other", folderPath: "2026/Other", ...base }).run();
+    const r = await call("POST", `/shoots/${day}/unlock-galleries`);
+    expect(r.body.unlocked).toBe(1);
+    const rows = db.select().from(tables.gallery).all();
+    expect(rows.find((g) => g.id === "g1")!.unlockedAt).toBeTruthy();
+    expect(rows.find((g) => g.id === "g2")!.unlockedAt).toBeFalsy();
+  });
+});

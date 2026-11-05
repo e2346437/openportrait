@@ -154,6 +154,7 @@ export interface ShootDetail {
   parentId: string | null;
   billTo: "self" | "parent";
   showOnMaster: boolean;
+  headcount: number;
   parent: { id: string; subject: string } | null;
   children: GroupDayChild[];
   shootType: { id: string; name: string; folderLabel: string };

@@ -225,7 +225,7 @@ function cleanNotes(notes: string | null | undefined): string | null {
   return t || null;
 }
 
-export function updateShoot(ctx: ServiceContext, id: string, input: { subject?: string; shootTypeId?: string; status?: ShootStatus; notes?: string | null; primaryContactId?: string; billTo?: "self" | "parent"; showOnMaster?: boolean }) {
+export function updateShoot(ctx: ServiceContext, id: string, input: { subject?: string; shootTypeId?: string; status?: ShootStatus; notes?: string | null; primaryContactId?: string; billTo?: "self" | "parent"; showOnMaster?: boolean; headcount?: number }) {
   const current = shootRow(ctx, id);
   const patch: Partial<typeof shoot.$inferInsert> = {};
   if (input.subject !== undefined) {
@@ -242,6 +242,10 @@ export function updateShoot(ctx: ServiceContext, id: string, input: { subject?: 
     patch.billTo = input.billTo;
   }
   if (input.showOnMaster !== undefined) patch.showOnMaster = input.showOnMaster;
+  if (input.headcount !== undefined) {
+    if (!Number.isInteger(input.headcount) || input.headcount < 1 || input.headcount > 99) throw new DomainError("invalid", "Enter how many people this covers, from 1 to 99.");
+    patch.headcount = input.headcount;
+  }
   if (input.notes !== undefined) patch.notes = cleanNotes(input.notes);
   if (input.primaryContactId !== undefined) {
     if (!ctx.db.select().from(contact).where(eq(contact.id, input.primaryContactId)).get()) throw notFound("Contact");

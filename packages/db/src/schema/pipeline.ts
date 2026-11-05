@@ -75,6 +75,8 @@ export const shoot = sqliteTable(
     billTo: text({ enum: ["self", "parent"] }).notNull().default("self"),
     /** False keeps a child off the parent's master page. */
     showOnMaster: integer({ mode: "boolean" }).notNull().default(true),
+    /** How many people this shoot covers (a family of four is 4). Used when shared costs are split per person. */
+    headcount: integer().notNull().default(1),
     notes: text(),
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
     updatedAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
@@ -187,4 +189,20 @@ export const subjectMark = sqliteTable(
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
   },
   (t) => [index("subject_mark_parent_idx").on(t.parentId, t.createdAt), uniqueIndex("subject_mark_path_idx").on(t.parentId, t.path)],
+);
+
+/** A cost shared by everyone on a group day (location fee, travel). Split across the people when invoices are made. */
+export const shootCost = sqliteTable(
+  "shoot_cost",
+  {
+    id: text().primaryKey(),
+    shootId: text()
+      .notNull()
+      .references(() => shoot.id, { onDelete: "cascade" }),
+    label: text().notNull(),
+    amountCents: integer().notNull(),
+    position: integer().notNull().default(0),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [index("shoot_cost_shoot_idx").on(t.shootId, t.position)],
 );

@@ -4,6 +4,7 @@ import { Button, Callout, Dialog, Field, Panel, StatusChip, Switch, TextArea, Te
 import { api } from "../lib/api.js";
 import { SHOOT_STATUS, type ShootDetail } from "../lib/types.js";
 import { useSubmit } from "../lib/useForm.js";
+import { GroupDayBilling } from "./GroupDayBilling.js";
 
 const BILLING = {
   self: "Each person is billed on their own",
@@ -101,20 +102,7 @@ export function GroupDayPanel({ shoot, onChange }: { shoot: ShootDetail; onChang
         </form>
       </Panel>
 
-      <Panel title="Billing" description="Who pays for this day. You can still give any one person their own invoice.">
-        <Field label="Default for people on this day">
-          {(p) => (
-            <select {...p} className="input" value={shoot.billTo} onChange={(e) => void setBilling(e.target.value as "self" | "parent")}>
-              {(Object.keys(BILLING) as Array<keyof typeof BILLING>).map((k) => (
-                <option key={k} value={k}>
-                  {BILLING[k]}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
-        <p className="hint">Applies to people you add from now on. Invoices for the day are created from the Orders panel.</p>
-      </Panel>
+      <GroupDayBilling shoot={shoot} onChange={onChange} />
 
       <PasteDialog open={pasting} shootId={shoot.id} onClose={() => setPasting(false)} onDone={async () => { setPasting(false); await onChange(await api<ShootDetail>(`/shoots/${shoot.id}`)); }} />
     </>
@@ -138,6 +126,9 @@ export function GroupDayMember({ shoot, onChange }: { shoot: ShootDetail; onChan
         <Link to={`/studio/shoots/${shoot.parent.id}`}>Open {shoot.parent.subject}</Link>
       </p>
       <Switch label="Show on the organisation's page" checked={shoot.showOnMaster} onChange={(v) => void patch({ showOnMaster: v })} />
+      <Field label="People in this shoot" hint="A family of four is 4. Used when shared costs are split by headcount.">
+        {(p) => <TextInput {...p} type="number" min={1} max={99} value={shoot.headcount} onChange={(e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= 1 && n <= 99) void patch({ headcount: n }); }} />}
+      </Field>
       <Field label="Billing">
         {(p) => (
           <select {...p} className="input" value={shoot.billTo} onChange={(e) => void patch({ billTo: e.target.value })}>

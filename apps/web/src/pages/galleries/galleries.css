@@ -188,3 +188,15 @@ input.input.date { max-width: 200px; }
 .limit-input { display: flex; align-items: center; gap: 8px; }
 .limit-input .input { max-width: 140px; }
 .limit-input .unit { color: var(--ink-3); font-size: 13px; }
+
+/* Storage tab */
+.storage-rows { display: grid; gap: var(--s5); }
+.storage-row { display: grid; gap: var(--s3); }
+.storage-row + .storage-row { padding-top: var(--s5); border-top: 1px solid var(--line); }
+.storage-row-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--s2) var(--s4); }
+.storage-row-head h3 { margin: 0; font-size: 15px; }
+.storage-row-head .hint { margin: 2px 0 0; }
+.storage-row .seg, .storage-seg { display: flex; width: 100%; }
+.storage-row .seg button, .storage-seg button { flex: 1 1 auto; padding: 0 8px; white-space: normal; line-height: 1.2; }
+.seg button:disabled { opacity: 0.5; cursor: not-allowed; }
+.storage-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }

@@ -1195,6 +1195,19 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .crew-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
 @media (max-width: 560px) { .crew-two { grid-template-columns: minmax(0, 1fr); } .crew-cam { width: 100%; } .crew-menu-pop { left: 0; right: auto; max-width: calc(100vw - 48px); } }
 
+/* Extension cards: connection block */
+.ext-conn { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--s3) var(--s4); padding: var(--s4); border: 1px solid var(--ok); border-radius: var(--r-lg); background: var(--surface-2); }
+.ext-conn.bad { border-color: var(--bad); }
+.ext-conn-icon { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; font-weight: 700; background: var(--ok-soft); color: var(--ok); }
+.ext-conn.bad .ext-conn-icon { background: var(--bad-soft); color: var(--bad); }
+.ext-conn-text { display: grid; min-width: 0; }
+.ext-conn-text strong { font-size: 16px; overflow-wrap: anywhere; }
+.ext-conn-text span { color: var(--ink-3); font-size: 14px; }
+.ext-conn-actions { display: flex; flex-wrap: wrap; gap: var(--s2); grid-column: 2; }
+.ext-conn-actions:empty { display: none; }
+@media (max-width: 560px) { .ext-conn-actions { grid-column: 1 / -1; } }
+.ext-toggles { display: grid; gap: var(--s3); }
+.ext-toggles .ext-list-title { margin: 0; }
 /* Appearance switch */
 .theme-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); max-width: 480px; }
 .theme-opt { display: grid; gap: var(--s2); padding: var(--s2); border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; text-align: center; }

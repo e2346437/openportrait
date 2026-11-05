@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { and, asc, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
 import { hashPassword, requireOwner, requireUser } from "../auth.js";
@@ -12,6 +12,8 @@ import { ProofingOverride } from "../galleries/proofing.js";
 import { parse } from "../validate.js";
 import { emailPanel, sendGalleryEmail } from "../galleries/mail.js";
 import { DomainError } from "../domain/context.js";
+import { checkIn, checkoutView, startCheckout } from "../domain/storage-checkout.js";
+import { serviceContext } from "./crm.js";
 
 const { gallery, gallerySet, photo, ingestFolder, favoriteList, favoriteSelection, favoriteItem, galleryView, downloadEvent, galleryVisitor, emailLog } = tables;
 
@@ -53,6 +55,9 @@ const GalleryPatch = z
     downloadMaxTimes: z.number().int().min(1, "A limit must be at least 1.").max(10_000).nullable(),
     downloadMaxFiles: z.number().int().min(1, "A limit must be at least 1.").max(100_000).nullable(),
     expiresAt: z.number().int().positive().nullable(),
+    /** Where this gallery's Originals folder and delivered images are kept when remote storage is attached. */
+    storageOriginals: z.enum(["default", "local", "offsite"]),
+    storageGallery: z.enum(["default", "local", "offsite"]),
     registration: z.enum(["none", "email", "email_name"]),
     welcomeMessage: z.string().trim().max(1500).nullable(),
     /** "password" needs `password` too; "link" clears it. */
@@ -173,6 +178,8 @@ export async function galleryRoutes(app: FastifyInstance) {
         downloadLock: g.downloadLock,
         downloadMaxTimes: g.downloadMaxTimes,
         downloadMaxFiles: g.downloadMaxFiles,
+        storageOriginals: g.storageOriginals,
+        storageGallery: g.storageGallery,
         accessMode: g.accessMode,
         hasPassword: !!g.passwordHash,
         registration: g.registration,
@@ -183,6 +190,13 @@ export async function galleryRoutes(app: FastifyInstance) {
         url: `${app.ctx.publicUrl()}/g/${g.slug}`,
         views,
         downloads,
+      },
+      /** What is where, per folder. `attached` is whether any remote storage is available at all. */
+      storage: {
+        attached: app.ctx.originals.hasStore(),
+        originals: app.ctx.originals.raw.counts(g.shootFolder),
+        gallery: app.ctx.originals.counts(g.shootFolder),
+        checkout: checkoutView(mailCtx(), app.ctx.originals, g.id),
       },
       sets: sets.map((s) => ({ id: s.id, name: s.name, folderName: s.folderName, hidden: s.hidden, earlyDownload: s.earlyDownload, coverPhotoId: s.coverPhotoId, coverFocalX: s.coverFocalX, coverFocalY: s.coverFocalY, sort: s.sort })),
       photos: photos.map((p) => ({ ...photoJson(secrets, p), state: p.state, error: p.error, hidden: p.hidden, relPath: p.relPath })),
@@ -203,6 +217,10 @@ export async function galleryRoutes(app: FastifyInstance) {
     if (body.coverPhotoId && !db.select({ id: photo.id }).from(photo).where(and(eq(photo.id, body.coverPhotoId), eq(photo.galleryId, g.id))).get()) {
       return reply.code(400).send({ error: "invalid", field: "coverPhotoId", message: "That photo is not in this gallery." });
     }
+    const out = g.checkoutFolders;
+    if (g.checkedOutAt && ((body.storageOriginals !== undefined && out !== "gallery") || (body.storageGallery !== undefined && out !== "originals"))) {
+      return reply.code(409).send({ error: "checked_out", message: "This shoot is checked out. Check it in before changing where its files are kept." });
+    }
     const { design, expiresAt, password, accessMode, ...rest } = body;
     const access: { accessMode?: "link" | "password"; passwordHash?: string | null } = {};
     if (accessMode === "link") Object.assign(access, { accessMode: "link", passwordHash: null });
@@ -222,6 +240,27 @@ export async function galleryRoutes(app: FastifyInstance) {
       .run();
     return detail(g.id);
   });
+
+  /** Check Out: bring this shoot's offsite files back to the server for editing. Check In sends them back. */
+  const checkoutRoute = (run: (req: FastifyRequest<{ Params: { id: string } }>) => void) => async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    if (!db.select({ id: gallery.id }).from(gallery).where(eq(gallery.id, req.params.id)).get()) return notFound(reply);
+    try {
+      run(req);
+    } catch (e) {
+      if (e instanceof DomainError) return reply.code(e.status).send({ error: e.code, message: e.message });
+      throw e;
+    }
+    return detail(req.params.id);
+  };
+  app.post<{ Params: { id: string } }>(
+    "/:id/checkout",
+    checkoutRoute((req) => {
+      const body = z.object({ folders: z.enum(["originals", "gallery", "both"]), returnDays: z.number().int().min(1).max(365).optional() }).safeParse(req.body ?? {});
+      if (!body.success) throw new DomainError("invalid", "Choose which folders to check out.");
+      startCheckout(serviceContext(app, req), app.ctx.originals, req.params.id, body.data);
+    }),
+  );
+  app.post<{ Params: { id: string } }>("/:id/checkin", checkoutRoute((req) => void checkIn(serviceContext(app, req), app.ctx.originals, req.params.id)));
 
   app.post<{ Params: { id: string } }>("/:id/publish", async (req, reply) => {
     const body = parse(z.object({ downloadLock: lock }), req.body ?? {}, reply);

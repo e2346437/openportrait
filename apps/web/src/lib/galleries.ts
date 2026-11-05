@@ -73,6 +73,8 @@ export interface GalleryDetail {
     downloadLock: DownloadLock;
     downloadMaxTimes: number | null;
     downloadMaxFiles: number | null;
+    storageOriginals: StorageChoice;
+    storageGallery: StorageChoice;
     accessMode: "link" | "password";
     hasPassword: boolean;
     registration: "none" | "email" | "email_name";
@@ -84,9 +86,34 @@ export interface GalleryDetail {
     views: number;
     downloads: number;
   };
+  /** What is where, per folder. `attached` is whether any remote storage is available. */
+  storage: { attached: boolean; originals: FolderCounts; gallery: FolderCounts; checkout: Checkout };
   sets: StudioSet[];
   photos: StudioPhoto[];
   lists: FavoriteListInfo[];
+}
+
+/** Check Out: bringing a shoot's offsite files back to this server for editing. */
+export interface Checkout {
+  state: "none" | "preparing" | "ready";
+  folders: "originals" | "gallery" | "both" | null;
+  checkedOutAt: number | null;
+  readyAt: number | null;
+  returnDays: number;
+  returnsAt: number | null;
+  totalFiles: number;
+  doneFiles: number;
+  totalBytes: number;
+  remainingFiles: number;
+}
+
+/** Where a gallery's files go: follow the studio default, stay on this server, or go to remote storage. */
+export type StorageChoice = "default" | "local" | "offsite";
+export interface FolderCounts {
+  local: number;
+  remote: number;
+  localBytes: number;
+  remoteBytes: number;
 }
 
 export interface GallerySummary {

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { and, asc, desc, eq, inArray, isNull, or, sql, count } from "drizzle-orm";
 import { tables } from "@openportrait/db";
-import { displayName, logActivity } from "./contacts.js";
+import { createContact, displayName, findByEmail, logActivity } from "./contacts.js";
 import { DomainError, newId, notFound, type ServiceContext } from "./context.js";
 import { NOTE_MAX, cleanRich, safeRich } from "./richtext.js";
 import { autoSendForShoot } from "./questionnaires.js";
@@ -16,6 +16,7 @@ import {
   DEFAULT_RAW_SUBDIR,
   renderFolder,
   resolveInside,
+  safeSegment,
   uniqueFolder,
   unknownTokens,
   type FolderValues,
@@ -85,12 +86,18 @@ export interface ShootQuery {
   offset?: number;
   /** Only these shoots. An empty list matches nothing. */
   ids?: string[];
+  /** Child shoots of a group day are hidden from lists by default; `show` mixes them in, `only` lists just the children of `parentId`. */
+  children?: "hide" | "show" | "only";
+  parentId?: string;
 }
 
 export function listShoots(ctx: ServiceContext, query: ShootQuery = {}) {
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 200);
   const offset = Math.max(query.offset ?? 0, 0);
   const conditions = [];
+  if (query.parentId) conditions.push(eq(shoot.parentId, query.parentId));
+  else if ((query.children ?? "hide") === "hide") conditions.push(isNull(shoot.parentId));
+  else if (query.children === "only") conditions.push(sql`${shoot.parentId} is not null`);
   if (query.ids) conditions.push(query.ids.length ? inArray(shoot.id, query.ids) : sql`0`);
   if (query.status === "active") conditions.push(sql`${shoot.status} not in ('complete', 'cancelled')`);
   else if (query.status) conditions.push(eq(shoot.status, query.status));
@@ -122,6 +129,8 @@ export function listShoots(ctx: ServiceContext, query: ShootQuery = {}) {
       subject: shoot.subject,
       status: shoot.status,
       folderPath: shoot.folderPath,
+      parentId: shoot.parentId,
+      kind: shoot.kind,
       shootType: shootType.name,
       shootTypeId: shootType.id,
       contactId: contact.id,
@@ -171,6 +180,8 @@ export function getShoot(ctx: ServiceContext, id: string) {
     primary: { id: primary.id, name: displayName(primary), email: primary.email, phone: primary.phone },
     events,
     contacts: others,
+    children: row.kind === "group_day" ? listChildren(ctx, id) : [],
+    parent: row.parentId ? (ctx.db.select({ id: shoot.id, subject: shoot.subject }).from(shoot).where(eq(shoot.id, row.parentId)).get() ?? null) : null,
     folder: row.folderPath ? { path: row.folderPath, exists: folderExists, rawSubdir: fs_.rawSubdir, deliverySubdir: fs_.deliverySubdir } : null,
   };
 }
@@ -179,7 +190,7 @@ export function getShoot(ctx: ServiceContext, id: string) {
 
 export function createShoot(
   ctx: ServiceContext,
-  input: { primaryContactId: string; shootTypeId: string; subject?: string; leadId?: string | null; events?: EventInput[]; notes?: string | null },
+  input: { primaryContactId: string; shootTypeId: string; subject?: string; leadId?: string | null; events?: EventInput[]; notes?: string | null; kind?: "single" | "group_day" },
 ) {
   const primary = ctx.db.select().from(contact).where(eq(contact.id, input.primaryContactId)).get();
   if (!primary) throw notFound("Contact");
@@ -189,7 +200,7 @@ export function createShoot(
   const id = newId();
   const subject = input.subject?.trim() || displayName(primary);
   ctx.db.transaction((tx) => {
-    tx.insert(shoot).values({ id, subject, shootTypeId: type.id, primaryContactId: primary.id, leadId: input.leadId ?? null, notes: cleanNotes(input.notes) }).run();
+    tx.insert(shoot).values({ id, subject, kind: input.kind ?? "single", shootTypeId: type.id, primaryContactId: primary.id, leadId: input.leadId ?? null, notes: cleanNotes(input.notes) }).run();
     for (const e of input.events ?? []) tx.insert(shootEvent).values(eventValues(id, e)).run();
   });
   logActivity(ctx, { contactId: primary.id, shootId: id, leadId: input.leadId ?? null, kind: "shoot.created", summary: `${type.name} shoot booked for ${subject}` });
@@ -214,7 +225,7 @@ function cleanNotes(notes: string | null | undefined): string | null {
   return t || null;
 }
 
-export function updateShoot(ctx: ServiceContext, id: string, input: { subject?: string; shootTypeId?: string; status?: ShootStatus; notes?: string | null; primaryContactId?: string }) {
+export function updateShoot(ctx: ServiceContext, id: string, input: { subject?: string; shootTypeId?: string; status?: ShootStatus; notes?: string | null; primaryContactId?: string; billTo?: "self" | "parent"; showOnMaster?: boolean }) {
   const current = shootRow(ctx, id);
   const patch: Partial<typeof shoot.$inferInsert> = {};
   if (input.subject !== undefined) {
@@ -226,6 +237,11 @@ export function updateShoot(ctx: ServiceContext, id: string, input: { subject?: 
     patch.shootTypeId = input.shootTypeId;
   }
   if (input.status !== undefined) patch.status = input.status;
+  if (input.billTo !== undefined) {
+    if (input.billTo === "parent" && !current.parentId && current.kind !== "group_day") throw new DomainError("invalid", "Only a group day or a person on one can use the day's invoice.");
+    patch.billTo = input.billTo;
+  }
+  if (input.showOnMaster !== undefined) patch.showOnMaster = input.showOnMaster;
   if (input.notes !== undefined) patch.notes = cleanNotes(input.notes);
   if (input.primaryContactId !== undefined) {
     if (!ctx.db.select().from(contact).where(eq(contact.id, input.primaryContactId)).get()) throw notFound("Contact");
@@ -314,9 +330,10 @@ function folderValues(ctx: ServiceContext, id: string): FolderValues | null {
   return { year: when.year, month: when.month, date: when.date, type: type.folderLabel, subject: row.subject, client: displayName(primary), location: place ?? "" };
 }
 
-function subdirsToCreate(ctx: ServiceContext): string[] {
+/** A group day keeps only the camera-file folder (for frames not yet sorted): its delivery folders belong to the people on it. */
+function subdirsToCreate(ctx: ServiceContext, kind: "single" | "group_day" = "single"): string[] {
   const s = folderSettings(ctx);
-  return [s.rawSubdir, s.deliverySubdir].filter(Boolean);
+  return (kind === "group_day" ? [s.rawSubdir] : [s.rawSubdir, s.deliverySubdir]).filter(Boolean);
 }
 
 /**
@@ -332,7 +349,7 @@ export function ensureFolder(ctx: ServiceContext, id: string): string | null {
   if (!rel) return "The folder pattern produced an empty name. Check Settings > Galleries.";
   const unique = uniqueFolder(rel, (c) => folderTaken(ctx, c, id));
   try {
-    createShootFolder(ctx.config.galleriesDir, unique, subdirsToCreate(ctx));
+    createShootFolder(ctx.config.galleriesDir, unique, subdirsToCreate(ctx, row.kind));
   } catch (err) {
     logActivity(ctx, { contactId: row.primaryContactId, shootId: id, kind: "shoot.folder_failed", summary: `Folder not created: ${(err as Error).message}` });
     return (err as Error).message;
@@ -370,4 +387,148 @@ export function renameFolder(ctx: ServiceContext, id: string) {
   ctx.db.update(shoot).set({ folderPath: target, updatedAt: new Date() }).where(eq(shoot.id, id)).run();
   logActivity(ctx, { contactId: row.primaryContactId, shootId: id, kind: "shoot.folder_renamed", summary: `Folder renamed to ${target}` });
   return getShoot(ctx, id);
+}
+
+// ---- group days: a parent shoot with one child shoot per person or family ----
+
+export interface Child {
+  id: string;
+  subject: string;
+  status: ShootStatus;
+  folderPath: string | null;
+  contactId: string;
+  email: string | null;
+  billTo: "self" | "parent";
+  showOnMaster: boolean;
+}
+
+export function listChildren(ctx: ServiceContext, parentId: string): Child[] {
+  return ctx.db
+    .select({ id: shoot.id, subject: shoot.subject, status: shoot.status, folderPath: shoot.folderPath, contactId: contact.id, email: contact.email, billTo: shoot.billTo, showOnMaster: shoot.showOnMaster })
+    .from(shoot)
+    .innerJoin(contact, eq(contact.id, shoot.primaryContactId))
+    .where(eq(shoot.parentId, parentId))
+    .orderBy(asc(shoot.createdAt), asc(shoot.subject))
+    .all();
+}
+
+/** Turns an ordinary shoot into a group day. Only possible while it is not itself someone's child. */
+export function makeGroupDay(ctx: ServiceContext, id: string, billTo: "self" | "parent" = "self") {
+  const row = shootRow(ctx, id);
+  if (row.parentId) throw new DomainError("invalid", "This shoot is a person on a group day, so it can't be a group day itself.");
+  // On a day itself, `billTo` is the default for people added later: `parent` means the day's invoice covers them.
+  // A day's folder must not look like a gallery to the folder scanner, or the people's galleries inside it are never found.
+  if (row.folderPath) {
+    const delivery = resolveInside(ctx.config.galleriesDir, `${row.folderPath}/${folderSettings(ctx).deliverySubdir}`);
+    try {
+      if (fs.existsSync(delivery)) {
+        if (fs.readdirSync(delivery).length) throw new DomainError("invalid", "This shoot's delivery folder already has files in it, so it can't become a group day.");
+        fs.rmdirSync(delivery);
+      }
+    } catch (err) {
+      if (err instanceof DomainError) throw err;
+    }
+  }
+  ctx.db.update(shoot).set({ kind: "group_day", billTo, updatedAt: new Date() }).where(eq(shoot.id, id)).run();
+  return getShoot(ctx, id);
+}
+
+function splitName(full: string): { firstName: string; lastName: string } {
+  const parts = full.trim().split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0]!, lastName: "" };
+  return { firstName: parts.slice(0, -1).join(" "), lastName: parts[parts.length - 1]! };
+}
+
+/**
+ * Adds a person or family to a group day. An email that matches an existing contact reuses that contact;
+ * otherwise a new one is made. The child gets its own folder inside the day's folder.
+ */
+export function addChild(ctx: ServiceContext, parentId: string, input: { name: string; email?: string | null; contactId?: string; billTo?: "self" | "parent" }) {
+  const parent = shootRow(ctx, parentId);
+  if (parent.kind !== "group_day") throw new DomainError("invalid", "Make this shoot a group day first.");
+  const name = input.name.trim();
+  if (!name) throw new DomainError("invalid", "Who is this? Add a name.");
+  if (name.length > 120) throw new DomainError("invalid", "That name is too long.");
+  const email = input.email?.trim().toLowerCase() || null;
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new DomainError("invalid", `"${input.email}" doesn't look like an email address.`);
+  let matched = false;
+  let person = input.contactId ? ctx.db.select().from(contact).where(eq(contact.id, input.contactId)).get() : undefined;
+  if (input.contactId && !person) throw notFound("Contact");
+  if (!person && email) {
+    person = findByEmail(ctx, email) ?? undefined;
+    matched = !!person;
+  }
+  if (!person) person = createContact(ctx, { ...splitName(name), email, source: "group day" });
+  const existing = listChildren(ctx, parentId).find((c) => c.contactId === person!.id);
+  if (existing) return { child: existing, matched: true, duplicate: true, folderError: null as string | null };
+
+  const billTo = input.billTo ?? parent.billTo;
+  const id = newId();
+  ctx.db.insert(shoot).values({ id, subject: name, kind: "single", parentId, billTo, shootTypeId: parent.shootTypeId, primaryContactId: person.id }).run();
+  logActivity(ctx, { contactId: person.id, shootId: id, kind: "shoot.created", summary: `Added to ${parent.subject}` });
+  const folderError = ensureChildFolder(ctx, id);
+  return { child: listChildren(ctx, parentId).find((c) => c.id === id)!, matched, duplicate: false, folderError };
+}
+
+/** The child's folder sits inside the day's folder, with its own Originals/RAW and delivery subfolders. */
+export function ensureChildFolder(ctx: ServiceContext, id: string): string | null {
+  const row = shootRow(ctx, id);
+  if (row.folderPath) return null;
+  const parent = row.parentId ? shootRow(ctx, row.parentId) : null;
+  if (!parent?.folderPath) return "Add a date to the day first, so its folder exists.";
+  const seg = safeSegment(row.subject) || "Person";
+  const unique = uniqueFolder(`${parent.folderPath}/${seg}`, (c) => folderTaken(ctx, c, id));
+  try {
+    createShootFolder(ctx.config.galleriesDir, unique, subdirsToCreate(ctx));
+  } catch (err) {
+    return (err as Error).message;
+  }
+  ctx.db.update(shoot).set({ folderPath: unique }).where(eq(shoot.id, id)).run();
+  return null;
+}
+
+/** Reads a pasted list, one person per line: `Name, email` (email optional; tabs and semicolons work too). */
+export function parseRoster(text: string): { people: Array<{ name: string; email: string | null }>; skipped: string[] } {
+  const people: Array<{ name: string; email: string | null }> = [];
+  const skipped: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const cells = line.split(/[,;\t]/).map((c) => c.trim().replace(/^"|"$/g, ""));
+    if (!line.includes("@") && /^name\b/i.test(cells[0] ?? "")) continue; // header row
+    const emailCell = cells.find((c) => c.includes("@"));
+    const name = cells.filter((c) => c && c !== emailCell).join(" ").trim();
+    if (!name) {
+      skipped.push(line);
+      continue;
+    }
+    const key = `${name.toLowerCase()}|${emailCell?.toLowerCase() ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    people.push({ name, email: emailCell ?? null });
+  }
+  return { people, skipped };
+}
+
+export function importRoster(ctx: ServiceContext, parentId: string, text: string) {
+  if (text.length > 200_000) throw new DomainError("invalid", "That list is too long. Import it in parts.");
+  const { people, skipped } = parseRoster(text);
+  if (people.length > 500) throw new DomainError("invalid", "Import at most 500 people at a time.");
+  const out = { added: 0, reused: 0, duplicates: 0, skipped: [...skipped], problems: [] as string[] };
+  for (const p of people) {
+    try {
+      const r = addChild(ctx, parentId, p);
+      if (r.duplicate) out.duplicates++;
+      else {
+        out.added++;
+        if (r.matched) out.reused++;
+        if (r.folderError) out.problems.push(`${p.name}: ${r.folderError}`);
+      }
+    } catch (err) {
+      if (err instanceof DomainError) out.skipped.push(`${p.name}${p.email ? `, ${p.email}` : ""}: ${err.message}`);
+      else throw err;
+    }
+  }
+  return { ...out, children: listChildren(ctx, parentId) };
 }

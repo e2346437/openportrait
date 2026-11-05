@@ -131,6 +131,17 @@ export interface ShootEvent {
   location: string | null;
 }
 
+export interface GroupDayChild {
+  id: string;
+  subject: string;
+  status: ShootStatus;
+  folderPath: string | null;
+  contactId: string;
+  email: string | null;
+  billTo: "self" | "parent";
+  showOnMaster: boolean;
+}
+
 export interface ShootDetail {
   id: string;
   subject: string;
@@ -139,6 +150,12 @@ export interface ShootDetail {
   folderPath: string | null;
   createdAt: Ts;
   leadId: string | null;
+  kind: "single" | "group_day";
+  parentId: string | null;
+  billTo: "self" | "parent";
+  showOnMaster: boolean;
+  parent: { id: string; subject: string } | null;
+  children: GroupDayChild[];
   shootType: { id: string; name: string; folderLabel: string };
   primary: { id: string; name: string; email: string | null; phone: string | null };
   events: ShootEvent[];

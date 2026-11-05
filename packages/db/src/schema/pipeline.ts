@@ -68,11 +68,18 @@ export const shoot = sqliteTable(
     leadId: text(),
     /** Folder under the galleries share, relative to it. Stored once and never silently changed. */
     folderPath: text(),
+    /** A group day (headshot block, mini-session day) is a parent; each person or family on it is a child pointing here. */
+    parentId: text(),
+    kind: text({ enum: ["single", "group_day"] }).notNull().default("single"),
+    /** `parent`: the parent's invoice covers this child (corporate block). `self`: the child is billed on their own. */
+    billTo: text({ enum: ["self", "parent"] }).notNull().default("self"),
+    /** False keeps a child off the parent's master page. */
+    showOnMaster: integer({ mode: "boolean" }).notNull().default(true),
     notes: text(),
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
     updatedAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
   },
-  (t) => [index("shoot_status_idx").on(t.status), index("shoot_contact_idx").on(t.primaryContactId), index("shoot_folder_idx").on(t.folderPath)],
+  (t) => [index("shoot_parent_idx").on(t.parentId), index("shoot_status_idx").on(t.status), index("shoot_contact_idx").on(t.primaryContactId), index("shoot_folder_idx").on(t.folderPath)],
 );
 
 /** A dated, located part of a shoot (the ceremony, the portraits, a second location). The calendar reads these. */

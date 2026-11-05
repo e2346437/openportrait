@@ -132,6 +132,8 @@ export async function crmRoutes(app: FastifyInstance) {
     when: z.enum(["upcoming", "past", "all"]).optional(),
     limit: z.preprocess(num, z.number().int().min(1).max(200).optional()),
     offset: z.preprocess(num, z.number().int().min(0).optional()),
+    children: z.enum(["hide", "show", "only"]).optional(),
+    parentId: z.string().optional(),
   });
   app.get("/shoots", async (req, reply) => {
     const q = parse(ShootList, req.query, reply);
@@ -140,16 +142,31 @@ export async function crmRoutes(app: FastifyInstance) {
   });
   app.post("/shoots", async (req, reply) => {
     const body = parse(
-      z.object({ primaryContactId: z.string(), shootTypeId: z.string(), subject: optText(200), events: z.array(EventBody).max(10).optional(), notes: optText(NOTE_MAX + 1) }),
+      z.object({ primaryContactId: z.string(), shootTypeId: z.string(), subject: optText(200), kind: z.enum(["single", "group_day"]).optional(), events: z.array(EventBody).max(10).optional(), notes: optText(NOTE_MAX + 1) }),
       req.body,
       reply,
     );
     if (!body) return;
     return reply.code(201).send(shoots.createShoot(ctx(req), { ...body, subject: body.subject ?? undefined }));
   });
+  app.post("/shoots/:id/group-day", async (req, reply) => {
+    const body = parse(z.object({ billTo: z.enum(["self", "parent"]).optional() }), req.body ?? {}, reply);
+    if (!body) return;
+    return shoots.makeGroupDay(ctx(req), (req.params as { id: string }).id, body.billTo);
+  });
+  app.post("/shoots/:id/people", async (req, reply) => {
+    const body = parse(z.object({ name: z.string().max(200), email: optText(200), contactId: z.string().optional(), billTo: z.enum(["self", "parent"]).optional() }), req.body, reply);
+    if (!body) return;
+    return reply.code(201).send(shoots.addChild(ctx(req), (req.params as { id: string }).id, { ...body, email: body.email ?? null }));
+  });
+  app.post("/shoots/:id/people/import", async (req, reply) => {
+    const body = parse(z.object({ text: z.string().max(200_000) }), req.body, reply);
+    if (!body) return;
+    return shoots.importRoster(ctx(req), (req.params as { id: string }).id, body.text);
+  });
   app.get("/shoots/:id", async (req) => shoots.getShoot(ctx(req), (req.params as { id: string }).id));
   app.patch("/shoots/:id", async (req, reply) => {
-    const body = parse(z.object({ subject: text(200).optional(), shootTypeId: z.string().optional(), status: z.enum(SHOOT_STATUSES).optional(), notes: optText(NOTE_MAX + 1), primaryContactId: z.string().optional() }), req.body, reply);
+    const body = parse(z.object({ subject: text(200).optional(), shootTypeId: z.string().optional(), status: z.enum(SHOOT_STATUSES).optional(), notes: optText(NOTE_MAX + 1), primaryContactId: z.string().optional(), billTo: z.enum(["self", "parent"]).optional(), showOnMaster: z.boolean().optional() }), req.body, reply);
     if (!body) return;
     return shoots.updateShoot(ctx(req), (req.params as { id: string }).id, body);
   });

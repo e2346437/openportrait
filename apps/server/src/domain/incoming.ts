@@ -44,7 +44,7 @@ export function listIncoming(ctx: ServiceContext, now = Date.now()): { groups: I
     list.push({ path: f.rel, name: f.rel.slice(slash + 1), size: f.size, mtimeMs: f.mtimeMs, ready: now - f.mtimeMs >= QUIET_MS });
     byFolder.set(key, list);
   }
-  const shoots = listShoots(ctx, { status: "active", when: "all", limit: 200 }).items.filter((s) => s.folderPath);
+  const shoots = listShoots(ctx, { status: "active", when: "all", limit: 200, children: "show" }).items.filter((s) => s.folderPath);
   const groups = [...byFolder.entries()].map(([key, files]) => {
     files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
     const named = key.match(/\d{4}-\d{2}-\d{2}/)?.[0];

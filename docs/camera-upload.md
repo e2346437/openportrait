@@ -4,6 +4,12 @@ OpenPortrait includes a server your camera can send photos to as you shoot. The 
 
 Everything is set up in **Settings > Camera upload**.
 
+![Camera upload settings with numbered callouts](img/camera-upload-settings.png)
+
+1. **Open now** opens the upload server for the time in the box beside it (1 hour by default). It closes itself afterwards.
+2. **Protocol.** SFTP is selected and recommended. Pick FTPS or FTP only if your camera can't do SFTP.
+3. **When is it open?** "Only when needed" keeps the server closed until you open it or start a live view. This is the safest choice.
+
 ## Choose a protocol
 
 | Protocol | Encrypted | Use it when |

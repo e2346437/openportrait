@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button, Callout, CopyValue, Dialog, Field, Panel, TextArea, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { LOCK_LABELS, formatDate, type DownloadLock, type DownloadSize, type GalleryDetail } from "../../lib/galleries.js";
+import { ProofingControls, proofSummary, type ProofPolicy } from "../../components/ProofingControls.js";
 import type { Patch } from "./GalleryDetail.js";
 
 const SIZES: Array<{ id: DownloadSize; title: string; body: string }> = [
@@ -35,6 +36,28 @@ function LimitField({ label, hint, unit, value, onSave, error }: { label: string
         </span>
       )}
     </Field>
+  );
+}
+
+/** Follow the studio's protection, or choose something different for this gallery. Saves on each change. */
+function ProofingSection({ g, patch, photoId }: { g: GalleryDetail["gallery"]; patch: Patch; photoId?: string }) {
+  const own = Object.keys(g.proofing ?? {}).length > 0;
+  const eff = g.proofingEffective as ProofPolicy;
+  return (
+    <Panel title="Protected proofing" description="How previews of this gallery are protected. This is separate from the download lock: changing one never changes the other.">
+      <fieldset className="opts">
+        <legend className="sr-only">Protection source</legend>
+        <label className="opt">
+          <input type="radio" name="proof-src" checked={!own} onChange={() => patch("", { proofing: null })} />
+          <span className="t"><b>Follow the studio default</b><span>Currently {proofSummary(eff)}. Change it in Settings, Galleries.</span></span>
+        </label>
+        <label className="opt">
+          <input type="radio" name="proof-src" checked={own} onChange={() => patch("", { proofing: { mode: eff.mode, apply: eff.apply } })} />
+          <span className="t"><b>Custom for this gallery</b><span>Choose a strength and when to apply it.</span></span>
+        </label>
+      </fieldset>
+      {own ? <ProofingControls value={eff} onChange={(p) => patch("", { proofing: { ...g.proofing, ...p } })} photoId={photoId} idPrefix="gallery-proof" /> : null}
+    </Panel>
   );
 }
 
@@ -93,6 +116,7 @@ function AccessPanel({ g, patch }: { g: GalleryDetail["gallery"]; patch: Patch }
 
 export function SettingsTab({ data, patch, onDeleted }: { data: GalleryDetail; patch: Patch; onDeleted: () => void }) {
   const g = data.gallery;
+  const firstPhotoId = data.photos.find((p) => p.state === "ready" && !p.hidden)?.id;
   const toast = useToast();
   const [title, setTitle] = useState(g.title);
   const [slug, setSlug] = useState(g.slug);
@@ -140,6 +164,8 @@ export function SettingsTab({ data, patch, onDeleted }: { data: GalleryDetail; p
       </Panel>
 
       <AccessPanel g={g} patch={patch} />
+
+      <ProofingSection g={g} patch={patch} photoId={firstPhotoId} />
 
       <Panel title="Downloads" description="What clients can download, and when.">
         <fieldset className="opts">

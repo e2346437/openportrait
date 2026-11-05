@@ -66,6 +66,9 @@ export interface GalleryDetail {
     coverFocalX: number;
     coverFocalY: number;
     design: GalleryDesign;
+    /** This gallery's own protected-proofing choices; missing keys follow the studio default. */
+    proofing: Partial<{ mode: "light" | "balanced" | "strong"; apply: "locked" | "always" | "off"; maxLongEdge: number | null }>;
+    proofingEffective: { mode: "light" | "balanced" | "strong"; apply: "locked" | "always" | "off"; maxLongEdge: number | null };
     downloadSize: DownloadSize;
     downloadLock: DownloadLock;
     downloadMaxTimes: number | null;

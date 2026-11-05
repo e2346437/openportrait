@@ -4,11 +4,11 @@ import { and, eq, gt, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
-import { derivativePath, renderVariant, VARIANTS, watermarkedPath, webQualityOf } from "../galleries/derivatives.js";
-import { renderWatermarked, watermarkHash } from "../galleries/watermark.js";
+import { derivativePath, renderVariant, VARIANTS, webQualityOf } from "../galleries/derivatives.js";
+import { ensureProtected, layoutSeed, protectedPath, pruneProtected } from "../galleries/proofing.js";
 import { newId } from "../galleries/files.js";
 import { allowanceFor, limitMessage } from "../galleries/limits.js";
-import { designOf, downloadState, isWatermarked, loadSetsAndPhotos, photoJson, previewUrl, watermarkInput } from "../galleries/present.js";
+import { designOf, downloadState, loadSetsAndPhotos, photoJson, previewUrl, proofingFor, proofMarkFor, watermarkInput } from "../galleries/present.js";
 import { verifyPassword } from "../auth.js";
 import { planZip, splitParts, streamZip, zipFilename, type Scope } from "../galleries/zip.js";
 import { email, parse } from "../validate.js";
@@ -124,8 +124,9 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     const visible = photos.filter((p) => p.state === "ready" && !p.hidden && setIds.has(p.setId));
     const byId = new Map(visible.map((p) => [p.id, p]));
     // Previews of photos still waiting on payment carry the studio's watermark; paying removes it with no extra step.
-    const mark = watermarkHash(watermarkInput(settings, config.configDir));
-    const markFor = (p: (typeof visible)[number]) => (isWatermarked(g, sets.find((s) => s.id === p.setId) ?? null) ? mark : null);
+    const policy = proofingFor(settings, g);
+    const wm = watermarkInput(settings, config.configDir);
+    const markFor = (p: (typeof visible)[number]) => proofMarkFor(policy, wm, g, sets.find((s) => s.id === p.setId) ?? null);
     const coverOf = (id: string | null, fallback?: (typeof visible)[number]) => {
       const p = (id && byId.get(id)) || fallback;
       return p ? { id: p.id, thumb: previewUrl(secrets, p, "thumb", markFor(p)), preview: previewUrl(secrets, p, "preview", markFor(p)), placeholder: p.placeholder, width: p.width, height: p.height } : null;
@@ -473,22 +474,26 @@ export async function mediaRoutes(app: FastifyInstance) {
   const { db, secrets, config, settings } = app.ctx;
   app.get<{ Params: { photoId: string; version: string; variant: string }; Querystring: { s?: string; e?: string } }>("/media/:photoId/:version/:variant", async (req, reply) => {
     const { photoId, version, variant } = req.params;
-    // "thumb", "preview", or either with "-wm-<fingerprint>" for the watermarked flavor shown while a gallery is locked.
-    const m = /^(thumb|preview)(?:-wm-([a-f0-9]{8}))?$/.exec(variant);
+    // "thumb" or "preview", with "-pf-<fingerprint>" (or the older "-wm-") for the protected flavor.
+    const m = /^(thumb|preview)(?:-(?:pf|wm)-([a-f0-9]{8}))?$/.exec(variant);
     const expires = Number(req.query.e);
     if (!m || !req.query.s || !req.query.e || !Number.isInteger(expires) || expires * 1000 < Date.now() || !secrets.verify("media", `${photoId}:${version}:${variant}:${req.query.e}`, req.query.s)) {
       return reply.code(404).send({ error: "not_found" });
     }
     const base = m[1] as "thumb" | "preview";
-    const marked = !!m[2];
     const p = db.select().from(photo).where(eq(photo.id, photoId)).get();
     if (!p || String(p.version) !== version) return reply.code(404).send({ error: "not_found" });
+    const g = db.select().from(gallery).where(eq(gallery.id, p.galleryId)).get();
+    if (!g) return reply.code(404).send({ error: "not_found" });
     // A signed URL isn't a standing right to the photo: the gallery must still be published and unexpired, and the photo
     // not hidden. Signed-in staff keep working so previews and the admin grid are unaffected.
-    if (!req.user) {
-      const g = db.select().from(gallery).where(eq(gallery.id, p.galleryId)).get();
-      if (!g || g.status !== "live" || (g.expiresAt && g.expiresAt.getTime() < Date.now()) || p.hidden) return reply.code(404).send({ error: "not_found" });
-    }
+    if (!req.user && (g.status !== "live" || (g.expiresAt && g.expiresAt.getTime() < Date.now()) || p.hidden)) return reply.code(404).send({ error: "not_found" });
+    // What the visitor may see is decided here from the gallery's state right now, never from the flavor named in the
+    // URL. A clean URL issued before a lock or a policy change therefore gets the protected copy, not the clean one.
+    const policy = proofingFor(settings, g);
+    const wm = watermarkInput(settings, config.configDir);
+    const set = db.select().from(gallerySet).where(eq(gallerySet.id, p.setId)).get() ?? null;
+    const fingerprint = req.user ? (m[2] ? proofMarkFor({ ...policy, apply: "always" }, wm, g, set) : null) : proofMarkFor(policy, wm, g, set);
     let file = derivativePath(config.cacheDir, p.galleryId, p.id, p.version, base);
     try {
       if (!fs.existsSync(file)) {
@@ -500,18 +505,20 @@ export async function mediaRoutes(app: FastifyInstance) {
           src.cleanup();
         }
       }
-      if (marked) {
-        const input = watermarkInput(settings, config.configDir);
-        const wm = watermarkedPath(config.cacheDir, p.galleryId, p.id, p.version, base, watermarkHash(input));
-        if (!fs.existsSync(wm)) await renderWatermarked(file, wm, input);
-        file = wm;
+      if (fingerprint) {
+        const pf = protectedPath(config.cacheDir, p.galleryId, p.id, p.version, base, fingerprint);
+        await ensureProtected(pf, file, wm, policy, layoutSeed((purpose, data) => secrets.sign(purpose, data), p.galleryId, p.id), base);
+        pruneProtected(config.cacheDir, p.galleryId, fingerprint);
+        file = pf;
       }
     } catch {
       return reply.code(404).send({ error: "not_found" });
     }
     reply.header("Content-Type", "image/webp");
-    // Cached only as long as the URL itself is good, and never by shared caches (the photo is not public).
-    reply.header("Cache-Control", `private, max-age=${Math.max(0, Math.min(86400, Math.floor(expires - Date.now() / 1000)))}`);
+    reply.header("X-Content-Type-Options", "nosniff");
+    // Protected copies are never kept by shared caches or the browser: a later unlock or policy change must take effect
+    // at once. Clean copies are cached only as long as the URL itself is good, and never by shared caches.
+    reply.header("Cache-Control", fingerprint ? "private, no-store" : `private, max-age=${Math.max(0, Math.min(86400, Math.floor(expires - Date.now() / 1000)))}`);
     return reply.send(fs.createReadStream(file));
   });
 }

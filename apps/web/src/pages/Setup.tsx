@@ -5,6 +5,7 @@ import { api } from "../lib/api.js";
 import { useSession } from "../lib/session.js";
 import { allTimezones, browserTimezone, prettyTimezone } from "../lib/timezones.js";
 import { useSubmit } from "../lib/useForm.js";
+import { AuthCodeForm } from "../components/AuthCodeForm.js";
 import { AuthLayout } from "./AuthLayout.js";
 
 /** Rough strength score 0–4: length, variety, and not just one repeated pattern. */
@@ -25,7 +26,7 @@ export function SetupPage() {
     await refresh();
     navigate(to, { replace: true });
   };
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [studioName, setStudioName] = useState("");
   const [timezone, setTimezone] = useState(browserTimezone());
   const [setupCode, setSetupCode] = useState("");
@@ -59,16 +60,17 @@ export function SetupPage() {
   };
 
   return (
-    <AuthLayout headline={step === 3 ? "You're all set." : "Let's set up your studio."} body="This takes about a minute. You can change everything later in Settings.">
+    <AuthLayout headline={step === 4 ? "You're all set." : "Let's set up your studio."} body="This takes about a minute. You can change everything later in Settings.">
       <div className="progress" aria-hidden="true">
         <span className="on" />
         <span className={step >= 2 ? "on" : ""} />
+        <span className={step >= 3 ? "on" : ""} />
       </div>
 
       {step === 1 ? (
         <>
           <div>
-            <div className="step-label">Step 1 of 2</div>
+            <div className="step-label">Step 1 of 3</div>
             <h2>Your studio</h2>
             <p className="lede">This name appears on booking pages, galleries, and emails your clients receive.</p>
           </div>
@@ -97,7 +99,7 @@ export function SetupPage() {
       {step === 2 ? (
         <>
           <div>
-            <div className="step-label">Step 2 of 2</div>
+            <div className="step-label">Step 2 of 3</div>
             <h2>Your account</h2>
             <p className="lede">You'll be the studio owner. You can invite staff later.</p>
           </div>
@@ -140,6 +142,20 @@ export function SetupPage() {
       ) : null}
 
       {step === 3 ? (
+        <>
+          <div>
+            <div className="step-label">Step 3 of 3</div>
+            <h2>Your authorization code</h2>
+            <p className="lede">
+              If you connect an AI assistant later, it can handle routine work on its own. For sensitive changes it must ask you first, and you answer by saying or typing this code. Keep it to yourself.
+            </p>
+          </div>
+          <AuthCodeForm onSaved={() => setStep(4)} onSkip={() => setStep(4)} />
+          <p className="hint">You can set or change it later in Settings, under Connect your AI. Until then, sensitive actions stay blocked.</p>
+        </>
+      ) : null}
+
+      {step === 4 ? (
         <>
           <div className="done-mark">
             <Icon name="check" />

@@ -87,6 +87,7 @@ export interface AiStatus {
   areas: string[];
   toolCount: number;
   connections: AiConnection[];
+  authCode: { set: boolean; setAt: number | null };
   lastSeenAt: number | null;
 }
 export interface AiActivityItem {

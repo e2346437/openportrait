@@ -6,7 +6,7 @@ export const AREAS = ["studio", "contacts", "leads", "shoots", "calendar", "quot
 export type Area = (typeof AREAS)[number];
 
 /** What a tool can do, in increasing order of consequence (see SPEC section 10). */
-export type Tier = "read" | "draft" | "outward" | "money";
+export type Tier = "read" | "draft" | "outward" | "money" | "sensitive";
 export type Level = "read" | "assist" | "full";
 
 export interface Caller {
@@ -48,9 +48,12 @@ export function allTools(): ToolDef[] {
  * Which tiers a level may ask for. Read-only connections see only read tools. Everything that reaches a
  * client or touches money is queued for the owner's approval.
  */
-const TIERS: Record<Level, Tier[]> = { read: ["read"], assist: ["read", "draft", "outward", "money"], full: ["read", "draft", "outward", "money"] };
+const TIERS: Record<Level, Tier[]> = { read: ["read"], assist: ["read", "draft", "outward", "money"], full: ["read", "draft", "outward", "money", "sensitive"] };
 
 /** Outward and money tools never run straight away: they are queued for the owner's approval. */
+/** Sensitive tools run straight away, but only when the call carries the owner's authorization code. */
+export const needsCode = (t: Pick<ToolDef, "tier">) => t.tier === "sensitive";
+
 export const needsApproval = (t: Pick<ToolDef, "tier">) => t.tier === "outward" || t.tier === "money";
 
 const disabledCapabilities = new Set<string>();

@@ -5,12 +5,14 @@ import { api } from "../../lib/api.js";
 import { plural } from "../../lib/galleries.js";
 import type { TetherSources } from "../../lib/tether.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { NameCardSort } from "./NameCardSort.js";
 import "./incoming.css";
 
 interface IncomingFile {
   path: string;
   name: string;
   size: number;
+  mtimeMs: number;
   ready: boolean;
 }
 interface Group {
@@ -45,6 +47,9 @@ export function IncomingPage() {
   const [target, setTarget] = useState("");
   const [moving, setMoving] = useState(false);
   const [result, setResult] = useState<MoveResult | null>(null);
+  const [sorting, setSorting] = useState<string | null>(null);
+  const days = useLoad<{ items: Array<{ id: string; subject: string; kind: string }> }>("/shoots?status=active&limit=200");
+  const groupDays = (days.data?.items ?? []).filter((s) => s.kind === "group_day");
 
   // New files keep arriving while the camera is shooting, so look again every few seconds.
   useEffect(() => {
@@ -139,11 +144,23 @@ export function IncomingPage() {
                         {g.suggestions.length ? ` · Looks like ${g.suggestions.map((s) => s.subject).join(" or ")}` : ""}
                       </span>
                     </div>
-                    <Button size="sm" onClick={() => toggleGroup(g)} disabled={ready.length === 0}>
-                      {all ? "Clear" : `Select all ${ready.length}`}
-                    </Button>
+                    {sorting === g.key ? null : (
+                      <div className="actions">
+                        {groupDays.length && ready.length ? (
+                          <Button size="sm" onClick={() => { setSorting(g.key); setSelected(new Set()); }}>
+                            Sort by name cards
+                          </Button>
+                        ) : null}
+                        <Button size="sm" onClick={() => toggleGroup(g)} disabled={ready.length === 0}>
+                          {all ? "Clear" : `Select all ${ready.length}`}
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <div className={`agrid${selected.size ? " selecting" : ""}`}>
+                  {sorting === g.key ? (
+                    <NameCardSort files={g.files} days={groupDays} thumb={Thumb} onClose={() => setSorting(null)} onDone={async () => { setSorting(null); await reload(); }} />
+                  ) : null}
+                  <div style={sorting === g.key ? { display: "none" } : undefined} className={`agrid${selected.size ? " selecting" : ""}`}>
                     {g.files.map((f) => (
                       <button key={f.path} type="button" className={`acell${f.ready ? "" : " pending"}`} aria-pressed={selected.has(f.path)} disabled={!f.ready} aria-label={`${f.name}${f.ready ? "" : ", still arriving"}`} onClick={() => toggle(f.path)}>
                         {f.ready ? <Thumb path={f.path} /> : <span className="acell-ph"><Icon name="refresh" /></span>}

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { contact } from "./people.js";
 
 const now = sql`(unixepoch('subsec') * 1000)`;
@@ -68,11 +68,20 @@ export const shoot = sqliteTable(
     leadId: text(),
     /** Folder under the galleries share, relative to it. Stored once and never silently changed. */
     folderPath: text(),
+    /** A group day (headshot block, mini-session day) is a parent; each person or family on it is a child pointing here. */
+    parentId: text(),
+    kind: text({ enum: ["single", "group_day"] }).notNull().default("single"),
+    /** `parent`: the parent's invoice covers this child (corporate block). `self`: the child is billed on their own. */
+    billTo: text({ enum: ["self", "parent"] }).notNull().default("self"),
+    /** False keeps a child off the parent's master page. */
+    showOnMaster: integer({ mode: "boolean" }).notNull().default(true),
+    /** How many people this shoot covers (a family of four is 4). Used when shared costs are split per person. */
+    headcount: integer().notNull().default(1),
     notes: text(),
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
     updatedAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
   },
-  (t) => [index("shoot_status_idx").on(t.status), index("shoot_contact_idx").on(t.primaryContactId), index("shoot_folder_idx").on(t.folderPath)],
+  (t) => [index("shoot_parent_idx").on(t.parentId), index("shoot_status_idx").on(t.status), index("shoot_contact_idx").on(t.primaryContactId), index("shoot_folder_idx").on(t.folderPath)],
 );
 
 /** A dated, located part of a shoot (the ceremony, the portraits, a second location). The calendar reads these. */
@@ -159,3 +168,60 @@ export const shootTypeTask = sqliteTable(
   },
   (t) => [index("shoot_type_task_type_idx").on(t.shootTypeId)],
 );
+
+/**
+ * A frame the photographer flagged as a person's name card while shooting a group day (the whiteboard photo).
+ * Kept until the day's frames are sorted, so the sorting can happen at the end or on another screen.
+ */
+export const subjectMark = sqliteTable(
+  "subject_mark",
+  {
+    id: text().primaryKey(),
+    parentId: text()
+      .notNull()
+      .references(() => shoot.id, { onDelete: "cascade" }),
+    /** The frame's path inside Incoming. */
+    path: text().notNull(),
+    name: text().notNull(),
+    email: text(),
+    /** Set when the card is for a person already on the day (picked from the list). */
+    childId: text(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [index("subject_mark_parent_idx").on(t.parentId, t.createdAt), uniqueIndex("subject_mark_path_idx").on(t.parentId, t.path)],
+);
+
+/** A cost shared by everyone on a group day (location fee, travel). Split across the people when invoices are made. */
+export const shootCost = sqliteTable(
+  "shoot_cost",
+  {
+    id: text().primaryKey(),
+    shootId: text()
+      .notNull()
+      .references(() => shoot.id, { onDelete: "cascade" }),
+    label: text().notNull(),
+    amountCents: integer().notNull(),
+    position: integer().notNull().default(0),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [index("shoot_cost_shoot_idx").on(t.shootId, t.position)],
+);
+
+/**
+ * The private page a paying organisation uses to see everyone photographed on its group day. The link is signed from
+ * `id` and `version` (nothing secret is stored), so it can be shown again, and bumping `version` kills the old link.
+ */
+export const masterAccess = sqliteTable("master_access", {
+  id: text().primaryKey(),
+  parentId: text()
+    .notNull()
+    .unique()
+    .references(() => shoot.id, { onDelete: "cascade" }),
+  version: integer().notNull().default(1),
+  passwordHash: text(),
+  expiresAt: integer({ mode: "timestamp_ms" }),
+  disabledAt: integer({ mode: "timestamp_ms" }),
+  views: integer().notNull().default(0),
+  lastViewedAt: integer({ mode: "timestamp_ms" }),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+});

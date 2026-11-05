@@ -6,6 +6,8 @@ import type { ServiceContext } from "../domain/context.js";
 import * as leads from "../domain/leads.js";
 import { NOTE_MAX } from "../domain/richtext.js";
 import * as shoots from "../domain/shoots.js";
+import * as dayBilling from "../domain/groupbilling.js";
+import { describeMaster, saveMaster } from "../domain/master.js";
 import { SHOOT_STATUSES } from "../domain/shoots.js";
 import { parse } from "../validate.js";
 
@@ -132,6 +134,8 @@ export async function crmRoutes(app: FastifyInstance) {
     when: z.enum(["upcoming", "past", "all"]).optional(),
     limit: z.preprocess(num, z.number().int().min(1).max(200).optional()),
     offset: z.preprocess(num, z.number().int().min(0).optional()),
+    children: z.enum(["hide", "show", "only"]).optional(),
+    parentId: z.string().optional(),
   });
   app.get("/shoots", async (req, reply) => {
     const q = parse(ShootList, req.query, reply);
@@ -140,16 +144,74 @@ export async function crmRoutes(app: FastifyInstance) {
   });
   app.post("/shoots", async (req, reply) => {
     const body = parse(
-      z.object({ primaryContactId: z.string(), shootTypeId: z.string(), subject: optText(200), events: z.array(EventBody).max(10).optional(), notes: optText(NOTE_MAX + 1) }),
+      z.object({ primaryContactId: z.string(), shootTypeId: z.string(), subject: optText(200), kind: z.enum(["single", "group_day"]).optional(), events: z.array(EventBody).max(10).optional(), notes: optText(NOTE_MAX + 1) }),
       req.body,
       reply,
     );
     if (!body) return;
     return reply.code(201).send(shoots.createShoot(ctx(req), { ...body, subject: body.subject ?? undefined }));
   });
+  app.post("/shoots/:id/group-day", async (req, reply) => {
+    const body = parse(z.object({ billTo: z.enum(["self", "parent"]).optional() }), req.body ?? {}, reply);
+    if (!body) return;
+    return shoots.makeGroupDay(ctx(req), (req.params as { id: string }).id, body.billTo);
+  });
+  app.post("/shoots/:id/people", async (req, reply) => {
+    const body = parse(z.object({ name: z.string().max(200), email: optText(200), contactId: z.string().optional(), billTo: z.enum(["self", "parent"]).optional() }), req.body, reply);
+    if (!body) return;
+    return reply.code(201).send(shoots.addChild(ctx(req), (req.params as { id: string }).id, { ...body, email: body.email ?? null }));
+  });
+  app.post("/shoots/:id/people/import", async (req, reply) => {
+    const body = parse(z.object({ text: z.string().max(200_000) }), req.body, reply);
+    if (!body) return;
+    return shoots.importRoster(ctx(req), (req.params as { id: string }).id, body.text);
+  });
+  // Group day billing: shared costs, one invoice per person, recounting the day's invoice, lifting download locks.
+  const SplitQ = z.object({ split: z.enum(["per_party", "per_person"]).optional() });
+  app.get("/shoots/:id/billing", async (req, reply) => {
+    const q = parse(SplitQ, req.query, reply);
+    if (!q) return;
+    return dayBilling.dayBilling(ctx(req), (req.params as { id: string }).id, q.split);
+  });
+  app.post("/shoots/:id/costs", async (req, reply) => {
+    const body = parse(z.object({ label: text(120), amountCents: z.number().int() }), req.body, reply);
+    if (!body) return;
+    return reply.code(201).send({ costs: dayBilling.addCost(ctx(req), (req.params as { id: string }).id, body) });
+  });
+  app.delete("/shoots/:id/costs/:costId", async (req) => {
+    const p = req.params as { id: string; costId: string };
+    return { costs: dayBilling.removeCost(ctx(req), p.id, p.costId) };
+  });
+  app.post("/shoots/:id/invoices", async (req, reply) => {
+    const body = parse(
+      z.object({
+        lines: z.array(z.object({ itemId: z.string().nullish(), description: text(300), quantity: z.number().int().min(1).max(9999).optional(), unitCents: z.number().int() })).min(1).max(50),
+        split: z.enum(["per_party", "per_person"]).optional(),
+        only: z.array(z.string()).max(500).optional(),
+        costLabel: optText(120),
+      }),
+      req.body,
+      reply,
+    );
+    if (!body) return;
+    return reply.code(201).send(dayBilling.createChildInvoices(ctx(req), (req.params as { id: string }).id, { ...body, costLabel: body.costLabel ?? undefined }));
+  });
+  app.post("/orders/:id/recount", async (req, reply) => {
+    const body = parse(z.object({ lineId: z.string().min(1) }), req.body, reply);
+    if (!body) return;
+    return dayBilling.recountDayInvoice(ctx(req), (req.params as { id: string }).id, body.lineId);
+  });
+  // The organisation's page for a group day: switch on, set a password or end date, get a new link.
+  app.get("/shoots/:id/master", async (req) => describeMaster(ctx(req), app.ctx.secrets, (req.params as { id: string }).id));
+  app.put("/shoots/:id/master", async (req, reply) => {
+    const body = parse(z.object({ enabled: z.boolean().optional(), rotate: z.boolean().optional(), password: z.string().max(200).nullish(), expiresAt: z.number().nullish() }), req.body ?? {}, reply);
+    if (!body) return;
+    return saveMaster(ctx(req), app.ctx.secrets, (req.params as { id: string }).id, { ...body, password: body.password === undefined ? undefined : body.password, expiresAt: body.expiresAt === undefined ? undefined : body.expiresAt });
+  });
+  app.post("/shoots/:id/unlock-galleries", async (req) => dayBilling.unlockDayGalleries(ctx(req), (req.params as { id: string }).id));
   app.get("/shoots/:id", async (req) => shoots.getShoot(ctx(req), (req.params as { id: string }).id));
   app.patch("/shoots/:id", async (req, reply) => {
-    const body = parse(z.object({ subject: text(200).optional(), shootTypeId: z.string().optional(), status: z.enum(SHOOT_STATUSES).optional(), notes: optText(NOTE_MAX + 1), primaryContactId: z.string().optional() }), req.body, reply);
+    const body = parse(z.object({ subject: text(200).optional(), shootTypeId: z.string().optional(), status: z.enum(SHOOT_STATUSES).optional(), notes: optText(NOTE_MAX + 1), primaryContactId: z.string().optional(), billTo: z.enum(["self", "parent"]).optional(), showOnMaster: z.boolean().optional(), headcount: z.number().int().optional() }), req.body, reply);
     if (!body) return;
     return shoots.updateShoot(ctx(req), (req.params as { id: string }).id, body);
   });

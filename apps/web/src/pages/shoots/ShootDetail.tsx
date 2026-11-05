@@ -13,6 +13,7 @@ import { TaskList } from "../../components/TaskList.js";
 import { ContractsPanel, GalleriesPanel, OrdersPanel } from "../../components/RelatedPanels.js";
 import { RichTextEditor } from "../../components/RichTextEditor.js";
 import { ShootQuestionnaires } from "./ShootQuestionnaires.js";
+import { GroupDayMember, GroupDayPanel } from "../../components/GroupDay.js";
 import { CrewPanel } from "../../components/CrewPanel.js";
 import { ExtensionCard, type ExtensionInfo } from "../settings/Extensions.js";
 
@@ -146,6 +147,8 @@ export function ShootDetailPage() {
             )}
           </Panel>
 
+          {shoot.kind === "group_day" ? <GroupDayPanel shoot={shoot} onChange={setData} /> : null}
+
           <RunSheetPanel shootId={id} />
 
           <Panel title="To do" description="Tasks for this shoot. Only you see them.">
@@ -173,6 +176,8 @@ export function ShootDetailPage() {
           <OrdersPanel shootId={shoot.id} />
           <ContractsPanel shootId={shoot.id} contactId={shoot.primary.id} />
           <GalleriesPanel shootIds={[shoot.id]} />
+          {shoot.kind === "group_day" ? null : <GroupDayPanel shoot={shoot} onChange={setData} />}
+          <GroupDayMember shoot={shoot} onChange={setData} />
 
           <Panel title="Photo folder" description="Where exports go so they show up in this shoot's gallery.">
             {folder ? (
@@ -182,9 +187,11 @@ export function ShootDetailPage() {
                   <span className="sub">
                     {folder.rawSubdir}/<small>camera files</small>
                   </span>
-                  <span className="sub">
-                    {folder.deliverySubdir}/<small>exports for the gallery</small>
-                  </span>
+                  {shoot.kind === "group_day" ? null : (
+                    <span className="sub">
+                      {folder.deliverySubdir}/<small>exports for the gallery</small>
+                    </span>
+                  )}
                 </div>
                 {!folder.exists ? <Callout tone="warn" title="The folder isn't on the share">It may have been moved or deleted. Recreate it to export here again.</Callout> : null}
                 <div className="form-actions" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>

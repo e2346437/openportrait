@@ -23,6 +23,7 @@ import { GalleryIngest } from "./galleries/ingest.js";
 import { tickCheckouts } from "./domain/storage-checkout.js";
 import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
+import { masterRoutes } from "./routes/master.js";
 import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
 import { watermarkRoutes } from "./routes/watermark.js";
 import { proofingRoutes } from "./routes/proofing.js";
@@ -275,6 +276,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(siteRoutes, { prefix: "/api/studio/site" });
   // Client pages and their media are public; the private link (and signed media URLs) are the key.
   await app.register(clientGalleryRoutes, { prefix: "/api/g" });
+  await app.register(masterRoutes, { prefix: "/api/day" });
   await app.register(mediaRoutes);
   await app.register(brandingRoutes);
   await app.register(photoUploadRoutes, { prefix: "/api/studio/uploads" });

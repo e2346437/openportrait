@@ -40,6 +40,9 @@ export function TetherSetupPage() {
   const { data, error, loading, reload } = useLoad<TetherSources>("/tether/sources");
   const [source, setSource] = useState(() => remembered(SOURCE_KEY) ?? "incoming");
   const [bg, setBg] = useState(loadBg);
+  const [day, setDay] = useState("");
+  const days = useLoad<{ items: Array<{ id: string; subject: string; kind: string }> }>("/shoots?status=active&limit=200");
+  const groupDays = (days.data?.items ?? []).filter((s) => s.kind === "group_day");
   const [lanDraft, setLanDraft] = useState<string | null>(null);
   const isOwner = me?.user?.role === "owner";
   const toast = useToast();
@@ -54,8 +57,8 @@ export function TetherSetupPage() {
   // A container can't see its host's address or the port Docker mapped, so the home address is a saved setting.
   const typedUrl = normalizeLanUrl(lanDraft);
   const base = onLan ? window.location.origin : (typedUrl ?? data?.lan.url ?? "");
-  const link = useMemo(() => liveLink(window.location.origin, source, bg), [source, bg]);
-  const localLink = base && !onLan ? liveLink(base, source, bg) : null;
+  const link = useMemo(() => liveLink(window.location.origin, source, bg, day), [source, bg, day]);
+  const localLink = base && !onLan ? liveLink(base, source, bg, day) : null;
 
   const choose = (id: string) => {
     setSource(id);
@@ -65,7 +68,7 @@ export function TetherSetupPage() {
     setBg(hex);
     saveBg(hex);
   };
-  const liveHref = `/studio/tether/${encodeURIComponent(source)}?bg=${bg.slice(1)}`;
+  const liveHref = `/studio/tether/${encodeURIComponent(source)}?bg=${bg.slice(1)}${day && source === "incoming" ? `&day=${encodeURIComponent(day)}` : ""}`;
 
   if (error && !data)
     return (
@@ -114,6 +117,19 @@ export function TetherSetupPage() {
                 </label>
               ))}
             </fieldset>
+            {source === "incoming" && groupDays.length ? (
+              <label className="field" style={{ display: "grid", gap: 6, marginTop: 12 }}>
+                <span>Shooting a group day? <small className="hint">Optional. Adds name card and sorting controls to the live view.</small></span>
+                <select className="input" value={day} onChange={(e) => setDay(e.target.value)}>
+                  <option value="">No, just show the photos</option>
+                  {groupDays.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.subject}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             {data.shoots.length === 0 && (
               <EmptyState icon="camera" title="No shoots with a folder yet">
                 Add a shoot and OpenPortrait creates its folder. Until then you can tether to Incoming.

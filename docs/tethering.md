@@ -7,8 +7,9 @@ Tethering shows each photo on a big screen the moment your camera finishes uploa
 1. Open **Photos > Tethering**.
 2. Pick the set you're shooting. This is either a shoot (its folder, excluding the delivery folder) or **Incoming**, where unsorted camera uploads go.
 3. Pick a background: black, white, or any colour from the colour picker or a hex code. The choice is remembered on that device and stored in the link.
-3a. Shooting a [group day](group-days.md)? With **Incoming** chosen, pick the day under **Shooting a group day?** to add name card and people controls to the live view.
 4. Choose **Open live view**, or copy the link and open it on another screen. Press **F** for full screen and **B** to flip between black and white.
+
+Shooting a [group day](group-days.md)? With **Incoming** chosen, pick the day under **Shooting a group day?** to add name card and people controls to the live view.
 
 While a file is arriving, the bar at the bottom shows its name, size, speed and an estimated percentage. As soon as it finishes, the photo replaces the one on screen.
 

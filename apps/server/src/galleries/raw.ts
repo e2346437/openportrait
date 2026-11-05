@@ -158,6 +158,19 @@ export class RawFiles {
       .map((r) => ({ id: r.id, remoteKey: r.remoteKey!, relPath: r.relPath, file: resolveInside(this.deps.galleriesDir, r.relPath), sizeBytes: r.sizeBytes, mtimeMs: r.mtimeMs }));
   }
 
+  /** Files held in remote storage although their gallery was set to keep the Originals folder on this server. */
+  wantedLocal(limit: number): RemoteRaw[] {
+    return this.deps.db
+      .select({ r: rawFile })
+      .from(rawFile)
+      .innerJoin(gallery, eq(gallery.shootFolder, rawFile.shootFolder))
+      .where(and(isNotNull(rawFile.remoteKey), eq(gallery.storageOriginals, "local")))
+      .limit(limit)
+      .all()
+      .map((x) => x.r)
+      .map((r) => ({ id: r.id, remoteKey: r.remoteKey!, relPath: r.relPath, file: resolveInside(this.deps.galleriesDir, r.relPath), sizeBytes: r.sizeBytes, mtimeMs: r.mtimeMs }));
+  }
+
   /** The file is back on disk (the extension wrote and checked it): stop pointing at remote storage. */
   markLocal(id: string): boolean {
     const r = this.deps.db.select().from(rawFile).where(eq(rawFile.id, id)).get();

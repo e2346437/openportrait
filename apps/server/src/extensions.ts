@@ -60,6 +60,12 @@ export interface SettingsCard {
      * Hidden unless `show` matches. Actions marked `inline` become its buttons.
      */
     connection?: { show?: { key: string; equals: string | boolean }; titleKey: string; detailKey?: string; toneKey: string };
+    /**
+     * On/off switches. `data[key]` is a boolean; changing a switch POSTs `{ on }` to `route` (under the extension's
+     * routes) and merges the answer into the status. `confirmOn` is asked before turning one on. Shown only while
+     * `show` matches, under an optional `title`.
+     */
+    toggles?: { title?: string; show?: { key: string; equals: string | boolean }; items: Array<{ key: string; label: string; hint?: string; route: string; confirmOn?: string }> };
   };
   actions: Array<{
     label: string;

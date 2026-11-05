@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Button, Callout, EmptyState, Field, Panel, Segmented, Spinner, StatusChip, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
+import { SwitchRow } from "../../components/SwitchRow.js";
 import { useLoad } from "../../lib/useLoad.js";
 
 type Tone = "ok" | "warn" | "bad" | "neutral";
@@ -17,6 +18,7 @@ export interface SettingsCard {
     charts?: Array<{ key: string; title: string; format?: "bytes" | "number" }>;
     lists?: Array<{ key: string; label: string; empty?: string; title: string; subtitle?: string; id?: string; removeRoute?: string; removeConfirm?: string }>;
     connection?: { show?: { key: string; equals: string | boolean }; titleKey: string; detailKey?: string; toneKey: string };
+    toggles?: { title?: string; show?: { key: string; equals: string | boolean }; items: Array<{ key: string; label: string; hint?: string; route: string; confirmOn?: string }> };
   };
   actions: Array<{
     label: string;
@@ -176,6 +178,18 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
     }
   };
 
+  const flip = async (t: NonNullable<NonNullable<SettingsCard["status"]["toggles"]>["items"]>[number], on: boolean) => {
+    if (on && t.confirmOn && !window.confirm(t.confirmOn)) return;
+    setRunError(null);
+    try {
+      const r = await api<Record<string, unknown>>(`${base}${fill(t.route)}`, { method: "POST", body: { on } });
+      setData((prev) => ({ ...(prev ?? {}), ...r }));
+      reload();
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  };
+
   const go = async (i: number) => {
     const action = card.actions[i]!;
     if (action.confirm && !window.confirm(action.confirm)) return;
@@ -224,6 +238,14 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
                   <Button key={i} size="sm" onClick={() => openEdit(i)}>{a.collapsed?.editLabel ?? "Edit"}</Button>
                 ))}
               </div>
+            </div>
+          ) : null}
+          {card.status.toggles && (!card.status.toggles.show || data[card.status.toggles.show.key] === card.status.toggles.show.equals) ? (
+            <div className="ext-toggles">
+              {card.status.toggles.title ? <h3 className="ext-list-title">{card.status.toggles.title}</h3> : null}
+              {card.status.toggles.items.map((t) => (
+                <SwitchRow key={t.key} checked={data[t.key] === true} onChange={(v) => void flip(t, v)} label={t.label} hint={t.hint} />
+              ))}
             </div>
           ) : null}
           {card.status.meters?.map((m) => {

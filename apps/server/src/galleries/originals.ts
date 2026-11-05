@@ -201,6 +201,19 @@ export class Originals {
       .map((p) => ({ id: p.id, remoteKey: p.remoteKey!, file: resolveInside(this.deps.galleriesDir, p.relPath), sizeBytes: p.sizeBytes, mtimeMs: p.mtimeMs }));
   }
 
+  /** Photos whose original is in the store although their gallery was set to keep files on this server. */
+  wantedLocal(limit: number): RemoteOriginal[] {
+    return this.deps.db
+      .select({ p: photo })
+      .from(photo)
+      .innerJoin(gallery, eq(photo.galleryId, gallery.id))
+      .where(and(isNotNull(photo.remoteKey), eq(gallery.storageGallery, "local")))
+      .limit(limit)
+      .all()
+      .map((r) => r.p)
+      .map((p) => ({ id: p.id, remoteKey: p.remoteKey!, file: resolveInside(this.deps.galleriesDir, p.relPath), sizeBytes: p.sizeBytes, mtimeMs: p.mtimeMs }));
+  }
+
   /** The original is back in the galleries folder (the extension wrote and checked it): stop pointing at the store. */
   markLocal(photoId: string): boolean {
     const p = this.deps.db.select().from(photo).where(eq(photo.id, photoId)).get();

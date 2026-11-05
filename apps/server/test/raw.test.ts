@@ -117,4 +117,20 @@ describe("per-gallery storage choice", () => {
     expect(o.raw.pending(10, 0, false)).toHaveLength(2);
     expect(o.pending(10, 0, false)).toHaveLength(0); // the delivered images still follow the default
   });
+
+  it("lists stored files whose gallery asks to keep them local, so an extension can bring them back", async () => {
+    const id = await setup();
+    const o = app.ctx.originals;
+    const [r] = o.raw.pending(1, 0);
+    o.raw.markRemote(r!.id, "k/r", { sizeBytes: r!.sizeBytes });
+    const [p] = o.pending(1, 0);
+    o.markRemote(p!.id, "k/p", { sizeBytes: p!.sizeBytes });
+    expect(o.raw.wantedLocal(10)).toHaveLength(0);
+    expect(o.wantedLocal(10)).toHaveLength(0);
+    await studio("PATCH", `/galleries/${id}`, { storageOriginals: "local" });
+    expect(o.raw.wantedLocal(10).map((x) => x.id)).toEqual([r!.id]);
+    expect(o.wantedLocal(10)).toHaveLength(0); // the delivered images did not ask for it
+    await studio("PATCH", `/galleries/${id}`, { storageGallery: "local" });
+    expect(o.wantedLocal(10).map((x) => x.id)).toEqual([p!.id]);
+  });
 });

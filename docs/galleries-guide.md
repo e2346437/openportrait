@@ -107,6 +107,51 @@ Each gallery can override this in its own **Settings** tab.
 
 **Trade-offs.** Stronger protection gives a copier less to work with, but previews look softer on high-density screens. Check one on your phone. It deters casual copying. It cannot stop screenshots or all AI recreation, so it does not replace locking downloads. It is free, and originals are never touched.
 
+### A worked example: what the protection does and does not do
+
+We tested the presets against ordinary removal tools on five openly licensed sample photos (a NASA public-domain portrait, fur, a still life, a scene and a page of text), each scaled to 2400 px, with a plain "Studio Name" text watermark in its default look. The previews were made by the same code that protects real photos. To score a result we compared it with the clean 2048 px original, so a smaller preview is charged for the detail it lost. These are examples, not guarantees: five photos is a small test, and the scores say how close a result is to the original, not whether a person would notice.
+
+![The clean preview, the old even grid, and the Balanced and Strong presets](img/proofing-presets.png)
+
+The old even grid keeps the full 2048 px preview. The presets draw the preview smaller, spread the marks irregularly and cover more of the photo. Strong covers the most and costs the most in sharpness.
+
+![An old-grid preview and a Strong preview, each as served and after a best-case removal attempt](img/proofing-removal-attempt.png)
+
+The best attack we tried was a classical inpainting tool handed the **exact** outline of the mark, which a real copier rarely has. On the old grid it brought the portrait back to a similarity of 0.95 with the original. On Strong it reached 0.87, and the repaired face shows smeared skin and blocky edges where the marks had been.
+
+Average similarity to the original across the five photos (1.0 is identical, so a higher number is better for someone copying):
+
+| What was done to the preview | Old grid | Light | Balanced | Strong |
+|---|---|---|---|---|
+| As served, nothing done | 0.87 | 0.91 | 0.85 | 0.72 |
+| Saved again as a low-quality JPEG | 0.85 | 0.89 | 0.83 | 0.69 |
+| Repaired by inpainting, mark outlined by guesswork | 0.81 | 0.81 | 0.77 | 0.74 |
+| Repaired by inpainting, exact mark outline (best case) | 0.96 | 0.96 | 0.93 | 0.88 |
+| Repaired by a learned inpainting model, exact mark outline (best case) | 0.97 | 0.97 | 0.94 | 0.90 |
+| Repaired by a learned inpainting model, mark outlined by guesswork | 0.82 | 0.81 | 0.78 | 0.74 |
+| Share of the photo the mark covers | 9% | 7% | 12% | 23% |
+
+What to take from it:
+
+- **Strong lowers the best result the most**, and Balanced lowers it a little. Light was no better than the old grid in this test.
+- **Part of the gain is simply covering more of the photo and showing it smaller**, not the irregular layout alone. This test cannot separate those.
+- **Strong makes the client's own preview softer too.** Its unattacked preview scores 0.72 against the original. Check one on a phone before you choose it.
+- **Guessing the mark automatically did about the same against every option** (0.74 to 0.81), so the irregular layout did not clearly make the mark harder to find.
+- **A learned model did a little better than the classical tool**, by about 0.01 to 0.02 in every column, but the order stayed the same: the old grid was easiest to clean up and Strong the hardest.
+- **Generative tools are not covered by these numbers.** General-purpose hosted image editors declined or returned no image when asked to remove a watermark in our trial, which helps against casual use, but policies change and tools you run yourself have no such filter. Keep downloads locked until you are paid.
+
+#### What a learned model leaves behind
+
+We also tried LaMa, an open-weight inpainting model that runs on an ordinary computer, again handed the exact mark outline. The top row is the preview as served, the bottom row is what the model made of it. On the old grid and Light it returned a clean face. On Strong it left smudges and changed the eye region, so what it recovered is less faithful to the original.
+
+![Face example: each preview as served and after a learned-model removal attempt](img/proofing-learned-face.png)
+
+Fine text is harder to repair. Where marks crossed letters, the model invented its own, and on Strong several words came back unreadable.
+
+![Text example: each preview as served and after a learned-model removal attempt](img/proofing-learned-text.png)
+
+Remember what this does not show. Strong also hides more of the photo for your client, and part of the difference comes from covering more of it, not only from the layout. It is a small test on five public sample images with one watermark look, so treat these pictures as examples and not as a promise about any particular tool.
+
 ## Favorites and proofing
 
 - Each gallery has a **Favorites** list. Add more lists with a limit, such as "Album picks (40)".

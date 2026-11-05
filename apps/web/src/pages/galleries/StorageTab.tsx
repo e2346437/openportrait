@@ -85,7 +85,7 @@ function CheckOut({ data, patch }: { data: GalleryDetail; patch: Patch }) {
   return (
     <Panel
       title="Checked out"
-      actions={<StatusChip tone={c.state === "ready" ? "ok" : "warn"} pulse={c.state === "preparing"}>{c.state === "ready" ? "Ready to edit" : "Bringing files back"}</StatusChip>}
+      actions={<span className="storage-chip"><StatusChip tone={c.state === "ready" ? "ok" : "warn"}>{c.state === "ready" ? "Ready to edit" : "Bringing files back"}</StatusChip></span>}
     >
       {c.state === "preparing" ? (
         <div className="ext-meter">

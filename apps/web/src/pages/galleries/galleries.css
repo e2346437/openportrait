@@ -200,3 +200,4 @@ input.input.date { max-width: 200px; }
 .storage-row .seg button, .storage-seg button { flex: 1 1 auto; padding: 0 8px; white-space: normal; line-height: 1.2; }
 .seg button:disabled { opacity: 0.5; cursor: not-allowed; }
 .storage-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
+.storage-chip { display: inline-flex; flex: 0 0 auto !important; align-self: center; }

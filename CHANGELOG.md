@@ -11,6 +11,7 @@ Heading toward 1.0.
 - The AI rate limiter forgets connections that have gone quiet instead of growing without bound.
 
 ### Added
+- Each shoot's Originals/RAW folder is now tracked, so an extension that adds remote storage can move those files and bring them back (they are never shown to clients). Each gallery can also choose, per folder, to follow the studio default, stay on this server, or go to remote storage.
 - Extension settings cards can show a connection block (a clear tick or warning with title, detail and buttons) and keep their form closed behind an Edit button, pre-filled with the saved values. Secret fields show "Saved" and never receive the stored secret.
 - A day-of timeline on every shoot: add what happens at each time, with length, place and notes, then print it as a one-page run sheet with the shoot details and contacts.
 - Per-client download limits. In a gallery's Settings you can cap how many downloads and how many files each client may take, counted by the email they gave. Clients see what they have left before they download, and you are never counted when you preview.

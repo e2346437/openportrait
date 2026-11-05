@@ -28,6 +28,7 @@ import { siteRoutes } from "./routes/site.js";
 import { registerFreeTemplates } from "./site/templates.js";
 import { mcpRoutes } from "./ai/mcp.js";
 import { Originals } from "./galleries/originals.js";
+import { DEFAULT_RAW_SUBDIR } from "./domain/folders.js";
 import { enforceShootScope, shootScopeFor } from "./scope.js";
 import { loadExtensions, extensionRoutes } from "./extensions.js";
 import { oauthRoutes, oauthStudioRoutes } from "./ai/oauth.js";
@@ -163,7 +164,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   const tunnel = new TunnelManager(app.log);
   const jobs = new JobRunner(db, { logger: app.log });
   const galleries = new GalleryIngest({ db, settings, galleriesDir: config.galleriesDir, settleSeconds: config.ingestSettleSeconds, logger: app.log });
-  const originals = new Originals({ db, galleriesDir: config.galleriesDir });
+  const originals = new Originals({ db, galleriesDir: config.galleriesDir, rawSubdir: () => settings.get("folders.rawSubdir") ?? DEFAULT_RAW_SUBDIR });
   galleries.setOriginals(originals);
   registerDerivativesJob(config);
   const uploads = new UploadManager({ config, db, settings, log: app.log, lanHosts: () => lanHosts(settings, config) });

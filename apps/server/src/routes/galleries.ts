@@ -50,6 +50,9 @@ const GalleryPatch = z
     downloadMaxTimes: z.number().int().min(1, "A limit must be at least 1.").max(10_000).nullable(),
     downloadMaxFiles: z.number().int().min(1, "A limit must be at least 1.").max(100_000).nullable(),
     expiresAt: z.number().int().positive().nullable(),
+    /** Where this gallery's Originals folder and delivered images are kept when remote storage is attached. */
+    storageOriginals: z.enum(["default", "local", "offsite"]),
+    storageGallery: z.enum(["default", "local", "offsite"]),
     registration: z.enum(["none", "email", "email_name"]),
     welcomeMessage: z.string().trim().max(1500).nullable(),
     /** "password" needs `password` too; "link" clears it. */
@@ -168,6 +171,8 @@ export async function galleryRoutes(app: FastifyInstance) {
         downloadLock: g.downloadLock,
         downloadMaxTimes: g.downloadMaxTimes,
         downloadMaxFiles: g.downloadMaxFiles,
+        storageOriginals: g.storageOriginals,
+        storageGallery: g.storageGallery,
         accessMode: g.accessMode,
         hasPassword: !!g.passwordHash,
         registration: g.registration,
@@ -178,6 +183,12 @@ export async function galleryRoutes(app: FastifyInstance) {
         url: `${app.ctx.publicUrl()}/g/${g.slug}`,
         views,
         downloads,
+      },
+      /** What is where, per folder. `attached` is whether any remote storage is available at all. */
+      storage: {
+        attached: app.ctx.originals.hasStore(),
+        originals: app.ctx.originals.raw.counts(g.shootFolder),
+        gallery: app.ctx.originals.counts(g.shootFolder),
       },
       sets: sets.map((s) => ({ id: s.id, name: s.name, folderName: s.folderName, hidden: s.hidden, earlyDownload: s.earlyDownload, coverPhotoId: s.coverPhotoId, coverFocalX: s.coverFocalX, coverFocalY: s.coverFocalY, sort: s.sort })),
       photos: photos.map((p) => ({ ...photoJson(secrets, p), state: p.state, error: p.error, hidden: p.hidden, relPath: p.relPath })),

@@ -14,6 +14,7 @@ import { ContractsPanel, GalleriesPanel, OrdersPanel } from "../../components/Re
 import { RichTextEditor } from "../../components/RichTextEditor.js";
 import { ShootQuestionnaires } from "./ShootQuestionnaires.js";
 import { GroupDayMember, GroupDayPanel } from "../../components/GroupDay.js";
+import { CrewPanel } from "../../components/CrewPanel.js";
 import { ExtensionCard, type ExtensionInfo } from "../settings/Extensions.js";
 
 export function ShootDetailPage() {
@@ -216,7 +217,6 @@ export function ShootDetailPage() {
           </Panel>
 
           <ShootExtensionCards shootId={shoot.id} />
-          <AddOnPrompt feature="second-shooter" />
 
           <Panel title="Client">
             <div className="facts" style={{ flexDirection: "column", margin: 0 }}>
@@ -403,8 +403,10 @@ function EditShootDialog({ open, shoot, onClose, onSaved }: { open: boolean; sho
 function ShootExtensionCards({ shootId }: { shootId: string }) {
   const { data } = useLoad<{ extensions: ExtensionInfo[] }>("/extensions");
   const cards = (data?.extensions ?? []).flatMap((e) => (e.shootCards ?? []).map((card) => ({ id: e.id, card })));
+  const crew = (data?.extensions ?? []).find((e) => e.status === "loaded" && e.crewPanel);
   return (
     <>
+      {crew ? <CrewPanel shootId={shootId} extId={crew.id} route={crew.crewPanel!} /> : <AddOnPrompt feature="second-shooter" />}
       {cards.map(({ id, card }) => (
         <ExtensionCard key={`${id}/${card.title}`} id={id} card={card} vars={{ shootId }} />
       ))}

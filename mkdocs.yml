@@ -37,6 +37,7 @@ nav:
       - Internet access with Cloudflare Tunnel: cloudflare-tunnel.md
       - Importing your data: import.md
   - Running your studio:
+      - The Home screen: home.md
       - Email, inquiry form and booking pages: booking.md
       - Questionnaires: questionnaires.md
       - Contracts and e-signatures: contracts.md
@@ -52,8 +53,10 @@ nav:
   - Website and AI:
       - Website builder: website.md
       - Connect your AI: ai-access.md
+      - A starter prompt for your AI: ai-prompt.md
   - Developers:
       - Extensions: extensions.md
   - Reference:
+      - Light and dark appearance: appearance.md
       - Accessibility: accessibility.md
       - Product spec and architecture: SPEC.md

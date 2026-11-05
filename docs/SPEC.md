@@ -74,6 +74,7 @@ All of these are in scope for 1.0. The milestones in section 11 set the build or
 ### Routes
 
 - Staff pages live under `/studio/*` and the staff API under `/api/studio/*`. Staff sign in with OpenPortrait's own login. Cloudflare Access is not used.
+- `/studio` is the home page: one owner-only call (`GET /api/studio/home`) returns the pulse numbers (open leads, this month's shoots and invoiced total, money outstanding and overdue, galleries to deliver), the next seven days with each shoot's contract, deposit and questionnaire readiness, a "needs you" list, and the latest gallery cover for the hero. A new studio sees a first-steps walkthrough instead. The sign-in page shows the studio's optional sign-in photo (Settings > Studio), served publicly like the logo at `/api/branding/sign-in`, resized and stripped of camera data.
 - Client pages (`/g`, `/book`, `/portal`, `/sign`) and `/api/health` stay public. The AI endpoints (`/mcp`, `/oauth/*`, `/.well-known/oauth-*`) are public paths with their own authentication (section 10). `/` redirects to `/studio` until client pages exist.
 - `/api/health` returns the version and an instance id (an HMAC of the instance's secret key), which the tunnel test uses to confirm the public hostname reaches this server.
 

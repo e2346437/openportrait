@@ -79,6 +79,34 @@ Under **Download lock** (studio default in **Settings > Galleries**, changeable 
 
 While anything is locked, previews of locked photos carry your watermark, and the download dialog tells the client why and links to the invoice. When the client pays, switch the lock off on the gallery. The watermark disappears with it, and downloaded files never carry a watermark. Set the watermark under **Settings > Galleries**.
 
+### Protected proofing
+
+Previews that carry the watermark are also re-drawn smaller, with the marks spread irregularly across the photo instead of in an even grid. Under **Settings > Galleries > Protected proofing** pick a strength (Light 1800 px, Balanced 1400 px, Strong 1000 px, or a size of your own) and when it applies: while downloads are locked (the default), always, or never. A gallery can follow the studio default or use its own choice in its Settings tab. The before and after preview is drawn by the same code that protects real photos. Protecting previews is separate from locking downloads, so turning one off never changes the other.
+
+This deters casual copying and lowers the quality of anything copied. It does not stop screenshots or every attempt to recreate a photo, so keep downloads locked until you are paid.
+
+```mermaid
+flowchart TD
+    A[Client opens a gallery] --> B{Protect previews setting}
+    B -- Never --> C[Clean preview]
+    B -- Always --> D[Protected preview]
+    B -- While downloads are locked --> E{Downloads locked?}
+    E -- Yes --> D
+    E -- No, or paid --> C
+    D --> F[Re-drawn smaller on your server, with an irregular textured watermark]
+```
+
+![Protected proofing settings with numbered callouts](img/galleries-protected-proofing.png)
+
+1. **Strength** sets the preview size: Light 1800 px, Balanced 1400 px (default) or Strong 1000 px.
+2. **Protect previews** chooses when it applies: while downloads are locked (default), always, or never.
+3. **Preview size** fine-tunes the size from 600 to 2048 px. The side-by-side sample shows the original and what a client sees.
+4. **Save protection** applies the choice to every gallery that follows the studio default.
+
+Each gallery can override this in its own **Settings** tab.
+
+**Trade-offs.** Stronger protection gives a copier less to work with, but previews look softer on high-density screens. Check one on your phone. It deters casual copying. It cannot stop screenshots or all AI recreation, so it does not replace locking downloads. It is free, and originals are never touched.
+
 ## Favorites and proofing
 
 - Each gallery has a **Favorites** list. Add more lists with a limit, such as "Album picks (40)".

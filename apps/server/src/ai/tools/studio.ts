@@ -78,3 +78,16 @@ defineTool({
     return { mode: modeOf(ctx.settings), count: items.length, items: items.map((i) => ({ ...i, since: new Date(i.since).toISOString() })) };
   },
 });
+
+defineTool({
+  name: "studio_set_automation_mode",
+  title: "Hand automations to the AI, or take them back",
+  description: "Switches the studio-wide automation owner between the built-in rules and the connected AI. This changes who acts on the studio's behalf, so it needs the owner's authorization code.",
+  area: "studio",
+  tier: "sensitive",
+  input: { mode: z.enum(["built-in", "ai"]).describe("Who handles routine automations from now on.") },
+  handler: (ctx, args) => {
+    ctx.settings.set("automation.mode", args.mode);
+    return { mode: modeOf(ctx.settings) };
+  },
+});

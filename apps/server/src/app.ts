@@ -20,15 +20,18 @@ import { Settings } from "./settings.js";
 import { TunnelManager } from "./tunnel.js";
 import { registerDerivativesJob } from "./galleries/derivatives.js";
 import { GalleryIngest } from "./galleries/ingest.js";
+import { tickCheckouts } from "./domain/storage-checkout.js";
 import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
 import { masterRoutes } from "./routes/master.js";
 import { galleryRoutes, ingestRoutes } from "./routes/galleries.js";
 import { watermarkRoutes } from "./routes/watermark.js";
+import { proofingRoutes } from "./routes/proofing.js";
 import { siteRoutes } from "./routes/site.js";
 import { registerFreeTemplates } from "./site/templates.js";
 import { mcpRoutes } from "./ai/mcp.js";
 import { Originals } from "./galleries/originals.js";
+import { DEFAULT_RAW_SUBDIR } from "./domain/folders.js";
 import { enforceShootScope, shootScopeFor } from "./scope.js";
 import { loadExtensions, extensionRoutes } from "./extensions.js";
 import { oauthRoutes, oauthStudioRoutes } from "./ai/oauth.js";
@@ -52,6 +55,7 @@ import { runSheetRoutes } from "./routes/runsheet.js";
 import { publicRoutes } from "./routes/public.js";
 import { questionnaireRoutes } from "./routes/questionnaires.js";
 import { registerEmailJob } from "./domain/email.js";
+import { homeRoutes } from "./routes/home.js";
 import { registerGoogleSyncJob } from "./google/job.js";
 import { crmRoutes } from "./routes/crm.js";
 import { importRoutes } from "./routes/import.js";
@@ -164,7 +168,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   const tunnel = new TunnelManager(app.log);
   const jobs = new JobRunner(db, { logger: app.log });
   const galleries = new GalleryIngest({ db, settings, galleriesDir: config.galleriesDir, settleSeconds: config.ingestSettleSeconds, logger: app.log });
-  const originals = new Originals({ db, galleriesDir: config.galleriesDir });
+  const originals = new Originals({ db, galleriesDir: config.galleriesDir, rawSubdir: () => settings.get("folders.rawSubdir") ?? DEFAULT_RAW_SUBDIR });
   galleries.setOriginals(originals);
   registerDerivativesJob(config);
   const uploads = new UploadManager({ config, db, settings, log: app.log, lanHosts: () => lanHosts(settings, config) });
@@ -267,6 +271,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(galleryRoutes, { prefix: "/api/studio/galleries" });
   await app.register(ingestRoutes, { prefix: "/api/studio/ingest" });
   await app.register(watermarkRoutes, { prefix: "/api/studio/watermark" });
+  await app.register(proofingRoutes, { prefix: "/api/studio/proofing" });
   registerFreeTemplates();
   await app.register(siteRoutes, { prefix: "/api/studio/site" });
   // Client pages and their media are public; the private link (and signed media URLs) are the key.
@@ -289,6 +294,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
   await app.register(bookingRoutes, { prefix: "/api/studio" });
   await app.register(orderRoutes, { prefix: "/api/studio" });
   await app.register(reportRoutes, { prefix: "/api/studio" });
+  await app.register(homeRoutes, { prefix: "/api/studio" });
   await app.register(contractRoutes, { prefix: "/api/studio" });
   await app.register(householdRoutes, { prefix: "/api/studio" });
   await app.register(taskRoutes, { prefix: "/api/studio" });
@@ -341,11 +347,14 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     const hourly = setInterval(() => scheduleBackup(db), 3_600_000);
     fs.mkdirSync(config.galleriesDir, { recursive: true });
     const stopWatcher = startGalleryWatcher({ dir: config.galleriesDir, ingest: galleries, rescanMinutes: config.watchRescanMinutes, settleSeconds: config.ingestSettleSeconds, logger: app.log });
+    // Check Out: notice when files are back, and send idle shoots offsite again.
+    const checkoutTimer = setInterval(() => tickCheckouts({ db, settings, config, actorId: null, publicUrl: ctx.publicUrl }, originals), 60_000);
     const googleTimer = setInterval(() => requestSync(db, 0), 5 * 60_000);
     setTimeout(() => requestSync(db, 0), 10_000).unref();
     app.addHook("onClose", async () => {
       clearInterval(hourly);
       clearInterval(googleTimer);
+      clearInterval(checkoutTimer);
       await stopWatcher();
       await uploads.stop();
       await jobs.stop();

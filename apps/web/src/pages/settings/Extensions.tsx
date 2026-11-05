@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Button, Callout, EmptyState, Field, Panel, Segmented, Spinner, StatusChip, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
+import { SwitchRow } from "../../components/SwitchRow.js";
 import { useLoad } from "../../lib/useLoad.js";
 
 type Tone = "ok" | "warn" | "bad" | "neutral";
@@ -16,8 +17,19 @@ export interface SettingsCard {
     stats?: Array<{ key: string; label: string; format?: "bytes" | "number" | "text"; hintKey?: string }>;
     charts?: Array<{ key: string; title: string; format?: "bytes" | "number" }>;
     lists?: Array<{ key: string; label: string; empty?: string; title: string; subtitle?: string; id?: string; removeRoute?: string; removeConfirm?: string }>;
+    connection?: { show?: { key: string; equals: string | boolean }; titleKey: string; detailKey?: string; toneKey: string };
+    toggles?: { title?: string; show?: { key: string; equals: string | boolean }; items: Array<{ key: string; label: string; hint?: string; route: string; confirmOn?: string }> };
   };
-  actions: Array<{ label: string; route: string; primary?: boolean; when?: { key: string; equals: string | boolean }; fields?: Array<{ name: string; label: string; hint?: string; secret?: boolean; optionsKey?: string; optional?: boolean }>; confirm?: string }>;
+  actions: Array<{
+    label: string;
+    route: string;
+    primary?: boolean;
+    inline?: boolean;
+    collapsed?: { when: { key: string; equals: string | boolean }; editLabel?: string; prefillKey?: string };
+    when?: { key: string; equals: string | boolean };
+    fields?: Array<{ name: string; label: string; hint?: string; secret?: boolean; optionsKey?: string; optional?: boolean; savedKey?: string }>;
+    confirm?: string;
+  }>;
 }
 interface Meter { label: string; detail?: string; done: number; total: number; format?: "bytes" | "number"; tone?: Tone }
 interface ChartData { views: Array<{ key: string; label: string; layout: "bars" | "columns"; points: Array<{ label: string; short?: string; value: number }>; note?: string }> }
@@ -29,6 +41,7 @@ export interface ExtensionInfo {
   cards: SettingsCard[];
   reports?: Array<{ title: string; description?: string; route: string }>;
   shootCards?: SettingsCard[];
+  crewPanel?: string;
 }
 
 const fmt = (v: unknown, format?: string) => {
@@ -125,6 +138,8 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
   const [runError, setRunError] = useState<string | null>(null);
   // An action may answer with a `message` the owner needs to read, such as a one-time password. It stays until dismissed.
   const [resultNote, setResultNote] = useState<string | null>(null);
+  // Which collapsed form is open for editing (an index into card.actions).
+  const [editing, setEditing] = useState<number | null>(null);
 
   // While the extension is busy it asks to be re-read, so progress moves on its own.
   const refreshMs = typeof data?.refreshMs === "number" ? Math.max(1000, data.refreshMs) : null;
@@ -137,12 +152,38 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
   const chip = data && card.status.chip ? card.status.chip.values[String(data[card.status.chip.key])] : undefined;
   const notice = data && card.status.notice ? data[card.status.notice] : null;
   const actions = card.actions.map((a, i) => ({ a, i })).filter(({ a }) => !a.when || (data && data[a.when.key] === a.when.equals));
+  const conn = card.status.connection;
+  const connShown = !!(data && conn && (!conn.show || data[conn.show.key] === conn.show.equals));
+  const isCollapsed = (a: SettingsCard["actions"][number], i: number) => !!(data && a.collapsed && data[a.collapsed.when.key] === a.collapsed.when.equals && editing !== i);
+  const openEdit = (i: number) => {
+    const prefill = card.actions[i]?.collapsed?.prefillKey ? data?.[card.actions[i]!.collapsed!.prefillKey!] : null;
+    setValues(prefill && typeof prefill === "object" ? Object.fromEntries(Object.entries(prefill as Record<string, unknown>).map(([k, v]) => [k, String(v ?? "")])) : {});
+    setRunError(null);
+    setEditing(i);
+  };
+  const cancelEdit = () => {
+    setEditing(null);
+    setValues({});
+    setRunError(null);
+  };
 
   const remove = async (list: NonNullable<SettingsCard["status"]["lists"]>[number], itemId: string) => {
     if (list.removeConfirm && !window.confirm(list.removeConfirm)) return;
     setRunError(null);
     try {
       await api(`${base}${fill(list.removeRoute!).replace("%7Bid%7D", encodeURIComponent(itemId)).replace("{id}", encodeURIComponent(itemId))}`, { method: "DELETE" });
+      reload();
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  };
+
+  const flip = async (t: NonNullable<NonNullable<SettingsCard["status"]["toggles"]>["items"]>[number], on: boolean) => {
+    if (on && t.confirmOn && !window.confirm(t.confirmOn)) return;
+    setRunError(null);
+    try {
+      const r = await api<Record<string, unknown>>(`${base}${fill(t.route)}`, { method: "POST", body: { on } });
+      setData((prev) => ({ ...(prev ?? {}), ...r }));
       reload();
     } catch (err) {
       setRunError(err instanceof Error ? err.message : "Something went wrong.");
@@ -165,6 +206,7 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
       setResultNote(typeof r.message === "string" && r.message ? r.message : null);
       setData((prev) => ({ ...(prev ?? {}), ...r }));
       setValues({});
+      setEditing(null);
       toast(`${action.label}: done`);
       reload();
     } catch (err) {
@@ -181,6 +223,31 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
       {data ? (
         <div className="stack">
           {typeof notice === "string" && notice ? <Callout tone="warn">{notice}</Callout> : null}
+          {connShown && conn ? (
+            <div className={`ext-conn ${data![conn.toneKey] === "bad" ? "bad" : "ok"}`}>
+              <span className="ext-conn-icon" aria-hidden="true">{data![conn.toneKey] === "bad" ? "!" : "✓"}</span>
+              <div className="ext-conn-text">
+                <strong>{fmt(data![conn.titleKey])}</strong>
+                {conn.detailKey && data![conn.detailKey] ? <span>{String(data![conn.detailKey])}</span> : null}
+              </div>
+              <div className="ext-conn-actions">
+                {actions.filter(({ a }) => a.inline && !a.fields?.length).map(({ a, i }) => (
+                  <Button key={i} size="sm" onClick={() => void go(i)} loading={running === i}>{a.label}</Button>
+                ))}
+                {actions.filter(({ a, i }) => a.collapsed && isCollapsed(a, i)).map(({ a, i }) => (
+                  <Button key={i} size="sm" onClick={() => openEdit(i)}>{a.collapsed?.editLabel ?? "Edit"}</Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {card.status.toggles && (!card.status.toggles.show || data[card.status.toggles.show.key] === card.status.toggles.show.equals) ? (
+            <div className="ext-toggles">
+              {card.status.toggles.title ? <h3 className="ext-list-title">{card.status.toggles.title}</h3> : null}
+              {card.status.toggles.items.map((t) => (
+                <SwitchRow key={t.key} checked={data[t.key] === true} onChange={(v) => void flip(t, v)} label={t.label} hint={t.hint} />
+              ))}
+            </div>
+          ) : null}
           {card.status.meters?.map((m) => {
             const v = data[m.key] as Meter | null | undefined;
             return v && typeof v === "object" ? <MeterBar key={m.key} m={v} /> : null;
@@ -244,7 +311,7 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
             </Callout>
           ) : null}
           {runError ? <Callout tone="bad">{runError}</Callout> : null}
-          {actions.map(({ a, i }) => (
+          {actions.filter(({ a, i }) => !(connShown && a.inline && !a.fields?.length) && !isCollapsed(a, i)).map(({ a, i }) => (
             <form key={i} className="form-grid" noValidate onSubmit={(e) => { e.preventDefault(); void go(i); }}>
               {a.fields?.map((f) => (
                 <Field key={f.name} label={f.label} hint={f.hint} className="span-2">
@@ -255,13 +322,14 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
                         {(Array.isArray(data[f.optionsKey]) ? (data[f.optionsKey] as Array<{ value: string; label: string }>) : []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     ) : (
-                      <TextInput {...p} type={f.secret ? "password" : "text"} value={values[f.name] ?? ""} onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))} autoComplete="off" spellCheck={false} />
+                      <TextInput {...p} type={f.secret ? "password" : "text"} placeholder={f.secret && f.savedKey && data[f.savedKey] === true ? "Saved. Type to replace." : undefined} value={values[f.name] ?? ""} onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))} autoComplete="off" spellCheck={false} />
                     )
                   }
                 </Field>
               ))}
               <div className="span-2 form-actions">
                 <Button variant={a.primary ? "primary" : undefined} type="submit" loading={running === i}>{a.label}</Button>
+                {a.collapsed && editing === i ? <Button type="button" onClick={cancelEdit}>Cancel</Button> : null}
               </div>
             </form>
           ))}

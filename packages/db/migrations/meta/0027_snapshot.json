@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5b6dea53-ae0a-43f3-80fb-93ab00adc807",
+  "id": "030ad1ba-24a8-4cd1-93ac-69a2433e2727",
   "prevId": "89fcc221-93ec-4487-8c40-c07c83741e42",
   "tables": {
     "ai_approval": {
@@ -1193,6 +1193,13 @@
         },
         "design": {
           "name": "design",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "proofing": {
+          "name": "proofing",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -2629,37 +2636,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'single'"
-        },
-        "bill_to": {
-          "name": "bill_to",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'self'"
-        },
-        "show_on_master": {
-          "name": "show_on_master",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        },
         "notes": {
           "name": "notes",
           "type": "text",
@@ -2685,13 +2661,6 @@
         }
       },
       "indexes": {
-        "shoot_parent_idx": {
-          "name": "shoot_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
-          "isUnique": false
-        },
         "shoot_status_idx": {
           "name": "shoot_status_idx",
           "columns": [

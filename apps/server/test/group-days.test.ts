@@ -363,7 +363,7 @@ describe("the organisation's page", () => {
     const page = await api("GET", `/api/day/${token}`);
     expect(page.status).toBe(200);
     expect(page.body.people.map((p: { name: string }) => p.name)).toEqual(["Jane Smith"]);
-    expect(page.body.people[0].cover.thumb).toContain("-wm-");
+    expect(page.body.people[0].cover.thumb).toContain("-pf-");
     expect(page.res.headers["cache-control"]).toContain("no-store");
     const one = await api("GET", `/api/day/${token}/people/${a.child.id}`);
     expect(one.body.photos).toHaveLength(1);

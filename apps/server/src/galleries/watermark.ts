@@ -61,7 +61,7 @@ export function watermarkHash(w: WatermarkInput): string {
 // ---- fonts -------------------------------------------------------------------------------------------------------
 
 const loaded = new Map<string, opentype.Font>();
-function loadFont(key: WatermarkFont, style: WatermarkSpec["style"]): opentype.Font {
+export function loadFont(key: WatermarkFont, style: WatermarkSpec["style"]): opentype.Font {
   const weight = style === "bold" ? 700 : 400;
   const slant = style === "italic" ? "italic" : "normal";
   const id = `${key}-${weight}-${slant}`;
@@ -77,7 +77,7 @@ function loadFont(key: WatermarkFont, style: WatermarkSpec["style"]): opentype.F
 }
 
 /** Text as an SVG path, so nothing depends on fonts installed on the host. */
-function textPath(text: string, spec: WatermarkSpec, fontSize: number): { d: string; width: number; height: number } {
+export function textPath(text: string, spec: WatermarkSpec, fontSize: number): { d: string; width: number; height: number } {
   const font = loadFont(spec.font, spec.style);
   const p = font.getPath(text, 0, 0, fontSize);
   const box = p.getBoundingBox();
@@ -88,12 +88,12 @@ function textPath(text: string, spec: WatermarkSpec, fontSize: number): { d: str
 
 // ---- rendering ---------------------------------------------------------------------------------------------------
 
-function luminance(hex: string): number {
+export function luminance(hex: string): number {
   const n = parseInt(hex.slice(1), 16);
   return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
 }
 
-function place(position: WatermarkSpec["position"], w: number, h: number, mw: number, mh: number): { left: number; top: number } {
+export function place(position: WatermarkSpec["position"], w: number, h: number, mw: number, mh: number): { left: number; top: number } {
   const m = Math.round(Math.min(w, h) * 0.04);
   const x = position.includes("left") ? m : position.includes("right") ? w - mw - m : Math.round((w - mw) / 2);
   const y = position.startsWith("top") ? m : position.startsWith("bottom") ? h - mh - m : Math.round((h - mh) / 2);
@@ -101,7 +101,7 @@ function place(position: WatermarkSpec["position"], w: number, h: number, mw: nu
 }
 
 /** The mark itself as a transparent PNG, sized for an image of width w. Never larger than the source art. */
-async function artwork(w: WatermarkInput, imgW: number): Promise<Buffer | null> {
+export async function artwork(w: WatermarkInput, imgW: number): Promise<Buffer | null> {
   const file = w.spec.mode === "logo" ? w.logoFile : w.spec.mode === "image" ? w.imageFile : null;
   if (!file || !fs.existsSync(file)) return null;
   const width = Math.max(16, Math.round((imgW * w.spec.size) / 100));
@@ -142,6 +142,11 @@ function textLayer(w: WatermarkInput, imgW: number, imgH: number): string {
 export async function renderWatermarkedBuffer(base: string | Buffer, w: WatermarkInput): Promise<Buffer> {
   const img = sharp(base);
   const { width = 0, height = 0 } = await img.metadata();
+  return img.composite([await watermarkComposite(w, width, height)]).webp({ quality: 80, effort: 4 }).toBuffer();
+}
+
+/** The classic single-layer mark (one placed mark or a plain diagonal repeat) for an image of this size. */
+export async function watermarkComposite(w: WatermarkInput, width: number, height: number): Promise<OverlayOptions> {
   let composite: OverlayOptions;
   const art = w.spec.mode === "text" ? null : await artwork(w, width);
   if (!art) {
@@ -155,7 +160,7 @@ export async function renderWatermarkedBuffer(base: string | Buffer, w: Watermar
     const m = await sharp(art).metadata();
     composite = { input: art, ...place(w.spec.position, width, height, m.width ?? 0, m.height ?? 0) };
   }
-  return img.composite([composite]).webp({ quality: 80, effort: 4 }).toBuffer();
+  return composite;
 }
 
 export async function renderWatermarked(baseFile: string, dest: string, w: WatermarkInput): Promise<void> {

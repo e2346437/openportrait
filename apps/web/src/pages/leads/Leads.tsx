@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Button, Callout, Dialog, EmptyState, Field, Icon, PageHeader, StatusChip, TextArea, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
@@ -15,7 +15,17 @@ export function LeadsPage() {
   const { me } = useSession();
   const tz = me?.studio.timezone ?? "UTC";
   const { data, error, reload, setData } = useLoad<{ stages: BoardStage[] }>("/leads");
-  const [adding, setAdding] = useState(false);
+  const [search, setSearch] = useSearchParams();
+  // `?new` opens the dialog straight away (the home page's quick action).
+  const [adding, setAdding] = useState(search.has("new"));
+  const closeNew = () => {
+    setAdding(false);
+    if (search.has("new")) {
+      const next = new URLSearchParams(search);
+      next.delete("new");
+      setSearch(next, { replace: true });
+    }
+  };
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [losing, setLosing] = useState<LeadCard | null>(null);
@@ -153,9 +163,9 @@ export function LeadsPage() {
 
       <NewLeadDialog
         open={adding}
-        onClose={() => setAdding(false)}
+        onClose={closeNew}
         onCreated={async (id) => {
-          setAdding(false);
+          closeNew();
           toast("Lead added");
           navigate(`/studio/leads/${id}`);
         }}

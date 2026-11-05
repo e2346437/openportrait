@@ -32,10 +32,15 @@ export function LoginPage() {
   };
 
   return (
-    <AuthLayout headline={me?.studio.name ? `Welcome back to ${me.studio.name}` : "Welcome back"}>
+    <AuthLayout
+      headline={me?.studio.name || "Welcome back"}
+      body={me?.studio.name ? "Clients, bookings and galleries, on your own server." : undefined}
+      photo={me?.studio.signInPhoto}
+      credit={me?.studio.name ? `A photo from ${me.studio.name}` : undefined}
+    >
       <div>
-        <h2>{challenge ? "Enter your code" : "Sign in"}</h2>
-        <p className="lede">{challenge ? "Open your authenticator app and enter the 6-digit code, or use a recovery code." : "Use the email and password for your studio account."}</p>
+        <h2>{challenge ? "Enter your code." : "Welcome back."}</h2>
+        <p className="lede">{challenge ? "Open your authenticator app and enter the 6-digit code, or use a recovery code." : "Sign in with your studio account."}</p>
       </div>
       <form onSubmit={onSubmit} noValidate>
         {error ? <Callout tone="bad">{error}</Callout> : null}

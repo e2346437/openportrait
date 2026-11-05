@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button, Callout, Field, Panel, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
 import { SwitchRow } from "../../components/SwitchRow.js";
+import { BrandImagePanel } from "../../components/BrandImagePanel.js";
 import { useSession } from "../../lib/session.js";
 import { allTimezones, prettyTimezone } from "../../lib/timezones.js";
 import { useSubmit } from "../../lib/useForm.js";
@@ -188,6 +189,14 @@ export function StudioSettingsPage() {
           </Panel>
         </>
       ) : null}
+      <BrandImagePanel
+        kind="sign-in"
+        owner={owner}
+        title="Sign-in photo"
+        description="One of your own photos, shown behind the sign-in page. It is public, like your logo, and is resized and stripped of camera data. Without one, the page shows the OpenPortrait mark."
+        alt="Sign-in photo"
+        wide
+      />
     </form>
   );
 }

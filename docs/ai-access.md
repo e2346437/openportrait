@@ -38,6 +38,44 @@ Auto-approval is a setting you can turn on for each kind of action. It is off by
 
 Client-written text, such as inquiry messages and questionnaire answers, is passed to the assistant as untrusted content. Assistants are told not to follow instructions found in it, and the approval step still applies.
 
+## Authorization code for sensitive actions
+
+Some actions are too important to trust to an assistant on its own, such as switching the studio's automation mode. These **sensitive** actions only run when the assistant includes your **authorization code** with the request. Without a code, they stay blocked.
+
+Money and client emails are different. They still wait in **Approvals** for your tap, with or without a code.
+
+### Set your code
+
+The setup wizard has a third step, **Your authorization code**. It suggests a random code made of a number and two words, such as `14 Yankee Tango`.
+
+![The authorization code step in setup](img/ai-code-onboarding.png)
+
+1. The suggested code. Choose **Another** for a different one.
+2. **Choose my own** lets you type your own, at least 6 characters.
+3. **Not now** skips it. **Save code** keeps it.
+
+You can set or change it any time under **Settings > Connect your AI > Authorization code**.
+
+![The Authorization code panel in settings](img/ai-code-settings.png)
+
+1. Your code. **Another** suggests a new one.
+2. **Your password.** Changing an existing code needs your account password.
+3. **Save code** saves it.
+
+### Using it
+
+When an assistant needs a sensitive action, it asks you for the code. Say or type it in the chat. Pick something you can remember. There is nothing to look up later, because the code is never shown again after you set it.
+
+### What it protects, and what it doesn't
+
+- **It guards against injected text.** If a client's message or a web page tells your assistant to change something sensitive, the assistant can't do it without the code you hold.
+- **It does not guard against a compromised AI account.** The code passes through the chat, so anyone who can read your conversation can see it. Share it only with assistants you trust, and change it if you think it was exposed.
+- **There is no emailed reset.** If you forget it, set a new one in Settings with your password.
+- **Wrong guesses lock the connection.** Five wrong tries in 15 minutes lock that connection for an hour.
+- **It is stored safely.** The code is stored as a hash, and is never returned or written to logs.
+
+Free, with no extra cost.
+
 ## Limits and records
 
 - Each connection is rate limited, and client emails sent through an assistant are capped per day.

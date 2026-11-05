@@ -206,3 +206,22 @@ export const shootCost = sqliteTable(
   },
   (t) => [index("shoot_cost_shoot_idx").on(t.shootId, t.position)],
 );
+
+/**
+ * The private page a paying organisation uses to see everyone photographed on its group day. The link is signed from
+ * `id` and `version` (nothing secret is stored), so it can be shown again, and bumping `version` kills the old link.
+ */
+export const masterAccess = sqliteTable("master_access", {
+  id: text().primaryKey(),
+  parentId: text()
+    .notNull()
+    .unique()
+    .references(() => shoot.id, { onDelete: "cascade" }),
+  version: integer().notNull().default(1),
+  passwordHash: text(),
+  expiresAt: integer({ mode: "timestamp_ms" }),
+  disabledAt: integer({ mode: "timestamp_ms" }),
+  views: integer().notNull().default(0),
+  lastViewedAt: integer({ mode: "timestamp_ms" }),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
+});

@@ -54,6 +54,7 @@ import { GalleriesListPage } from "./pages/galleries/GalleriesList.js";
 import { GalleryDetailPage } from "./pages/galleries/GalleryDetail.js";
 import { GallerySettingsPage } from "./pages/settings/Galleries.js";
 import { ClientGalleryPage } from "./pages/client/ClientGallery.js";
+import { DayPage } from "./pages/client/DayPage.js";
 import "./pages/client/client.css";
 import "./pages/galleries/galleries.css";
 import { WebsitePage } from "./pages/website/Website.js";
@@ -150,6 +151,7 @@ export function App() {
               </Route>
             </Route>
             <Route path="/g/:slug" element={<ClientGalleryPage />} />
+            <Route path="/d/:token" element={<DayPage />} />
             <Route path="/inquire" element={<InquirePage />} />
             <Route path="/q/:token" element={<QuestionnairePage />} />
             <Route path="/o/:token" element={<OrderViewPage />} />

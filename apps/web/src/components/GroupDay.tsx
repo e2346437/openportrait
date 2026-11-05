@@ -5,6 +5,7 @@ import { api } from "../lib/api.js";
 import { SHOOT_STATUS, type ShootDetail } from "../lib/types.js";
 import { useSubmit } from "../lib/useForm.js";
 import { GroupDayBilling } from "./GroupDayBilling.js";
+import { GroupDayMaster } from "./GroupDayMaster.js";
 
 const BILLING = {
   self: "Each person is billed on their own",
@@ -101,6 +102,8 @@ export function GroupDayPanel({ shoot, onChange }: { shoot: ShootDetail; onChang
           </div>
         </form>
       </Panel>
+
+      <GroupDayMaster shootId={shoot.id} />
 
       <GroupDayBilling shoot={shoot} onChange={onChange} />
 

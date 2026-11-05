@@ -12,7 +12,7 @@ let root: string;
 let cookie: string;
 let galleries: string;
 
-async function call(method: "GET" | "POST" | "PATCH" | "DELETE", url: string, payload?: unknown) {
+async function call(method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT", url: string, payload?: unknown) {
   const res = await app.inject({ method, url: `/api/studio${url}`, headers: { cookie }, payload: payload as object | undefined });
   return { status: res.statusCode, body: res.body ? res.json() : null };
 }
@@ -331,5 +331,96 @@ describe("group day billing", () => {
     const rows = db.select().from(tables.gallery).all();
     expect(rows.find((g) => g.id === "g1")!.unlockedAt).toBeTruthy();
     expect(rows.find((g) => g.id === "g2")!.unlockedAt).toBeFalsy();
+  });
+});
+
+describe("the organisation's page", () => {
+  async function api(method: "GET" | "POST", url: string, payload?: unknown, withCookie = false) {
+    const res = await app.inject({ method, url, headers: withCookie ? { cookie } : {}, payload: payload as object | undefined });
+    return { status: res.statusCode, body: res.body ? res.json() : null, res };
+  }
+  async function publishedPerson(day: string, name: string, opts: { live?: boolean } = {}) {
+    const { tables } = await import("@openportrait/db");
+    const child = (await call("POST", `/shoots/${day}/people`, { name, email: `${name.replace(/\W/g, "").toLowerCase()}@x.example` })).body.child as { id: string; folderPath: string };
+    const db = app.ctx.db;
+    const slug = `g-${child.id.slice(0, 6)}`;
+    db.insert(tables.gallery).values({ id: `gal-${child.id}`, slug, title: name, shootFolder: child.folderPath, folderPath: `${child.folderPath}/Gallery`, status: opts.live === false ? "draft" : "live", accessMode: "link", downloadLock: "until_paid" }).run();
+    db.insert(tables.gallerySet).values({ id: `set-${child.id}`, galleryId: `gal-${child.id}`, name: "Gallery", folderName: "" }).run();
+    db.insert(tables.photo).values({ id: `ph-${child.id}`, galleryId: `gal-${child.id}`, setId: `set-${child.id}`, relPath: `${child.folderPath}/Gallery/a.jpg`, filename: "a.jpg", contentHash: "h", sizeBytes: 1, mtimeMs: 1, width: 100, height: 100, state: "ready" }).run();
+    return { child, slug };
+  }
+  const tokenOf = (link: string) => link.slice(link.indexOf("/d/") + 3);
+
+  it("lists only published people who are on the page, with watermarked previews while locked", async () => {
+    const day = await makeDay();
+    const a = await publishedPerson(day, "Jane Smith");
+    await publishedPerson(day, "Draft Person", { live: false });
+    const hidden = await publishedPerson(day, "Private Person");
+    await call("PATCH", `/shoots/${hidden.child.id}`, { showOnMaster: false });
+    const put = await call("PUT", `/shoots/${day}/master`, { enabled: true });
+    expect(put.body.enabled).toBe(true);
+    const token = tokenOf(put.body.link);
+    const page = await api("GET", `/api/day/${token}`);
+    expect(page.status).toBe(200);
+    expect(page.body.people.map((p: { name: string }) => p.name)).toEqual(["Jane Smith"]);
+    expect(page.body.people[0].cover.thumb).toContain("-wm-");
+    expect(page.res.headers["cache-control"]).toContain("no-store");
+    const one = await api("GET", `/api/day/${token}/people/${a.child.id}`);
+    expect(one.body.photos).toHaveLength(1);
+    // The people's own gallery links are never in the page.
+    expect(JSON.stringify(page.body) + JSON.stringify(one.body)).not.toContain(a.slug);
+    expect((await api("GET", `/api/day/${token}/people/${hidden.child.id}`)).status).toBe(404);
+  });
+
+  it("refuses a bad, switched-off, retired or expired link the same way", async () => {
+    const day = await makeDay();
+    await publishedPerson(day, "Jane Smith");
+    const first = (await call("PUT", `/shoots/${day}/master`, { enabled: true })).body;
+    const t1 = tokenOf(first.link);
+    expect((await api("GET", `/api/day/${t1}x`)).status).toBe(404);
+    expect((await api("GET", `/api/day/nonsense`)).status).toBe(404);
+    const rotated = (await call("PUT", `/shoots/${day}/master`, { rotate: true })).body;
+    expect((await api("GET", `/api/day/${t1}`)).status).toBe(404);
+    const t2 = tokenOf(rotated.link);
+    expect((await api("GET", `/api/day/${t2}`)).status).toBe(200);
+    await call("PUT", `/shoots/${day}/master`, { enabled: false });
+    expect((await api("GET", `/api/day/${t2}`)).status).toBe(404);
+    await call("PUT", `/shoots/${day}/master`, { enabled: true });
+    expect((await api("GET", `/api/day/${t2}`)).status).toBe(200);
+    app.ctx.db.update((await import("@openportrait/db")).tables.masterAccess).set({ expiresAt: new Date(Date.now() - 1000) }).run();
+    expect((await api("GET", `/api/day/${t2}`)).status).toBe(404);
+  });
+
+  it("holds everything back until the password is entered, and a new password ends earlier sign-ins", async () => {
+    const day = await makeDay();
+    const a = await publishedPerson(day, "Jane Smith");
+    const put = (await call("PUT", `/shoots/${day}/master`, { enabled: true, password: "open sesame" })).body;
+    expect(put.hasPassword).toBe(true);
+    const token = tokenOf(put.link);
+    const gated = await api("GET", `/api/day/${token}`);
+    expect(gated.body.locked).toBe(true);
+    expect(gated.body.people).toEqual([]);
+    expect((await api("GET", `/api/day/${token}/people/${a.child.id}`)).status).toBe(401);
+    expect((await api("POST", `/api/day/${token}/unlock`, { password: "nope" })).status).toBe(401);
+    const ok = await api("POST", `/api/day/${token}/unlock`, { password: "open sesame" });
+    expect(ok.status).toBe(200);
+    const c = ok.res.cookies[0]!;
+    const res = await app.inject({ method: "GET", url: `/api/day/${token}`, headers: { cookie: `${c.name}=${c.value}` } });
+    expect(res.json().locked).toBe(false);
+    expect(res.json().people).toHaveLength(1);
+  });
+
+  it("only works on a group day, and short passwords are refused", async () => {
+    const types = (await call("GET", "/shoot-types")).body.types as Array<{ id: string }>;
+    const c = (await call("POST", "/contacts", { firstName: "A", lastName: "B" })).body;
+    const s = (await call("POST", "/shoots", { primaryContactId: c.id, shootTypeId: types[0]!.id })).body.shoot;
+    expect((await call("PUT", `/shoots/${s.id}/master`, { enabled: true })).status).toBe(400);
+    const day = await makeDay();
+    expect((await call("PUT", `/shoots/${day}/master`, { enabled: true, password: "abc" })).status).toBe(400);
+  });
+
+  it("is only managed by signed-in staff", async () => {
+    const day = await makeDay();
+    expect((await api("GET", `/api/studio/shoots/${day}/master`)).status).toBe(401);
   });
 });

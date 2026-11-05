@@ -39,10 +39,6 @@ export function derivativePath(cacheDir: string, galleryId: string, photoId: str
   return path.join(cacheDir, "galleries", galleryId, `${photoId}-v${version}-${variant}${q}.${ext}`);
 }
 
-export function watermarkedPath(cacheDir: string, galleryId: string, photoId: string, version: number, variant: "thumb" | "preview", hash: string): string {
-  return path.join(cacheDir, "galleries", galleryId, `${photoId}-v${version}-${variant}-wm-${hash}.webp`);
-}
-
 /** Renders one variant from the original. Writes to a temp file first so a half-written file is never served. */
 export async function renderVariant(source: string, dest: string, variant: Variant, quality?: number): Promise<void> {
   const v = VARIANTS[variant];

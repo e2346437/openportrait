@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4a6e214a-e09b-47c6-b929-e1d3ee4d8453",
+  "id": "030ad1ba-24a8-4cd1-93ac-69a2433e2727",
   "prevId": "89fcc221-93ec-4487-8c40-c07c83741e42",
   "tables": {
     "ai_approval": {
@@ -1198,6 +1198,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "proofing": {
+          "name": "proofing",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "access_mode": {
           "name": "access_mode",
           "type": "text",
@@ -1257,22 +1264,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "storage_originals": {
-          "name": "storage_originals",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'default'"
-        },
-        "storage_gallery": {
-          "name": "storage_gallery",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'default'"
         },
         "unlocked_at": {
           "name": "unlocked_at",
@@ -1904,103 +1895,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "raw_file": {
-      "name": "raw_file",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "shoot_folder": {
-          "name": "shoot_folder",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "rel_path": {
-          "name": "rel_path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "mtime_ms": {
-          "name": "mtime_ms",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "remote_key": {
-          "name": "remote_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "missing_since": {
-          "name": "missing_since",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch('subsec') * 1000)"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch('subsec') * 1000)"
-        }
-      },
-      "indexes": {
-        "raw_file_path_idx": {
-          "name": "raw_file_path_idx",
-          "columns": [
-            "rel_path"
-          ],
-          "isUnique": true
-        },
-        "raw_file_folder_idx": {
-          "name": "raw_file_folder_idx",
-          "columns": [
-            "shoot_folder"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

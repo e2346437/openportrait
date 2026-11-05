@@ -36,7 +36,7 @@ async function request<T>(base: string, path: string, init: Init): Promise<T> {
 
 export interface Me {
   user: { id: string; email: string; name: string; role: "owner" | "staff" | "assistant"; scoped?: boolean } | null;
-  studio: { name: string; timezone: string };
+  studio: { name: string; timezone: string; signInPhoto: string | null };
   /** Which build is running. Null when signed out. */
   build: BuildInfo | null;
 }
@@ -87,6 +87,7 @@ export interface AiStatus {
   areas: string[];
   toolCount: number;
   connections: AiConnection[];
+  authCode: { set: boolean; setAt: number | null };
   lastSeenAt: number | null;
 }
 export interface AiActivityItem {
@@ -129,4 +130,54 @@ export interface Reminder {
   detail: string;
   ref: { type: "lead" | "shoot" | "contact"; id: string };
   since: number;
+}
+
+/** The home page, in one call (see server domain/home.ts). */
+export interface HomeSummary {
+  pulse: {
+    openLeads: number;
+    newLeadsThisWeek: number;
+    monthShoots: number;
+    monthBookedCents: number;
+    outstandingCents: number;
+    outstandingInvoices: number;
+    overdueInvoices: number;
+    galleriesToDeliver: number;
+    galleriesDeliveredThisYear: number;
+  };
+  upcoming: Array<{
+    key: string;
+    source: "shoot" | "appointment" | "block";
+    id: string;
+    title: string;
+    startsAt: number;
+    endsAt: number;
+    allDay: boolean;
+    location: string | null;
+    shootId?: string;
+    shootType?: string;
+    contactName?: string | null;
+    readiness?: {
+      contract: "signed" | "sent" | "none";
+      deposit: "paid" | "due" | "none";
+      questionnaire: "returned" | "sent" | "none";
+    };
+  }>;
+  needs: Array<{
+    key: string;
+    count: number;
+    title: string;
+    detail: string;
+    to: string;
+    action: string;
+    tone: "accent" | "bad" | "warn" | "info" | "neutral";
+    since: number;
+  }>;
+  hero: {
+    galleryId: string;
+    title: string;
+    preview: string;
+    focalX: number;
+    focalY: number;
+  } | null;
 }

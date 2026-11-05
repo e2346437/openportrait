@@ -96,7 +96,7 @@ Built by the job queue with sharp, stored in `/cache/<gallery id>/`, never next 
 | `thumb` | 640 px | WebP | Grid (covers 2x density at 320 px tiles) |
 | `preview` | 2048 px | WebP | Lightbox, cover image |
 | `web` | 2048 px | JPEG, sRGB, EXIF kept except GPS | "Web size" downloads |
-| `wm-*` | as above | WebP | Watermarked previews, built only while a gallery's downloads are payment-locked |
+| `pf-*` | up to the policy's long edge (Light 1800, Balanced 1400, Strong 1000) | WebP | Protected previews, built on demand when a viewer's gallery state calls for protection. Named by a fingerprint of the look. See [PROOFING.md](PROOFING.md) |
 
 - Orientation is applied, everything is converted to sRGB, and GPS data is stripped from anything served to clients.
 - A tiny blurred placeholder (about 24 px, stored inline in the database) shows while each thumbnail loads, so the grid never jumps.

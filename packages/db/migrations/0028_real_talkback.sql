@@ -14,4 +14,11 @@ CREATE TABLE `raw_file` (
 CREATE UNIQUE INDEX `raw_file_path_idx` ON `raw_file` (`rel_path`);--> statement-breakpoint
 CREATE INDEX `raw_file_folder_idx` ON `raw_file` (`shoot_folder`);--> statement-breakpoint
 ALTER TABLE `gallery` ADD `storage_originals` text DEFAULT 'default' NOT NULL;--> statement-breakpoint
-ALTER TABLE `gallery` ADD `storage_gallery` text DEFAULT 'default' NOT NULL;
+ALTER TABLE `gallery` ADD `storage_gallery` text DEFAULT 'default' NOT NULL;--> statement-breakpoint
+ALTER TABLE `gallery` ADD `checked_out_at` integer;--> statement-breakpoint
+ALTER TABLE `gallery` ADD `checkout_folders` text;--> statement-breakpoint
+ALTER TABLE `gallery` ADD `checkout_return_days` integer DEFAULT 14 NOT NULL;--> statement-breakpoint
+ALTER TABLE `gallery` ADD `checkout_prev` text;--> statement-breakpoint
+ALTER TABLE `gallery` ADD `checkout_total_files` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `gallery` ADD `checkout_total_bytes` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `gallery` ADD `checkout_ready_at` integer;

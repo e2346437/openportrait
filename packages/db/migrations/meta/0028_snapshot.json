@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5ce37c41-f4fa-41e6-a260-a71a86862f13",
-  "prevId": "4a6e214a-e09b-47c6-b929-e1d3ee4d8453",
+  "id": "d65f3524-0e53-4fca-81e3-9bfc1f90f3b1",
+  "prevId": "030ad1ba-24a8-4cd1-93ac-69a2433e2727",
   "tables": {
     "ai_approval": {
       "name": "ai_approval",
@@ -1193,6 +1193,13 @@
         },
         "design": {
           "name": "design",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "proofing": {
+          "name": "proofing",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

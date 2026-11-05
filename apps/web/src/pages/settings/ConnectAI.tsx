@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Button, Callout, CopyValue, EmptyState, Field, Icon, Panel, StatusChip, Switch, TextInput, copyText, useToast, type IconName } from "@openportrait/ui";
 import { api, type AiActivityItem, type AiConnection, type AiLevel, type AiStatus } from "../../lib/api.js";
 import { useSubmit } from "../../lib/useForm.js";
+import { AuthCodeForm } from "../../components/AuthCodeForm.js";
 import { AREA_LABELS, AccessPicker, LEVELS } from "../../components/AccessPicker.js";
 
 const ago = (ms: number | null) => {
@@ -108,6 +109,7 @@ export function ConnectAISettingsPage() {
   const [areas, setAreas] = useState<string[]>(["studio"]);
   const [expires, setExpires] = useState("");
   const [fresh, setFresh] = useState<string | null>(null);
+  const [editCode, setEditCode] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -224,6 +226,21 @@ export function ConnectAISettingsPage() {
                 </div>
               </form>
             )}
+          </Panel>
+
+          <Panel title="Authorization code" description="Sensitive requests from an assistant, like handing it your automations, are refused until it gives this code. Say it or type it to your assistant when asked.">
+            {s.authCode.set && !editCode ? (
+              <div className="authcode-set">
+                <StatusChip tone="ok">Set{s.authCode.setAt ? ` ${new Date(s.authCode.setAt).toLocaleDateString()}` : ""}</StatusChip>
+                <Button size="sm" onClick={() => setEditCode(true)}>Change code</Button>
+              </div>
+            ) : (
+              <>
+                {!s.authCode.set ? <Callout tone="warn" title="No code yet">Sensitive actions stay blocked until you set one.</Callout> : null}
+                <AuthCodeForm replacing={s.authCode.set} onSaved={(st) => { setS(st); setEditCode(false); toast("Authorization code saved"); }} onSkip={s.authCode.set ? () => setEditCode(false) : undefined} />
+              </>
+            )}
+            <p className="hint">The assistant sees the code in your chat, so share it only with an assistant you trust. Money and client emails still wait for your tap in Approvals.</p>
           </Panel>
 
           <Panel title="Connections">

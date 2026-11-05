@@ -1,3 +1,4 @@
+import { ThemeToggle } from "./components/ThemeToggle.js";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { Button, Icon, Mark, type IconName } from "@openportrait/ui";
@@ -138,6 +139,7 @@ export function Shell() {
               <b>{user.name}</b>
               <span>{user.role === "owner" ? "Owner" : user.role === "staff" ? "Staff" : "Assistant"}</span>
             </span>
+            <ThemeToggle />
             <Button
               variant="ghost"
               size="sm"

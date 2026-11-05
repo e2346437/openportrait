@@ -43,6 +43,8 @@ Capability groups let an extension supply tools that stay hidden until it grants
 - `POST /people/<id>/camera` with `{ action: "new" | "reset" | "attach" | "disable" | "enable" }`.
 - `DELETE /people/<id>` removes them from the shoot only.
 
+The same panel is drawn on Settings > Extensions with everyone you work with, and no role or fee. For that the extension also answers, under the crew route itself (no `/shoots/<id>`): `GET /people` (same shape as above, with every person in `people`), `POST /people` (as above, without a shoot), `POST /people/<id>/camera`, `POST /people/<id>/signin` with `{ email }` answering `{ signin: { email, password } }`, and `DELETE /people/<id>`, which removes the person everywhere.
+
 Passwords come from `api.createCameraLogin({ label })` and `api.resetCameraLogin(id)`, are returned once, and are never stored in readable form or written to Activity. `api.setCameraLoginDisabled(id, true)` stops new sign-ins for a login.
 
 ## Pointers to add-on features

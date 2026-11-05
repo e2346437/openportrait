@@ -53,10 +53,17 @@ const CHIP: Record<CameraStatus["state"], { tone: "ok" | "warn" | "neutral" | "b
   off: { tone: "bad", text: "Login turned off" },
 };
 
-/** The shoot's crew: add people (creating them on the spot), set up or fix their camera logins, and see who has connected. */
-export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: string; route: string }) {
-  const base = `/extensions/${extId}${route}/shoots/${encodeURIComponent(shootId)}`;
-  const { data, error, reload } = useLoad<CrewState>(base);
+/**
+ * The crew: add people (creating them on the spot), set up or fix their camera logins, and see who has connected.
+ * With a `shootId` it is that shoot's crew. Without one it is everyone (Settings), with no role or fee.
+ */
+export function CrewPanel({ shootId, extId, route }: { shootId?: string; extId: string; route: string }) {
+  const root = `/extensions/${extId}${route}`;
+  const everyone = shootId === undefined;
+  // Everyone: GET/POST {root}/people. One shoot: GET {root}/shoots/<id>, POST {root}/shoots/<id>/people.
+  const base = everyone ? root : `${root}/shoots/${encodeURIComponent(shootId)}`;
+  const listUrl = everyone ? `${root}/people` : base;
+  const { data, error, reload } = useLoad<CrewState>(listUrl);
   const upload = useLoad<UploadInfo>("/upload");
   const toast = useToast();
   const [adding, setAdding] = useState<{ forPerson?: CrewPerson } | null>(null);
@@ -66,7 +73,10 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
   const [removing, setRemoving] = useState<CrewPerson | null>(null);
   const [feeFor, setFeeFor] = useState<CrewPerson | null>(null);
   const [feeText, setFeeText] = useState("");
-  const feeSave = useSubmit(() => api(`/extensions/${extId}/shoots/${encodeURIComponent(shootId)}/fee`, { method: "POST", body: { photographerId: feeFor!.id, fee: feeText } }));
+  const [signinFor, setSigninFor] = useState<CrewPerson | null>(null);
+  const [signinEmail, setSigninEmail] = useState("");
+  const signinSave = useSubmit(() => api<{ signin: { email: string; password: string } }>(`${root}/people/${encodeURIComponent(signinFor!.id)}/signin`, { method: "POST", body: { email: signinEmail.trim() } }));
+  const feeSave = useSubmit(() => api(`/extensions/${extId}/shoots/${encodeURIComponent(shootId ?? "")}/fee`, { method: "POST", body: { photographerId: feeFor!.id, fee: feeText } }));
 
   // Camera health changes while a shooter is setting up: keep it fresh.
   useEffect(() => {
@@ -80,7 +90,7 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
 
   const camAction = async (p: CrewPerson, body: object, done?: string) => {
     try {
-      const r = await api<CameraResult>(`${base}/people/${encodeURIComponent(p.id)}/camera`, { method: "POST", body });
+      const r = await api<CameraResult>(`${everyone ? root : base}/people/${encodeURIComponent(p.id)}/camera`, { method: "POST", body });
       if (r.camera) setHandOff({ title: `Set up ${p.name}'s camera`, camera: r.camera });
       if (done) toast(done);
       reload();
@@ -92,7 +102,7 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
   return (
     <Panel
       title="Photographers"
-      description="Who is shooting this one. Files from a second shooter's camera are filed under their name."
+      description={everyone ? "Everyone you've worked with, and their camera logins. Files from a second shooter's camera are filed under their name." : "Who is shooting this one. Files from a second shooter's camera are filed under their name."}
       actions={
         data.people.length ? (
           <Button variant="primary" icon="plus" onClick={() => setAdding({})}>
@@ -103,7 +113,7 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
     >
       {data.message ? <Callout tone="warn">{data.message}</Callout> : null}
       {data.people.length === 0 ? (
-        <EmptyState icon="camera" title="Only you so far" action={<Button variant="primary" icon="plus" onClick={() => setAdding({})}>Add photographer</Button>}>
+        <EmptyState icon="camera" title={everyone ? "No photographers yet" : "Only you so far"} action={<Button variant="primary" icon="plus" onClick={() => setAdding({})}>Add photographer</Button>}>
           Add a second shooter and give them their own camera login, so their photos stay separate from yours.
         </EmptyState>
       ) : (
@@ -138,15 +148,16 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
                             </button>
                           </>
                         )}
-                        <button role="menuitem" type="button" onClick={() => { setMenu(null); setFeeText(p.fee ?? ""); setFeeFor(p); }}>{p.fee ? "Change fee…" : "Set fee…"}</button>
-                        {p.fee && !p.paid ? (
+                        {!everyone ? <button role="menuitem" type="button" onClick={() => { setMenu(null); setFeeText(p.fee ?? ""); setFeeFor(p); }}>{p.fee ? "Change fee…" : "Set fee…"}</button> : null}
+                        {everyone && !p.signin ? <button role="menuitem" type="button" onClick={() => { setMenu(null); setSigninEmail(""); setSigninFor(p); }}>Create sign-in…</button> : null}
+                        {!everyone && p.fee && !p.paid ? (
                           <button
                             role="menuitem"
                             type="button"
                             onClick={async () => {
                               setMenu(null);
                               try {
-                                await api(`/extensions/${extId}/shoots/${encodeURIComponent(shootId)}/paid`, { method: "POST", body: { photographerId: p.id } });
+                                await api(`/extensions/${extId}/shoots/${encodeURIComponent(shootId ?? "")}/paid`, { method: "POST", body: { photographerId: p.id } });
                                 toast(`Marked ${p.name} paid`);
                                 reload();
                               } catch (e) {
@@ -157,7 +168,7 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
                             Mark fee paid
                           </button>
                         ) : null}
-                        <button role="menuitem" type="button" className="danger" onClick={() => { setMenu(null); setRemoving(p); }}>Remove from this shoot</button>
+                        <button role="menuitem" type="button" className="danger" onClick={() => { setMenu(null); setRemoving(p); }}>{everyone ? "Remove photographer" : "Remove from this shoot"}</button>
                       </div>
                     ) : null}
                   </div>
@@ -169,7 +180,8 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
       )}
       {adding ? (
         <AddSheet
-          base={base}
+          base={everyone ? root : base}
+          everyone={everyone}
           state={data}
           forPerson={adding.forPerson}
           onClose={() => setAdding(null)}
@@ -228,10 +240,41 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
         </Field>
       </Dialog>
       <Dialog
+        open={signinFor !== null}
+        onClose={() => !signinSave.busy && setSigninFor(null)}
+        title={`Sign-in for ${signinFor?.name ?? ""}`}
+        description="They sign in with this email. You'll see a one-time password to give them."
+        footer={
+          <>
+            <Button onClick={() => setSigninFor(null)}>Cancel</Button>
+            <Button
+              variant="primary"
+              loading={signinSave.busy}
+              onClick={async () => {
+                const r = await signinSave.submit();
+                if (r) {
+                  const name = signinFor!.name;
+                  setSigninFor(null);
+                  reload();
+                  setHandOff({ title: `${name}'s sign-in`, camera: { label: name, username: "", folder: "", password: "" }, signin: r.signin });
+                }
+              }}
+            >
+              Create sign-in
+            </Button>
+          </>
+        }
+      >
+        {signinSave.error ? <Callout tone="bad">{signinSave.error}</Callout> : null}
+        <Field label="Their email" error={signinSave.fieldErrors.signinEmail}>
+          {(p) => <TextInput {...p} type="email" value={signinEmail} onChange={(e) => setSigninEmail(e.target.value)} autoFocus autoComplete="off" />}
+        </Field>
+      </Dialog>
+      <Dialog
         open={removing !== null}
         onClose={() => setRemoving(null)}
-        title={`Remove ${removing?.name ?? ""} from this shoot?`}
-        description="Their camera login and any photos they sent are not touched."
+        title={everyone ? `Remove ${removing?.name ?? ""}?` : `Remove ${removing?.name ?? ""} from this shoot?`}
+        description={everyone ? "They come off every shoot and their camera login is turned off. Photos they sent are not touched." : "Their camera login and any photos they sent are not touched."}
         footer={
           <>
             <Button onClick={() => setRemoving(null)}>Cancel</Button>
@@ -241,7 +284,7 @@ export function CrewPanel({ shootId, extId, route }: { shootId: string; extId: s
                 const p = removing!;
                 setRemoving(null);
                 try {
-                  await api(`${base}/people/${encodeURIComponent(p.id)}`, { method: "DELETE" });
+                  await api(`${everyone ? root : base}/people/${encodeURIComponent(p.id)}`, { method: "DELETE" });
                   reload();
                 } catch (e) {
                   toast(e instanceof Error ? e.message : "Couldn't remove them.", "bad");
@@ -314,7 +357,7 @@ function HandOffDialog({ value, upload, onClose }: { value: { title: string; cam
   );
 }
 
-function AddSheet({ base, state, forPerson, onClose, onDone }: { base: string; state: CrewState; forPerson?: CrewPerson; onClose: () => void; onDone: (r: CameraResult, name: string) => void }) {
+function AddSheet({ base, everyone, state, forPerson, onClose, onDone }: { base: string; everyone: boolean; state: CrewState; forPerson?: CrewPerson; onClose: () => void; onDone: (r: CameraResult, name: string) => void }) {
   const [query, setQuery] = useState(forPerson?.name ?? "");
   const [pickedId, setPickedId] = useState<string | null>(forPerson?.id ?? null);
   const [creating, setCreating] = useState(false);
@@ -366,7 +409,7 @@ function AddSheet({ base, state, forPerson, onClose, onDone }: { base: string; s
       open
       onClose={() => !save.busy && onClose()}
       title={chosen && name ? `Add ${name}` : "Add a photographer"}
-      description={forPerson ? "Set up a camera login for this person." : "Find someone you've worked with, or create them here."}
+      description={forPerson ? "Set up a camera login for this person." : everyone ? "Add someone you work with. You can put them on shoots afterwards." : "Find someone you've worked with, or create them here."}
       footer={
         <>
           <Button disabled={save.busy} onClick={onClose}>Cancel</Button>
@@ -414,7 +457,7 @@ function AddSheet({ base, state, forPerson, onClose, onDone }: { base: string; s
                 Change person
               </button>
             ) : null}
-            {!forPerson ? (
+            {!forPerson && !everyone ? (
               <div className="crew-two">
                 <Field label="Role">
                   {(p) => (

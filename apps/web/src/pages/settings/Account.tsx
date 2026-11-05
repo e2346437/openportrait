@@ -4,6 +4,7 @@ import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
 import { useSubmit } from "../../lib/useForm.js";
 import { useLoad } from "../../lib/useLoad.js";
+import { ThemePicker } from "../../components/ThemeToggle.js";
 import { TwoStepPanel } from "./TwoStep.js";
 
 /** Which build is running, and which add-ons are installed (owners only). Handy when reporting a problem. */
@@ -106,6 +107,9 @@ export function AccountSettingsPage() {
           </div>
         </Panel>
       </form>
+      <Panel title="Appearance" description="Choose how OpenPortrait looks on this device. Match device follows your system setting.">
+        <ThemePicker />
+      </Panel>
       <TwoStepPanel />
       <AboutPanel />
     </>

@@ -29,6 +29,7 @@ export interface ExtensionInfo {
   cards: SettingsCard[];
   reports?: Array<{ title: string; description?: string; route: string }>;
   shootCards?: SettingsCard[];
+  crewPanel?: string;
 }
 
 const fmt = (v: unknown, format?: string) => {

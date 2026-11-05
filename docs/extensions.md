@@ -23,6 +23,8 @@ export function register(api) {
   // api.settingsCard({ ... }) a card in Settings > Extensions, with status and actions
   // api.lockCapability(id)    hide a capability group until an extension grants it
   // api.grantCapability(id) / api.revokeCapability(id)
+  // api.crewPanel(route)      a "Photographers" panel on each shoot (see Crew panel below)
+  // api.createCameraLogin / resetCameraLogin / setCameraLoginDisabled   camera upload logins
   // api.onClose(fn)           cleanup when the server stops
   // api.z                     the app's copy of zod, for validating input
 }
@@ -31,6 +33,17 @@ export function register(api) {
 A page is a description, not UI code. Its `slug` must be lowercase letters, digits and dashes, and the app draws it at `/studio/x/<extension>/<slug>` from the data you give, with the records supplied by the extension's own routes. A route can answer `{ "locked": "message" }` to show a message in place of the records.
 
 Capability groups let an extension supply tools that stay hidden until it grants them. Use `lockCapability` to mark a group as provided by an extension, and `grantCapability` or `revokeCapability` to switch it on or off as a whole. The built-in tool groups, including invoicing, are part of OpenPortrait itself and are never locked.
+
+## Crew panel
+
+`api.crewPanel("/crew")` replaces the "second shooters" pointer on each shoot with a panel the app draws: add a person (creating them on the spot), choose or create their camera login, and see whether each camera has connected. The extension answers these routes, all under its own owner-only prefix and `/crew/shoots/<shootId>`:
+
+- `GET /` returns `{ enabled, message?, people, directory, cameras, roles, canSignin }`. `people` are on this shoot (`id`, `name`, `roleLabel`, `detail?`, `camera: { state: "none" | "waiting" | "ok" | "off", detail? }`); `directory` are people not on it yet; `cameras` are unassigned camera logins.
+- `POST /people` adds someone. Body: `personId` or `name`, `role`, `fee?`, `camera: { mode: "new" | "existing" | "none", label?, existingId? }`, `expireAfterShoot?`, `signinEmail?`. Answers `{ ok, camera?: { id, label, username, folder, password }, signin?: { email, password } }`. Do it in one database transaction so a failure leaves nothing behind.
+- `POST /people/<id>/camera` with `{ action: "new" | "reset" | "attach" | "disable" | "enable" }`.
+- `DELETE /people/<id>` removes them from the shoot only.
+
+Passwords come from `api.createCameraLogin({ label })` and `api.resetCameraLogin(id)`, are returned once, and are never stored in readable form or written to Activity. `api.setCameraLoginDisabled(id, true)` stops new sign-ins for a login.
 
 ## Pointers to add-on features
 

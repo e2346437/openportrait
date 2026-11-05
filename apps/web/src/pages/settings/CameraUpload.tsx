@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Callout, CopyValue, Dialog, EmptyState, Field, Icon, Panel, Spinner, StatusChip, TextArea, TextInput, useToast } from "@openportrait/ui";
+import { CameraHandOff } from "../../components/CameraHandOff.js";
 import { SwitchRow } from "../../components/SwitchRow.js";
 import { api } from "../../lib/api.js";
 import { useSession } from "../../lib/session.js";
@@ -411,35 +412,7 @@ export function CameraUploadSettingsPage() {
         footer={<Button variant="primary" onClick={() => { setCreated(null); reload(); }}>Done</Button>}
       >
         {created ? (
-          <div className="stack">
-            <dl className="up-creds">
-              <dt>Protocol</dt>
-              <dd>{data.settings.protocol === "sftp" ? "SFTP" : data.settings.protocol === "ftps" ? "FTPS (explicit TLS)" : "FTP"}</dd>
-              <dt>Server</dt>
-              <dd>
-                {connect.hosts.length ? (
-                  connect.hosts.map((h) => <CopyValue key={h} value={h} label="server address" />)
-                ) : (
-                  <span>Your server's address on your home network, such as 192.168.1.20. Save it under Settings &gt; Internet access to see it here.</span>
-                )}
-              </dd>
-              <dt>Port</dt>
-              <dd>
-                <CopyValue value={String(data.settings.protocol === "sftp" ? connect.sftpPort : connect.ftpPort)} label="port" />
-              </dd>
-              <dt>Username</dt>
-              <dd>
-                <CopyValue value={created.username} label="username" />
-              </dd>
-              <dt>Password</dt>
-              <dd>
-                <CopyValue value={created.password} label="password" />
-              </dd>
-              <dt>Folder</dt>
-              <dd>Leave empty, or enter /</dd>
-            </dl>
-            <Callout tone="info">Photos arrive in <code>Incoming/{created.folder}</code>. The address above is for cameras on your network. A camera away from home needs a WireGuard link, or a port forwarded to this server.</Callout>
-          </div>
+          <CameraHandOff protocol={data.settings.protocol} connect={connect} camera={created} />
         ) : null}
       </Dialog>
       <Dialog

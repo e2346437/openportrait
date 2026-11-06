@@ -1,11 +1,22 @@
 version: 2
+# Updates arrive as one grouped PR per ecosystem each week, so CI runs once per batch.
+# Major version bumps stay separate so they get a deliberate review.
 updates:
   - package-ecosystem: npm
     directory: /
     schedule: { interval: weekly }
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
+    groups:
+      docker:
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    groups:
+      actions:
+        patterns: ["*"]

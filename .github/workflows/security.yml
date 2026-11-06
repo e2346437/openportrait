@@ -1,8 +1,9 @@
 name: Security
 
 # Runs without any production credentials: synthetic data, throwaway containers, no secrets. See security/TESTING_GUIDE.md.
-# Pull requests and pushes report; a release (or a manual run with "enforce" ticked) blocks on the criteria in
-# security/RELEASE_CHECKLIST.md.
+# Pull requests run the regression and static checks. The image scan, live suite and ZAP run on pushes to main,
+# releases, the weekly schedule and manual runs, so each PR does not pay for a full image build. A release (or a
+# manual run with "enforce" ticked) blocks on the criteria in security/RELEASE_CHECKLIST.md.
 on:
   pull_request:
   push:
@@ -70,6 +71,7 @@ jobs:
     name: Image scan, live suite, isolation, authenticated ZAP
     runs-on: ubuntu-latest
     needs: [regression]
+    if: github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

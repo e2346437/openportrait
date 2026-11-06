@@ -8,6 +8,13 @@ on:
   pull_request:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "**/*.md"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/image.yml"
+      - ".github/workflows/security.yml"
   schedule:
     - cron: "17 5 * * 1"   # weekly, so new CVEs in an unchanged tree still show up
   release:

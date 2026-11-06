@@ -78,6 +78,19 @@ The first visit opens a two-step setup: your studio's name and time zone, then t
 
 OpenPortrait only changes the owner of the top level of `/galleries` and `/incoming`, never the files inside, so starting the container is quick even with a large library.
 
+## Known issue: hosting OpenPortrait remotely
+
+If OpenPortrait runs on a cloud server or another network that your computer is not on, your computer cannot map a drive letter or network share to the gallery folders. Exporting from Lightroom or Aftershoot straight into the share, as you can with a home or studio server, does not work in that setup.
+
+The OpenPortrait container does not serve a network share itself. On Unraid the share comes from Unraid, so it is only reachable from the network the server is on.
+
+What works instead:
+
+- Upload photos through the web app, or use camera upload.
+- Export to a folder on your computer, then upload that folder.
+
+This is a known limit for now.
+
 ## Maintenance commands
 
 ```sh

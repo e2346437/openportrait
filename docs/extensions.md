@@ -34,6 +34,18 @@ A page is a description, not UI code. Its `slug` must be lowercase letters, digi
 
 Capability groups let an extension supply tools that stay hidden until it grants them. Use `lockCapability` to mark a group as provided by an extension, and `grantCapability` or `revokeCapability` to switch it on or off as a whole. The built-in tool groups, including invoicing, are part of OpenPortrait itself and are never locked.
 
+## Card layout
+
+A settings card is a description that the app draws. Besides the chip, rows, stats, lists and switches, a card can use these parts (all optional, and the field names are in `SettingsCard` in `apps/server/src/extensions.ts`):
+
+- `summary`: the key of a one-line string in the status JSON. On Settings > Extensions, a card that has one folds down to that line while its chip is healthy. A card whose chip is `warn` or `bad` opens by itself. The owner's choice is remembered in that browser. Cards without a summary stay open.
+- `facts`: a strip of headline values, each with a smaller line under it.
+- `features`: a list of what is switched on, with locked items shown as such. An item can link to another card of the same extension.
+- `steps`: setup steps for a service that must be connected. The status JSON supplies each step's label, an optional detail and whether it is done, current or still to come.
+- `details`: rows tucked into a "Technical details" disclosure.
+- `links`: plain buttons that open another site.
+- Rows with `format: "copy"` get a Copy button, for an address the owner must paste somewhere else. An action with `danger: true` is drawn as a quiet red button.
+
 ## Crew panel
 
 `api.crewPanel("/crew")` replaces the "second shooters" pointer on each shoot with a panel the app draws: add a person (creating them on the spot), choose or create their camera login, and see whether each camera has connected. The extension answers these routes, all under its own owner-only prefix and `/crew/shoots/<shootId>`:

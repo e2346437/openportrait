@@ -12,8 +12,21 @@ export interface SettingsCard {
   status: {
     route: string;
     chip?: { key: string; values: Record<string, { label: string; tone: Tone }> };
-    rows?: Array<{ key: string; label: string; format?: "date" | "text" }>;
+    rows?: Array<{ key: string; label: string; format?: "date" | "text" | "copy" }>;
+    /** A strip of headline facts at the top of the card: a value with a smaller line under it. */
+    facts?: Array<{ key: string; label: string; subKey?: string; mono?: boolean }>;
+    /** Which optional features the owner has. `data[key]` is the list of included ids; each item can link to another card of the same extension. */
+    features?: { key: string; title: string; items: Array<{ id: string; label: string; hint?: string; card?: string }> };
+    /** Rows tucked into a "Technical details" disclosure. */
+    details?: Array<{ key: string; label: string; format?: "date" | "text" | "copy" }>;
+    /** `data[key]` is a list of setup steps: label, optional detail, and whether it is done, current or still to come. */
+    steps?: { key: string };
+    links?: Array<{ label: string; href: string; when?: { key: string; equals: string | boolean } }>;
     notice?: string;
+    /** Key of a one-line text in the status data. Lets the Extensions page show the card collapsed. */
+    summary?: string;
+    /** Open on first sight even while healthy. The owner's own choice wins afterwards. */
+    startOpen?: boolean;
     meters?: Array<{ key: string }>;
     stats?: Array<{ key: string; label: string; format?: "bytes" | "number" | "text"; hintKey?: string }>;
     charts?: Array<{ key: string; title: string; format?: "bytes" | "number" }>;
@@ -25,6 +38,8 @@ export interface SettingsCard {
     label: string;
     route: string;
     primary?: boolean;
+    /** A quiet, red action for removing or releasing something. */
+    danger?: boolean;
     inline?: boolean;
     collapsed?: { when: { key: string; equals: string | boolean }; editLabel?: string; prefillKey?: string };
     when?: { key: string; equals: string | boolean };
@@ -43,6 +58,7 @@ export interface ExtensionInfo {
   reports?: Array<{ title: string; description?: string; route: string }>;
   shootCards?: SettingsCard[];
   crewPanel?: string;
+  crewPanelAt?: number;
 }
 
 const fmt = (v: unknown, format?: string) => {
@@ -50,6 +66,37 @@ const fmt = (v: unknown, format?: string) => {
   if (format === "date" && typeof v === "number") return new Date(v * 1000).toLocaleDateString(undefined, { dateStyle: "medium" });
   return String(v);
 };
+
+const openKey = (id: string, title: string) => `op.ext.open.${id}/${title}`;
+export const cardAnchor = (id: string, title: string) => `ext-${`${id}-${title}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+const readOpen = (key: string): boolean | null => {
+  try {
+    const v = window.localStorage.getItem(key);
+    return v === "1" ? true : v === "0" ? false : null;
+  } catch {
+    return null;
+  }
+};
+const writeOpen = (key: string, on: boolean) => {
+  try {
+    window.localStorage.setItem(key, on ? "1" : "0");
+  } catch {
+    /* private mode: the card just won't remember */
+  }
+};
+
+function CopyValue({ value }: { value: string }) {
+  const toast = useToast();
+  return (
+    <span className="ext-copy">
+      <code>{value}</code>
+      <Button size="sm" onClick={() => { void navigator.clipboard?.writeText(value).then(() => toast("Copied"), () => toast("Couldn't copy. Select it and copy by hand.")); }}>Copy</Button>
+    </span>
+  );
+}
+const cell = (v: unknown, format?: string) => (format === "copy" && typeof v === "string" && v ? <CopyValue value={v} /> : fmt(v, format === "copy" ? undefined : format));
+
+type Step = { label: string; detail?: string; state: "done" | "now" | "todo" };
 
 export function formatBytes(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return "0 B";
@@ -129,7 +176,7 @@ function CardChartView({ title, format, chart }: { title: string; format?: "byte
 }
 
 /** Draws a card an extension described. `vars` fills `{name}` placeholders in its routes, such as the shoot's id. */
-export function ExtensionCard({ id, card, vars = {} }: { id: string; card: SettingsCard; vars?: Record<string, string> }) {
+export function ExtensionCard({ id, card, vars = {}, collapsible = false, onTone }: { id: string; card: SettingsCard; vars?: Record<string, string>; collapsible?: boolean; onTone?: (tone: Tone | null) => void }) {
   const fill = (route: string) => route.replace(/\{(\w+)\}/g, (m, k: string) => (vars[k] !== undefined ? encodeURIComponent(vars[k]!) : m));
   const toast = useToast();
   const base = `/extensions/${id}`;
@@ -151,6 +198,24 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
   }, [refreshMs, data, reload]);
 
   const chip = data && card.status.chip ? card.status.chip.values[String(data[card.status.chip.key])] : undefined;
+  const summary = data && card.status.summary && typeof data[card.status.summary] === "string" ? (data[card.status.summary] as string) : "";
+  // A card that is healthy folds to one line. One that needs the owner (warn, bad, an error notice) stays open.
+  const needsYou = !!chip && (chip.tone === "warn" || chip.tone === "bad");
+  const canFold = collapsible && !!summary;
+  const storeKey = openKey(id, card.title);
+  const [pref, setPref] = useState<boolean | null>(() => readOpen(storeKey));
+  const open = !canFold || (pref ?? (needsYou || card.status.startOpen === true));
+  const toneNow = chip ? chip.tone : null;
+  useEffect(() => { if (data) onTone?.(toneNow); }, [data, toneNow]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!collapsible) return;
+    const h = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === cardAnchor(id, card.title)) { setPref(true); writeOpen(storeKey, true); }
+    };
+    window.addEventListener("ext:open", h);
+    return () => window.removeEventListener("ext:open", h);
+  }, [collapsible, id, card.title, storeKey]);
+  const fold = () => { const next = !open; setPref(next); writeOpen(storeKey, next); };
   const notice = data && card.status.notice ? data[card.status.notice] : null;
   const actions = card.actions.map((a, i) => ({ a, i })).filter(({ a }) => !a.when || (data && data[a.when.key] === a.when.equals));
   const conn = card.status.connection;
@@ -218,10 +283,20 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
   };
 
   return (
-    <Panel title={card.title} description={card.description} actions={chip ? <StatusChip tone={chip.tone}>{chip.label}</StatusChip> : undefined}>
+    <div id={collapsible ? cardAnchor(id, card.title) : undefined} className={`ext-anchor${canFold && !open ? " ext-folded" : ""}`}>
+    <Panel
+      title={card.title}
+      description={canFold && !open ? summary : card.description}
+      actions={
+        <div className="ext-head-actions">
+          {chip ? <StatusChip tone={chip.tone}>{chip.label}</StatusChip> : null}
+          {canFold ? <Button size="sm" onClick={fold} aria-expanded={open} aria-label={`${open ? "Collapse" : "Open"} ${card.title}`}>{open ? "Close" : "Open"}</Button> : null}
+        </div>
+      }
+    >
       {error && !data ? <Callout tone="bad" title="Couldn't load this">{error}</Callout> : null}
       {!data && !error ? <Spinner label="Loading" /> : null}
-      {data ? (
+      {data && open ? (
         <div className="stack">
           {typeof notice === "string" && notice ? <Callout tone="warn">{notice}</Callout> : null}
           {connShown && conn ? (
@@ -249,6 +324,47 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
               ))}
             </div>
           ) : null}
+          {card.status.facts && card.status.facts.some((f) => data[f.key]) ? (
+            <div className="ext-facts">
+              {card.status.facts.filter((f) => data[f.key]).map((f) => (
+                <div key={f.key} className="ext-fact">
+                  <span className="k">{f.label}</span>
+                  <span className={`v${f.mono ? " mono" : ""}`}>{String(data[f.key])}</span>
+                  {f.subKey && data[f.subKey] ? <span className="s">{String(data[f.subKey])}</span> : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {card.status.steps && Array.isArray(data[card.status.steps.key]) ? (
+            <ol className="ext-steps">
+              {(data[card.status.steps.key] as Step[]).map((st, n) => (
+                <li key={st.label} className={`s-${st.state}`} aria-current={st.state === "now" ? "step" : undefined}>
+                  <span className="s-n" aria-hidden="true">{st.state === "done" ? "✓" : n + 1}</span>
+                  <span className="s-t"><strong>{st.label}</strong>{st.detail ? <small>{st.detail}</small> : null}</span>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+          {card.status.features && Array.isArray(data[card.status.features.key]) ? (() => {
+            const have = new Set(data[card.status.features.key] as string[]);
+            const items = card.status.features.items;
+            const count = items.filter((i) => have.has(i.id)).length;
+            return (
+              <div>
+                <h3 className="ext-list-title">{card.status.features.title} · {count} of {items.length}</h3>
+                <div className="ext-feat">
+                  {items.map((i) => {
+                    const on = have.has(i.id);
+                    const inner = <><span className="ic" aria-hidden="true">{on ? "✓" : "🔒"}</span><span><strong>{i.label}</strong>{i.hint ? <small>{i.hint}</small> : null}</span></>;
+                    const a = i.card ? cardAnchor(id, i.card) : null;
+                    return a && on ? (
+                      <a key={i.id} className="on" href={`#${a}`} onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent("ext:open", { detail: a })); window.setTimeout(() => document.getElementById(a)?.scrollIntoView({ behavior: "smooth", block: "start" }), 30); }}>{inner}</a>
+                    ) : <span key={i.id} className={on ? "on" : "off"}>{inner}</span>;
+                  })}
+                </div>
+              </div>
+            );
+          })() : null}
           {card.status.meters?.map((m) => {
             const v = data[m.key] as Meter | null | undefined;
             return v && typeof v === "object" ? <MeterBar key={m.key} m={v} /> : null;
@@ -273,10 +389,20 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
               {card.status.rows.map((r) => (
                 <Fragment key={r.key}>
                   <dt>{r.label}</dt>
-                  <dd>{fmt(data[r.key], r.format)}</dd>
+                  <dd>{cell(data[r.key], r.format)}</dd>
                 </Fragment>
               ))}
             </dl>
+          ) : null}
+          {card.status.details?.some((r) => data[r.key]) ? (
+            <details className="ext-more">
+              <summary>Technical details</summary>
+              <dl className="kv">
+                {card.status.details.filter((r) => data[r.key]).map((r) => (
+                  <Fragment key={r.key}><dt>{r.label}</dt><dd>{cell(data[r.key], r.format)}</dd></Fragment>
+                ))}
+              </dl>
+            </details>
           ) : null}
           {card.status.charts?.map((c) => {
             const chart = data[c.key] as ChartData | undefined;
@@ -312,7 +438,14 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
             </Callout>
           ) : null}
           {runError ? <Callout tone="bad">{runError}</Callout> : null}
-          {actions.filter(({ a, i }) => !(connShown && a.inline && !a.fields?.length) && !isCollapsed(a, i)).map(({ a, i }) => (
+          {card.status.links?.filter((l) => !l.when || data[l.when.key] === l.when.equals).length ? (
+            <div className="form-actions">
+              {card.status.links.filter((l) => !l.when || data[l.when.key] === l.when.equals).map((l) => (
+                <a key={l.href} className="btn" href={l.href} target="_blank" rel="noreferrer noopener">{l.label} ↗</a>
+              ))}
+            </div>
+          ) : null}
+          {actions.filter(({ a, i }) => !(connShown && a.inline && !a.fields?.length) && !isCollapsed(a, i)).filter(({ a }) => a.fields?.length).map(({ a, i }) => (
             <form key={i} className="form-grid" noValidate onSubmit={(e) => { e.preventDefault(); void go(i); }}>
               {a.fields?.map((f) => (
                 <Field key={f.name} label={f.label} hint={f.hint} className="span-2">
@@ -329,28 +462,65 @@ export function ExtensionCard({ id, card, vars = {} }: { id: string; card: Setti
                 </Field>
               ))}
               <div className="span-2 form-actions">
-                <Button variant={a.primary ? "primary" : undefined} type="submit" loading={running === i}>{a.label}</Button>
+                <Button variant={a.primary ? "primary" : undefined} className={a.danger ? "danger-quiet" : undefined} type="submit" loading={running === i}>{a.label}</Button>
                 {a.collapsed && editing === i ? <Button type="button" onClick={cancelEdit}>Cancel</Button> : null}
               </div>
             </form>
           ))}
+          {(() => {
+            const buttons = actions.filter(({ a, i }) => !(connShown && a.inline && !a.fields?.length) && !isCollapsed(a, i)).filter(({ a }) => !a.fields?.length);
+            return buttons.length ? (
+              <div className="form-actions ext-btn-row">
+                {buttons.map(({ a, i }) => (
+                  <Button key={i} variant={a.primary ? "primary" : undefined} className={a.danger ? "danger-quiet push-right" : undefined} loading={running === i} onClick={() => void go(i)}>{a.label}</Button>
+                ))}
+              </div>
+            ) : null;
+          })()}
         </div>
       ) : null}
     </Panel>
+    </div>
   );
 }
 
 /** Settings from optional extensions. The cards are described by the extensions; this page just draws them. */
 export function ExtensionsSettingsPage() {
   const { data, error } = useLoad<{ extensions: ExtensionInfo[] }>("/extensions");
+  const [tones, setTones] = useState<Record<string, Tone | null>>({});
   if (error && !data) return <Callout tone="bad" title="Couldn't load extensions">{error}</Callout>;
   if (!data) return <Spinner label="Loading" />;
   const cards = data.extensions.flatMap((e) => e.cards.map((c) => ({ id: e.id, card: c })));
+  // Each extension's cards in order, with its crew panel drawn where it was registered among them.
+  const items = data.extensions.flatMap((e) => {
+    const list: Array<{ kind: "card"; id: string; card: SettingsCard } | { kind: "crew"; id: string; route: string }> = [];
+    const crew = e.status === "loaded" && e.crewPanel ? { kind: "crew" as const, id: e.id, route: e.crewPanel } : null;
+    const at = Math.min(e.crewPanelAt ?? e.cards.length, e.cards.length);
+    e.cards.forEach((c, i) => {
+      if (crew && i === at) list.push(crew);
+      list.push({ kind: "card", id: e.id, card: c });
+    });
+    if (crew && at >= e.cards.length) list.push(crew);
+    return list;
+  });
   const failed = data.extensions.filter((e) => e.status === "failed");
   return (
     <div className="stack">
-      {cards.map(({ id, card }) => <ExtensionCard key={`${id}/${card.title}`} id={id} card={card} />)}
-      {data.extensions.filter((e) => e.status === "loaded" && e.crewPanel).map((e) => <CrewPanel key={`${e.id}/crew`} extId={e.id} route={e.crewPanel!} />)}
+      {cards.length > 3 ? (
+        <nav className="ext-jump" aria-label="Jump to a card">
+          {cards.map(({ id, card }) => {
+            const a = cardAnchor(id, card.title);
+            const t = tones[a];
+            return (
+              <a key={a} href={`#${a}`} onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent("ext:open", { detail: a })); window.setTimeout(() => document.getElementById(a)?.scrollIntoView({ behavior: "smooth", block: "start" }), 30); }}>
+                <i className={t === "warn" || t === "bad" ? "w" : t === "ok" ? "" : "n"} aria-hidden="true" />
+                {card.title}
+              </a>
+            );
+          })}
+        </nav>
+      ) : null}
+      {items.map((it) => it.kind === "crew" ? <CrewPanel key={`${it.id}/crew`} extId={it.id} route={it.route} /> : <ExtensionCard key={`${it.id}/${it.card.title}`} id={it.id} card={it.card} collapsible onTone={(t) => setTones((m) => (m[cardAnchor(it.id, it.card.title)] === t ? m : { ...m, [cardAnchor(it.id, it.card.title)]: t }))} />)}
       {failed.map((e) => <Callout key={e.id} tone="warn" title={`The “${e.id}” extension didn't load`}>{e.error}</Callout>)}
       {!cards.length && !failed.length ? <EmptyState icon="sparkle" title="No extensions installed">Extensions add optional features. Put one in the extensions folder of your config directory and restart.</EmptyState> : null}
     </div>

@@ -53,3 +53,11 @@ Your goal is to produce production-quality applications with excellent UI/UX.
 
 Do not settle for a functional interface when it could be significantly better visually.
 Think like a senior product designer before implementing UI changes.
+
+## Merge rule
+
+- Eric approves every pull request and every merge. Agents may create branches, commit and open a PR once Eric has asked for that change.
+- Nothing is merged, approved or closed by an agent, and no agent pushes to `main`.
+- Eric batches approved PRs. Each merge to `main` publishes an image, so merges wait for the batch.
+- Sign-in, sessions, client-gallery access, payments, secrets and legal text need Eric's explicit "merge" in the thread.
+- The head branch is deleted after merge (repository setting).

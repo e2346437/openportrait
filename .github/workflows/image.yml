@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    paths-ignore:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "**/*.md"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/image.yml"
+      - ".github/workflows/security.yml"
   workflow_dispatch:
 
 permissions:

@@ -19,7 +19,7 @@ flowchart LR
 ```
 
 1. **Book the shoot.** OpenPortrait creates a folder for it on your gallery share, such as `2026/2026-11-14 Family - Smith Family/`, with `Gallery/` for finished photos and `Originals/RAW/` for camera files.
-2. **Export into `Gallery/`.** From Lightroom, Aftershoot or any editor, export JPEGs there. Each subfolder becomes a set, for example `Highlights` and `Full Gallery`. Folders starting with `_` or `.` and RAW files are never shown.
+2. **Export into `Gallery/`.** From Lightroom, Aftershoot or any editor, export JPEGs there. Exporting straight into the folder needs your computer to reach the server's share, which is not possible if OpenPortrait is hosted remotely (see [Hosting remotely](install-docker.md#known-issue-hosting-openportrait-remotely)); upload instead. Each subfolder becomes a set, for example `Highlights` and `Full Gallery`. Folders starting with `_` or `.` and RAW files are never shown.
 3. **Review the draft.** The gallery appears under **Galleries** when the folder has been quiet for a moment. Pick a cover photo and check the sets.
 4. **Publish.** Click **Publish and email client**, choose the download options below, and send the link.
 5. **After that.** Photos you add later appear straight away. Favorites arrive on the gallery's Favorites tab, and every view and download is on its Activity tab.

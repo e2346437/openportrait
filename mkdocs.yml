@@ -58,6 +58,7 @@ nav:
       - A starter prompt for your AI: ai-prompt.md
   - Developers:
       - Extensions: extensions.md
+      - The Extensions page: extensions-page.md
   - Reference:
       - Light and dark appearance: appearance.md
       - Accessibility: accessibility.md

@@ -22,7 +22,12 @@ export const emailLog = sqliteTable(
     /** Set by features that email about a shoot or gallery, so each can show what was sent. */
     shootId: text(),
     galleryId: text(),
-    status: text({ enum: ["queued", "sent", "failed"] }).notNull().default("queued"),
+    /**
+     * queued -> sending -> sent | failed. "sending" is claimed before the mail server is contacted, and
+     * "unconfirmed" means an attempt was cut off after that point (crash, restart, dropped connection), so
+     * it may or may not have gone out. Unconfirmed mail is never re-sent automatically.
+     */
+    status: text({ enum: ["queued", "sending", "sent", "failed", "unconfirmed"] }).notNull().default("queued"),
     error: text(),
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
     sentAt: integer({ mode: "timestamp_ms" }),

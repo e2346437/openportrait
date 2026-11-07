@@ -39,6 +39,8 @@ docker run -d --name openportrait \
   ghcr.io/e2346437/openportrait:<pinned-tag>
 ```
 
+Secrets stay off this command line: use the in-app settings, or `--env-file` pointing at a `chmod 600` file. The user-facing version of this command is in `docs/install-docker.md`; keep the two in step.
+
 Compose equivalent:
 
 ```yaml

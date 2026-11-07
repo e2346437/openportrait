@@ -22,7 +22,7 @@ The template uses Unraid's usual `99`/`100` (nobody:users) owner, so files OpenP
 
 ## Docker Compose
 
-The compose file runs the container hardened: all capabilities dropped except the four the start-up script needs, `no-new-privileges`, a read-only root filesystem and a process limit. If you write your own `docker run` command, keep the same flags (`--cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add FOWNER --security-opt no-new-privileges --read-only --tmpfs /tmp:rw,noexec,nosuid,size=256m --pids-limit 512`).
+The compose file runs the container hardened: all capabilities dropped except the four the start-up script needs, `no-new-privileges`, a read-only root filesystem and a process limit. If you write your own `docker run` command, keep the same flags (the flags are explained under [docker run](#docker-run)).
 
 ```sh
 mkdir openportrait && cd openportrait
@@ -37,14 +37,38 @@ Then open `http://<your-server>:8080`.
 
 ```sh
 docker run -d --name openportrait --restart unless-stopped \
+  --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add FOWNER \
+  --security-opt no-new-privileges \
+  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=256m \
+  --pids-limit 512 --memory 2g \
   -p 8080:8080 \
   -e PUID=1000 -e PGID=1000 -e TZ=America/New_York \
   -v /srv/openportrait/appdata:/config \
   -v /srv/photos/galleries:/galleries \
   -v /srv/photos/incoming:/incoming \
   -v /srv/openportrait/cache:/cache \
-  ghcr.io/e2346437/openportrait:latest
+  ghcr.io/e2346437/openportrait:0.2.0-beta.1
 ```
+
+What the flags do, and why they are there:
+
+- **Pinned tag** (`:0.2.0-beta.1`). Use the newest number on the [Releases page](https://github.com/e2346437/openportrait/releases). `latest` moves whenever the project changes, so a restart or a pull could change your version without you choosing it. To update, change the number, then `docker stop openportrait && docker rm openportrait` and run the command again. Your data lives in the volumes, so nothing is lost.
+- **Not root for the app.** The container starts as root only long enough to give your user (`PUID`/`PGID`) ownership of `/config` and `/cache`, then runs OpenPortrait as that user and keeps no root process. `--cap-drop ALL` and the four `--cap-add` lines leave only what that hand-off needs, and `--security-opt no-new-privileges` stops anything gaining more. Use `id -u` and `id -g` for your own numbers.
+- **Read-only root filesystem.** `--read-only` with a small `/tmp` means a compromised app cannot change its own code. Everything it writes goes to your four volumes.
+- **Limits.** `--pids-limit` and `--memory` stop a runaway job from starving the machine. Raise `--memory` if you edit very large galleries on a small server.
+- **Volumes.** `/config` holds the database, `secret.key` and nightly backups, so back it up. `/cache` can be deleted at any time. Use real folders on the host, created beforehand.
+- **No secrets on the command line.** Anything after `-e` shows up in `docker inspect`, `ps` and your shell history. The command above needs none: the setup code is printed in `docker logs openportrait`, and the Cloudflare Tunnel token, email password and API keys are entered in the app, which stores them encrypted. If you do need a variable such as `CLOUDFLARE_TUNNEL_TOKEN`, put it in a file only you can read and add `--env-file`:
+
+  ```sh
+  install -m 600 /dev/null /srv/openportrait/openportrait.env
+  nano /srv/openportrait/openportrait.env      # CLOUDFLARE_TUNNEL_TOKEN=...
+  # then add this line to the docker run command:  --env-file /srv/openportrait/openportrait.env
+  ```
+
+- **Ports.** `-p 8080:8080` is the web app. To make it reachable only from the machine itself (for example when a Cloudflare Tunnel or a reverse proxy runs on the same host), use `-p 127.0.0.1:8080:8080`. Camera upload ports (2222, 2121, 30000-30009) are left out; add them only when you use [camera upload](camera-upload.md).
+
+!!! note "Why not `--user`?"
+    Running with `--user 1000:1000` from the first instruction would remove the need for any capability, but that mode is not tested yet, so it is not in the example. The start-up script already skips its ownership step when it does not start as root; you would have to create and chown the host folders yourself.
 
 ## First run
 
@@ -122,4 +146,4 @@ A backup from a newer version of OpenPortrait than the one you are running is re
 
 ## Updating
 
-Unraid: **Docker > Check for Updates**. Compose: `docker compose pull && docker compose up -d`. Database changes are applied automatically when the new version starts, and a backup is taken nightly.
+Unraid: **Docker > Check for Updates**. Compose: `docker compose pull && docker compose up -d`. Plain Docker: change the version number in your command, then stop, remove and run it again. Database changes are applied automatically when the new version starts, and a backup is taken nightly.

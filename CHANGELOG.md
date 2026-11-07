@@ -6,6 +6,10 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 
 Heading toward 1.0.
 
+### Changed
+- "Deposit" is now "retainer" everywhere a client or the studio sees it: booking pages, the scheduler form, payment schedules, quotes and invoices, emails, Home, the docs and the example contract. Existing bookings, invoices and signed contracts are not changed.
+- The example contract has a retainer clause, proofs, delivery after the final payment, copyright and usage, and chargeback wording. Have a lawyer review it before you rely on it.
+
 ### Fixed
 - AI approvals are checked again when you approve: if the connection was revoked, expired, cut back to read-only or lost the area or feature since the request was made, the action no longer runs. Revoking a connection now cancels everything it had waiting.
 - The AI rate limiter forgets connections that have gone quiet instead of growing without bound.

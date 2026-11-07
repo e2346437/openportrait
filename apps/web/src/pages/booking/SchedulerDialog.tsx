@@ -87,7 +87,7 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
     let depositValue = 0;
     if (priceCents > 0 && f.depositType !== "none") {
       const n = f.depositType === "percent" ? Number(deposit) : parseMoney(deposit);
-      if (n === null || !Number.isFinite(n) || n <= 0) throw new Error(f.depositType === "percent" ? "Enter the deposit percentage, like 25." : "Enter the deposit amount, like 50.00.");
+      if (n === null || !Number.isFinite(n) || n <= 0) throw new Error(f.depositType === "percent" ? "Enter the retainer percentage, like 25." : "Enter the retainer amount, like 50.00.");
       depositValue = f.depositType === "percent" ? Math.round(n * 100) : n;
     }
     const body = {
@@ -243,21 +243,21 @@ export function SchedulerDialog({ target, onClose, onSaved }: { target: Schedule
           </div>
         ) : null}
         <fieldset className="span-2 pay-edit">
-          <legend>Price and deposit</legend>
+          <legend>Price and retainer</legend>
           <Field label="Price" hint="Leave empty if the page is free to book.">
             {(p) => <TextInput {...p} inputMode="decimal" placeholder="0.00" value={price} onChange={(e) => setPrice(e.target.value)} />}
           </Field>
           {parseMoney(price || "0") ? (
             <>
-              <div className="seg" role="radiogroup" aria-label="Deposit">
-                {([["none", "No deposit"], ["percent", "Percent"], ["fixed", "Fixed amount"]] as const).map(([k, label]) => (
+              <div className="seg" role="radiogroup" aria-label="Retainer">
+                {([["none", "No retainer"], ["percent", "Percent"], ["fixed", "Fixed amount"]] as const).map(([k, label]) => (
                   <button key={k} type="button" role="radio" aria-checked={f.depositType === k} className={f.depositType === k ? "on" : ""} onClick={() => setF((x) => ({ ...x, depositType: k }))}>
                     {label}
                   </button>
                 ))}
               </div>
               {f.depositType !== "none" ? (
-                <Field label={f.depositType === "percent" ? "Deposit (% of the total)" : "Deposit amount"} hint="Clients pay it right after booking. The balance is due on the day.">
+                <Field label={f.depositType === "percent" ? "Retainer (% of the total)" : "Retainer amount"} hint="Clients pay it right after booking. The balance is due on the day.">
                   {(p) => <TextInput {...p} inputMode="decimal" placeholder={f.depositType === "percent" ? "25" : "50.00"} value={deposit} onChange={(e) => setDeposit(e.target.value)} />}
                 </Field>
               ) : null}

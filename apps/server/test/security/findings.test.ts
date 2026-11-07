@@ -118,6 +118,52 @@ describe("SEC-005 guessing gallery links", () => {
   });
 });
 
+describe("SEC-016 client order and invoice links", () => {
+  const staff = async (method: "POST", url: string, payload: unknown = {}) => json(await d.app.inject({ method, url: `/api/studio${url}`, payload: payload as object, headers: hdr() }));
+
+  control("SEC-016", "order links carry at least 128 bits of entropy and are never reused", async () => {
+    // Measure real links made through the staff API rather than assume how they are generated.
+    const contact = await staff("POST", "/contacts", { firstName: "Link", lastName: "Check", email: "link-check@audit.invalid" });
+    const tokens: string[] = [];
+    const ids: string[] = [];
+    for (let i = 0; i < 40; i++) {
+      const q = await staff("POST", "/orders", { kind: "quote", contactId: contact.id, title: `Link check ${i}`, lines: [{ description: "Session", unitCents: 10_000, taxable: false }] });
+      tokens.push(q.token as string);
+      ids.push(q.id as string);
+    }
+    expect(new Set(tokens).size).toBe(tokens.length);
+    expect(tokens.every((t) => /^[A-Za-z0-9_-]+$/.test(t))).toBe(true);
+    // base64url: 6 bits per character. Shortest link seen sets the floor.
+    const shortest = Math.min(...tokens.map((t) => t.length));
+    expect(6 * shortest).toBeGreaterThanOrEqual(128);
+    // A sent quote opens with its own link, and a link one character off does not open it.
+    await staff("POST", `/orders/${ids[0]}/send`);
+    const real = tokens[0]!;
+    const near = real.slice(0, -1) + (real.endsWith("A") ? "B" : "A");
+    expect((await d.app.inject({ method: "GET", url: `/api/public/order/${real}`, remoteAddress: "198.51.100.40" })).statusCode).toBe(200);
+    expect((await d.app.inject({ method: "GET", url: `/api/public/order/${near}`, remoteAddress: "198.51.100.40" })).statusCode).toBe(404);
+  });
+
+  control("SEC-016b", "a visitor address that keeps guessing order links is throttled; other visitors are not", async () => {
+    const codes: number[] = [];
+    for (let i = 0; i < 70; i++) codes.push((await d.app.inject({ method: "GET", url: `/api/public/order/guess-${i}`, remoteAddress: "198.51.100.41" })).statusCode);
+    expect(codes.slice(0, 60).every((c) => c === 404)).toBe(true);
+    expect(codes.slice(60)).toContain(429);
+    expect((await d.app.inject({ method: "GET", url: "/api/public/order/guess-x", remoteAddress: "198.51.100.42" })).statusCode).toBe(404);
+  });
+
+  control("SEC-016c", "both code paths that create orders use the same strong generator", () => {
+    // The importer writes orders directly; guard it so it can't drift to a weaker token than the API path.
+    const src = (f: string) => fs.readFileSync(path.join(import.meta.dirname, "../../src", f), "utf8");
+    const strong = /token:\s*crypto\.randomBytes\((\d+)\)\.toString\("base64url"\)/;
+    for (const f of ["domain/orders.ts", "import/importer.ts"]) {
+      const m = src(f).match(strong);
+      expect(m, `${f} should generate order tokens with crypto.randomBytes`).not.toBeNull();
+      expect(Number(m![1]) * 8).toBeGreaterThanOrEqual(128);
+    }
+  });
+});
+
 describe("SEC-006 MCP wrapper around client-written text", () => {
   control("SEC-006", "client text containing the closing tag cannot end the untrusted wrapper early", async () => {
     const { untrusted } = await import("../../src/ai/tools/util.js");

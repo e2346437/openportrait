@@ -202,7 +202,7 @@ function clean(ctx: ServiceContext, input: OrderInput, taxBps: number, existing?
   if (totals.totalCents < 0) throw new DomainError("invalid", "The total can't be below zero.");
   if (input.validUntil && !isYmd(input.validUntil)) throw new DomainError("invalid", "Enter the “valid until” date as year-month-day.");
   const schedule = (input.schedule?.length ? input.schedule : [{ label: "Payment in full", amountCents: totals.totalCents, dueDate: null }]).map((s) => {
-    if (!s.label.trim()) throw new DomainError("invalid", "Name each payment, such as “Deposit”.");
+    if (!s.label.trim()) throw new DomainError("invalid", "Name each payment, such as “Retainer”.");
     if (!Number.isInteger(s.amountCents) || s.amountCents < 0) throw new DomainError("invalid", "Payment amounts must be zero or more.");
     if (s.dueDate && !isYmd(s.dueDate)) throw new DomainError("invalid", "Enter due dates as year-month-day.");
     return { label: s.label.trim().slice(0, 100), amountCents: s.amountCents, dueDate: s.dueDate || null };
@@ -480,7 +480,7 @@ export function rebalance(rows: Array<{ label: string; amountCents: number; dueD
 
 /**
  * The client types a coupon code on a quote they haven't accepted yet. The discount and total are recalculated and the
- * payment schedule follows: the deposit stays the same and the balance absorbs the change. A code that would give less
+ * payment schedule follows: the retainer stays the same and the balance absorbs the change. A code that would give less
  * than the discount the quote already has is refused, so entering a code can only help the client.
  */
 export function applyQuoteCoupon(ctx: ServiceContext, token: string, rawCode: string) {

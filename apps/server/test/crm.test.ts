@@ -214,8 +214,8 @@ describe("settings", () => {
     const booked = stages.find((s: { name: string }) => s.name === "Booked");
     const removed = await call("DELETE", `/lead-stages/${booked.id}`);
     expect(removed.status).toBe(400);
-    const extra = (await call("POST", "/lead-stages", { name: "Waiting on deposit" })).body;
-    expect((await call("GET", "/lead-stages")).body.stages.map((s: { name: string }) => s.name)).toEqual(["New inquiry", "In conversation", "Quote sent", "Waiting on deposit", "Booked", "Lost"]);
+    const extra = (await call("POST", "/lead-stages", { name: "Waiting on retainer" })).body;
+    expect((await call("GET", "/lead-stages")).body.stages.map((s: { name: string }) => s.name)).toEqual(["New inquiry", "In conversation", "Quote sent", "Waiting on retainer", "Booked", "Lost"]);
     expect((await call("DELETE", `/lead-stages/${extra.id}`)).status).toBe(204);
   });
 });

@@ -91,12 +91,12 @@ export function OrderEditor({ order, initialContact, initialShootId, onSaved }: 
   const paySum = pays.reduce((n, p) => n + (parseMoney(p.amount) ?? 0), 0);
   const payDiff = totals.totalCents - paySum;
 
-  // Turning on payments starts with a deposit and a balance, which is what most studios want.
+  // Turning on payments starts with a retainer and a balance, which is what most studios want.
   useEffect(() => {
     if (splitOn && pays.length === 0) {
       const dep = Math.round(totals.totalCents * 0.3);
       setPays([
-        { key: keySeq++, label: "Deposit", amount: moneyInput(dep), dueDate: "" },
+        { key: keySeq++, label: "Retainer", amount: moneyInput(dep), dueDate: "" },
         { key: keySeq++, label: "Balance", amount: moneyInput(totals.totalCents - dep), dueDate: "" },
       ]);
     }
@@ -296,7 +296,7 @@ export function OrderEditor({ order, initialContact, initialShootId, onSaved }: 
 
       <Panel title="Payments" description="When money is due. Payments you record are applied to these in order.">
         <label className="check-inline">
-          <input type="checkbox" checked={splitOn} onChange={(e) => setSplitOn(e.target.checked)} /> Split into a deposit and balance
+          <input type="checkbox" checked={splitOn} onChange={(e) => setSplitOn(e.target.checked)} /> Split into a retainer and balance
         </label>
         {splitOn ? (
           <>

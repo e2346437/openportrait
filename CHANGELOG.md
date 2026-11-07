@@ -7,8 +7,12 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 Heading toward 1.0.
 
 ### Fixed
+- A client can no longer get the same email twice after a restart or crash. Each email is claimed before it is sent and sent at most once; if an attempt is cut off mid-send, it is marked "Check Sent folder" instead of being sent again, and every email carries one fixed Message-ID. Connection failures that happen before anything is sent still retry.
 - AI approvals are checked again when you approve: if the connection was revoked, expired, cut back to read-only or lost the area or feature since the request was made, the action no longer runs. Revoking a connection now cancels everything it had waiting.
 - The AI rate limiter forgets connections that have gone quiet instead of growing without bound.
+
+### Changed
+- The `docker run` example in the README and install guide is hardened: a pinned version tag, dropped capabilities, read-only root, resource limits, real host folders, and no secrets on the command line (`--env-file` if you need one).
 
 ### Added
 - Gallery expiry and archive: galleries now expire 12 months after their first publish (change or turn off in Settings > Galleries; existing published galleries are untouched). Clients attached to the shoot get reminder emails 90, 30 and 7 days before. When a gallery expires it is packed into one zip in an Archive folder next to your shoots and taken offline; nothing is deleted. Download or restore the zip from the gallery's Settings tab, and see the status on the shoot record.

@@ -63,10 +63,22 @@ The [product spec and architecture](docs/SPEC.md) describes the design and the r
 - [Reaching it from the internet with Cloudflare Tunnel](docs/cloudflare-tunnel.md)
 
 ```sh
-docker run -d --name openportrait -p 8080:8080 \
-  -v ./appdata:/config -v ./galleries:/galleries -v ./incoming:/incoming \
-  ghcr.io/e2346437/openportrait:latest
+mkdir -p appdata galleries incoming cache
+docker run -d --name openportrait --restart unless-stopped \
+  --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add FOWNER \
+  --security-opt no-new-privileges \
+  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=256m \
+  --pids-limit 512 --memory 2g \
+  -p 8080:8080 \
+  -e PUID="$(id -u)" -e PGID="$(id -g)" -e TZ=America/New_York \
+  -v "$PWD/appdata":/config \
+  -v "$PWD/galleries":/galleries \
+  -v "$PWD/incoming":/incoming \
+  -v "$PWD/cache":/cache \
+  ghcr.io/e2346437/openportrait:0.2.0-beta.1
 ```
+
+Use the newest version number from the [Releases page](https://github.com/e2346437/openportrait/releases) instead of `0.2.0-beta.1`. The tag is pinned on purpose: you choose when to update, and `latest` can change under you. The extra flags drop privileges the app does not need; [why and what each does](docs/install-docker.md#docker-run).
 
 Then open `http://localhost:8080` and follow the setup screen.
 

@@ -4,9 +4,12 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-Heading toward 1.0.
+## [0.2.0-beta.1] - 2026-11-07
+
+The first build for the limited beta. Pin this tag; do not use `latest` during the beta.
 
 ### Changed
+- The Pro add-on notes inside the app link to the beta page instead of the pricing page while pricing is not promoted.
 - "Deposit" is now "retainer" everywhere a client or the studio sees it: booking pages, the scheduler form, payment schedules, quotes and invoices, emails, Home, the docs and the example contract. Existing bookings, invoices and signed contracts are not changed.
 - The example contract has a retainer clause, proofs, delivery after the final payment, copyright and usage, and chargeback wording. Have a lawyer review it before you rely on it.
 
@@ -19,6 +22,7 @@ Heading toward 1.0.
 - The `docker run` example in the README and install guide is hardened: a pinned version tag, dropped capabilities, read-only root, resource limits, real host folders, and no secrets on the command line (`--env-file` if you need one).
 
 ### Added
+- Docs: how to restore a backup onto a new install, and why `secret.key` is not in a backup.
 - Gallery expiry and archive: galleries now expire 12 months after their first publish (change or turn off in Settings > Galleries; existing published galleries are untouched). Clients attached to the shoot get reminder emails 90, 30 and 7 days before. When a gallery expires it is packed into one zip in an Archive folder next to your shoots and taken offline; nothing is deleted. Download or restore the zip from the gallery's Settings tab, and see the status on the shoot record.
 - Check Out: on a gallery's Storage tab, bring its offsite Originals (RAW) and/or Gallery (JPG) files back to this server to edit. You see progress, get a task and an email when everything is back, and the shoot returns offsite when you check it in or after 14 idle days. A cost warning appears first because storage providers can bill for retrieval.
 - Each shoot's Originals/RAW folder is now tracked, so an extension that adds remote storage can move those files and bring them back (they are never shown to clients). Each gallery can also choose, per folder, to follow the studio default, stay on this server, or go to remote storage.

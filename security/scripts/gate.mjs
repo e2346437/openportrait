@@ -15,9 +15,29 @@ const blockers = [];
 const warnings = [];
 const today = new Date().toISOString().slice(0, 10);
 
+// In enforce mode require evidence from every scanner the gate evaluates.
+const evidence = [
+  ["live-suite.json", "results"],
+  ["isolation.json", "results"],
+  ["trivy-fs.json", "Results"],
+  ["trivy-image.json", "Results"],
+  ["semgrep.json", "results"],
+  ["zap.json", "site"],
+];
+if (enforce) {
+  for (const [file, key] of evidence) {
+    if (!Array.isArray(read(path.join(reports, file))?.[key])) {
+      blockers.push(`missing or invalid security evidence: ${file}`);
+    }
+  }
+  if (!Array.isArray(read(path.join(reports, "gitleaks.json")))) {
+    blockers.push("missing or invalid security evidence: gitleaks.json");
+  }
+}
+
 // 1. Confirmed Critical/High findings that are still open.
 const registry = read(path.join(root, "findings.json"));
-if (!registry) blockers.push("security/findings.json is missing or unreadable");
+if (!Array.isArray(registry?.findings)) blockers.push("security/findings.json is missing or unreadable");
 for (const f of registry?.findings ?? []) {
   if (f.status === "open" && f.confirmed && ["Critical", "High"].includes(f.severity)) blockers.push(`${f.id} (${f.severity}) is open: ${f.title}`);
   if (f.status === "open" && f.confirmed && f.severity === "Medium") warnings.push(`${f.id} (Medium) is open: ${f.title}`);
@@ -25,11 +45,11 @@ for (const f of registry?.findings ?? []) {
 
 // 2. Live suite: any failed control, or an open finding that now passes (flip it to a control).
 const live = read(path.join(reports, "live-suite.json"));
-if (live) {
+if (Array.isArray(live?.results)) {
   for (const r of live.results) if (r.status === "FAIL" || r.status === "FIXED-flip-to-control") blockers.push(`live test ${r.id}: ${r.status} - ${r.title}`);
 } else warnings.push("no live-suite.json report (run security/scripts/run-local.sh)");
 const iso = read(path.join(reports, "isolation.json"));
-if (iso) {
+if (Array.isArray(iso?.results)) {
   for (const r of iso.results) if (r.status !== "pass") blockers.push(`isolation check ${r.id} failed: ${r.title}`);
 } else warnings.push("no isolation.json report");
 
@@ -79,3 +99,4 @@ for (const w of unique(warnings)) console.log(`  warn   ${w}`);
 for (const b of unique(blockers)) console.log(`  BLOCK  ${b}`);
 console.log(blockers.length ? `\nBLOCKED: ${unique(blockers).length} item(s) must be fixed or formally excepted (security/config/allowlist.json).` : "\nPASS: no release blockers.");
 process.exit(blockers.length && enforce ? 1 : 0);
+

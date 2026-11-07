@@ -104,6 +104,22 @@ docker exec -it openportrait openportrait disable-mfa you@example.com
 docker exec -it openportrait openportrait backup
 ```
 
+## Backups and restore
+
+OpenPortrait takes a backup every night (a zip in `/config/backups`, 14 kept). Settings > Backups changes the schedule, lets you include the gallery photos and the originals/RAW folders, and downloads or deletes backups. Backups can also be copied to a folder or mounted share.
+
+**Keep `secret.key` yourself.** It lives in `/config` but is never inside a backup. Without it, saved secrets such as the tunnel token and payment keys can't be read, so you enter them again after a restore onto a new install. Copy `/config/secret.key` somewhere safe once.
+
+### Restore onto a new or empty install
+
+1. Start a new container with empty folders and finish the first-run setup (any studio name and owner account; the restore replaces them).
+2. Open **Settings > Backups > Restore**. Pick one of the listed backups, or upload a backup zip you downloaded earlier.
+3. Read the summary (contacts, shoots, orders, number of photos) and confirm. OpenPortrait takes a safety backup of what is there first.
+4. Restart when asked. The database is swapped in at start-up, then photos are copied back into the galleries in the background. Photos already in the galleries are never overwritten or deleted.
+5. Sign in with the account from the **backup**, not the temporary one you made in step 1.
+
+A backup from a newer version of OpenPortrait than the one you are running is refused; update first. A damaged or edited backup is refused and nothing changes.
+
 ## Updating
 
 Unraid: **Docker > Check for Updates**. Compose: `docker compose pull && docker compose up -d`. Database changes are applied automatically when the new version starts, and a backup is taken nightly.

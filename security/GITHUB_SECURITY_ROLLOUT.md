@@ -6,7 +6,7 @@ Before authorizing a production image promotion, configure the image-promotion e
 
 For an external reverse proxy, set TRUSTED_PROXIES to its socket address or narrow CIDR, overwrite X-Forwarded-Proto with the verified scheme, and prevent direct access through a trusted proxy address. Loopback is trusted for the built-in tunnel.
 
-Remaining supply-chain work includes scanner image digest pinning and locking the Python scanner dependency. Validate runtime controls on a disposable deployment before rollout.
+Release checks use digest-pinned scanner containers, including Semgrep and its Python dependencies. Review updates against upstream publisher metadata. Semgrep registry rule packs and vulnerability databases are still fetched during the scan. Validate runtime controls on a disposable deployment before rollout.
 
 Sessions now expire after 24 hours of inactivity in addition to the existing absolute lifetime. Existing sessions are evaluated against their stored last-seen time. The security jobs include the MFA enrollment, replay and recovery tests.
 

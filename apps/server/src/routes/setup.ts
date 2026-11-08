@@ -1,3 +1,4 @@
+import { requestIsHttps } from "../client-ip.js";
 import crypto from "node:crypto";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance } from "fastify";
@@ -67,7 +68,8 @@ export async function setupRoutes(app: FastifyInstance) {
     settings.set("studio.timezone", body.timezone);
     settings.set("setup.completedAt", Date.now());
     const { token, expiresAt } = createSession(db, userId, { ip: app.ctx.ip(req), userAgent: req.headers["user-agent"] });
-    setSessionCookie(reply, token, expiresAt, req.protocol === "https" || !!req.headers["cf-ray"]);
+    setSessionCookie(reply, token, expiresAt, requestIsHttps(req));
     return { user: { id: userId, email: body.email, name: body.ownerName, role: "owner" } };
   });
 }
+

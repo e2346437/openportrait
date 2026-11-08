@@ -42,6 +42,8 @@ export function clientIp(req: FastifyRequest, trustCloudflare: boolean, trusted?
   return socketIp ?? "unknown";
 }
 
-export function viaCloudflare(req: FastifyRequest): boolean {
-  return typeof req.headers["cf-ray"] === "string";
+/** Proxies must overwrite X-Forwarded-Proto before forwarding a request. */
+export function requestIsHttps(req: FastifyRequest, trusted?: string[]): boolean {
+  return req.protocol === "https" ||
+    (isTrustedProxy(req.socket.remoteAddress, trusted) && req.headers["x-forwarded-proto"] === "https");
 }

@@ -6,10 +6,11 @@
 //   node security/scripts/gate.mjs --enforce  # release builds: exit 1 when blocked
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const enforce = process.argv.includes("--enforce");
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const reports = path.join(root, "reports");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const reports = process.env.SECURITY_REPORTS_DIR ?? path.join(root, "reports");
 const read = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
 const blockers = [];
 const warnings = [];

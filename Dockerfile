@@ -43,6 +43,15 @@ LABEL org.opencontainers.image.title="OpenPortrait" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.version="${VERSION}"
 
+# Debian DLA-4880-1. Use TLS and disable redirects and retries during the
+# bootstrap upgrade because this layer starts with the affected APT client.
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+  && apt-get -o Acquire::Retries=0 -o Acquire::https::AllowRedirect=false update \
+  && apt-get -o Acquire::Retries=0 -o Acquire::https::AllowRedirect=false install -y --no-install-recommends --only-upgrade apt libapt-pkg6.0 \
+  && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' apt)" ge 2.6.2 \
+  && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' libapt-pkg6.0)" ge 2.6.2 \
+  && rm -rf /var/lib/apt/lists/*
+
 # Static release binaries: cloudflared for the built-in tunnel, tini as PID 1, gosu to drop to PUID:PGID.
 ADD --chmod=755 https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${TARGETARCH} /usr/local/bin/cloudflared
 ADD --chmod=755 https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini-static-${TARGETARCH} /usr/bin/tini

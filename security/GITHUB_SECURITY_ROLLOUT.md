@@ -6,4 +6,8 @@ Before authorizing a production image promotion, configure the image-promotion e
 
 For an external reverse proxy, set TRUSTED_PROXIES to its socket address or narrow CIDR, overwrite X-Forwarded-Proto with the verified scheme, and prevent direct access through a trusted proxy address. Loopback is trusted for the built-in tunnel.
 
-Remaining supply-chain and runtime work includes scanner image digest pinning, locking the Python scanner dependency, verifying managed extension bundles and deployment isolation, and retesting session idle timeout, second-factor enrollment and recovery against a disposable deployment.
+Remaining supply-chain work includes scanner image digest pinning and locking the Python scanner dependency. Validate runtime controls on a disposable deployment before rollout.
+
+Sessions now expire after 24 hours of inactivity in addition to the existing absolute lifetime. Existing sessions are evaluated against their stored last-seen time. The security jobs include the MFA enrollment, replay and recovery tests.
+
+For managed instances, set OPENPORTRAIT_EXTENSION_SHA256 to a comma-separated list of SHA-256 digests approved from independently verified release bundles. An explicitly empty list disables all extensions. Mount the extension directory read-only for the studio process, keep it separate from customer upload paths, and verify all bundled code and dependencies before adding a digest. Give each studio separate data volumes, network policy, and credentials. The digest policy assumes that an operator controls the directory and that the directory cannot be modified between verification and import.

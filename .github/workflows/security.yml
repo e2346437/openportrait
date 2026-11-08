@@ -50,12 +50,12 @@ jobs:
       - run: pnpm --filter "./packages/*" build
       - run: node --test security/tests/gate.test.mjs
       - name: Security regression suite (open findings are expected failures until fixed)
-        run: pnpm --filter @openportrait/server exec vitest run test/security
+        run: pnpm --filter @openportrait/server exec vitest run test/security test/mfa.test.ts test/extensions.test.ts
       - name: Full-strict run, for the record (shows what is still open)
         continue-on-error: true
         env:
           SECURITY_STRICT: "1"
-        run: pnpm --filter @openportrait/server exec vitest run test/security
+        run: pnpm --filter @openportrait/server exec vitest run test/security test/mfa.test.ts test/extensions.test.ts
 
   static:
     name: Secrets, dependencies, source analysis

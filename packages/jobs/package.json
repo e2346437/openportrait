@@ -8,5 +8,5 @@
   "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
   "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc -p tsconfig.json --noEmit", "test": "vitest run" },
   "dependencies": { "@openportrait/db": "workspace:*", "drizzle-orm": "^0.45.4" },
-  "devDependencies": { "vitest": "^5.0.5" }
+  "devDependencies": { "vitest": "^5.1.0" }
 }

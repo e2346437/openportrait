@@ -47,12 +47,12 @@ docker run -d --name openportrait --restart unless-stopped \
   -v /srv/photos/galleries:/galleries \
   -v /srv/photos/incoming:/incoming \
   -v /srv/openportrait/cache:/cache \
-  ghcr.io/e2346437/openportrait:0.2.0-beta.1
+  ghcr.io/e2346437/openportrait:0.2.0-beta.2
 ```
 
 What the flags do, and why they are there:
 
-- **Pinned tag** (`:0.2.0-beta.1`). Use the newest number on the [Releases page](https://github.com/e2346437/openportrait/releases). `latest` moves whenever the project changes, so a restart or a pull could change your version without you choosing it. To update, change the number, then `docker stop openportrait && docker rm openportrait` and run the command again. Your data lives in the volumes, so nothing is lost.
+- **Pinned tag** (`:0.2.0-beta.2`). Use the newest number on the [Releases page](https://github.com/e2346437/openportrait/releases). `latest` moves whenever the project changes, so a restart or a pull could change your version without you choosing it. To update, change the number, then `docker stop openportrait && docker rm openportrait` and run the command again. Your data lives in the volumes, so nothing is lost.
 - **Not root for the app.** The container starts as root only long enough to give your user (`PUID`/`PGID`) ownership of `/config` and `/cache`, then runs OpenPortrait as that user and keeps no root process. `--cap-drop ALL` and the four `--cap-add` lines leave only what that hand-off needs, and `--security-opt no-new-privileges` stops anything gaining more. Use `id -u` and `id -g` for your own numbers.
 - **Read-only root filesystem.** `--read-only` with a small `/tmp` means a compromised app cannot change its own code. Everything it writes goes to your four volumes.
 - **Limits.** `--pids-limit` and `--memory` stop a runaway job from starving the machine. Raise `--memory` if you edit very large galleries on a small server.

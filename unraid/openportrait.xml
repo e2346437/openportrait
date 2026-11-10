@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>openportrait</Name>
-  <Repository>ghcr.io/e2346437/openportrait:latest</Repository>
+  <Repository>ghcr.io/e2346437/openportrait:0.2.0-beta.2</Repository>
   <Registry>https://github.com/e2346437/openportrait/pkgs/container/openportrait</Registry>
   <Network>bridge</Network>
   <Shell>bash</Shell>

@@ -4,6 +4,16 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.2.0-beta.2] - 2026-11-10
+
+Security patch build for the limited beta. Pin this tag; do not use `latest` during the beta.
+
+### Security
+- The image is rebuilt on the current Debian base, which fixes a high-severity `apt` vulnerability found by the pre-release security scan of beta.1. The bundled cloudflared tunnel binary is unchanged (still the latest release); a reported weakness in one of its libraries is in HTML-parsing code that the binary does not include, and will be re-checked when a new release appears.
+
+### Changed
+- Docs: Home screenshots use the retainer wording, and a note on emails that are sent once.
+
 ## [0.2.0-beta.1] - 2026-11-07
 
 The first build for the limited beta. Pin this tag; do not use `latest` during the beta.

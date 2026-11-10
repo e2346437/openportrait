@@ -3,7 +3,7 @@
 
 ARG NODE_VERSION=22
 # Pinned by digest so a build is reproducible; Dependabot proposes new digests weekly (.github/dependabot.yml).
-ARG NODE_IMAGE=node:22-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da
+ARG NODE_IMAGE=node:22-bookworm-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
 ARG CLOUDFLARED_VERSION=2026.10.7
 ARG TINI_VERSION=0.19.0
 ARG GOSU_VERSION=1.19

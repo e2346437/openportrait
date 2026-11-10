@@ -1,3 +1,4 @@
+import { requestIsHttps } from "../client-ip.js";
 import crypto from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { eq } from "drizzle-orm";
@@ -75,7 +76,7 @@ export async function authRoutes(app: FastifyInstance) {
     db.update(tables.user).set({ lastLoginAt: new Date() }).where(eq(tables.user.id, user.id)).run();
     db.insert(tables.auditLog).values({ userId: user.id, action: "auth.login", ip: app.ctx.ip(req) }).run();
     const { token, expiresAt } = createSession(db, user.id, { ip: app.ctx.ip(req), userAgent: req.headers["user-agent"] });
-    setSessionCookie(reply, token, expiresAt, req.protocol === "https" || !!req.headers["cf-ray"]);
+    setSessionCookie(reply, token, expiresAt, requestIsHttps(req));
     return { user: { id: user.id, email: user.email, name: user.name, role: user.role } };
   };
 
@@ -226,3 +227,4 @@ export async function authRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 }
+

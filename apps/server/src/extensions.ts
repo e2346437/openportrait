@@ -346,8 +346,16 @@ export function runExtensionMigration(ctx: AppContext, id: string, name: string,
   })();
 }
 
+/** Optional operator-managed allowlist. An explicitly empty or invalid list authorizes no modules. */
+function extensionDigests(raw: string | undefined): ReadonlySet<string> | null {
+  if (raw === undefined) return null;
+  const entries = raw.trim() ? raw.trim().split(/\s*,\s*/) : [];
+  return new Set(entries.every((value) => /^[a-f0-9]{64}$/.test(value)) ? entries : []);
+}
+
 export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Promise<ExtensionInfo[]> {
   const dir = extensionsDir(ctx);
+  const allowedDigests = extensionDigests(process.env.OPENPORTRAIT_EXTENSION_SHA256);
   const infos: ExtensionInfo[] = [];
   let files: string[] = [];
   try {
@@ -362,7 +370,9 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
     infos.push(info);
     try {
       if (!ID.test(id)) throw new Error("file name must be lowercase letters, digits and dashes");
+      if (allowedDigests && !fs.lstatSync(full).isFile()) throw new Error("managed extension must be a regular file");
       info.sha256 = crypto.createHash("sha256").update(fs.readFileSync(full)).digest("hex");
+      if (allowedDigests && !allowedDigests.has(info.sha256)) throw new Error("extension digest is not approved");
       const mod = (await import(`${pathToFileURL(full).href}?h=${info.sha256}`)) as { register?: (api: ExtensionApi) => void | Promise<void>; version?: unknown };
       if (typeof mod.register !== "function") throw new Error("module has no register() export");
       if (typeof mod.version === "string" && /^[\w.+-]{1,40}$/.test(mod.version)) info.version = mod.version;
@@ -484,3 +494,4 @@ export const extensionRoutes =
   async (app) => {
     app.get("/", { preHandler: requireOwner }, async () => ({ extensions: infos }));
   };
+

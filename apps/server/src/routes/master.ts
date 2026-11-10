@@ -1,3 +1,4 @@
+import { requestIsHttps } from "../client-ip.js";
 import { and, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -22,7 +23,7 @@ export async function masterRoutes(app: FastifyInstance) {
 
   const passCookie = (m: MasterRow) => `op_dm_${m.id}`;
   const passToken = (m: MasterRow) => secrets.sign("master-pass", `${m.id}:${m.version}:${m.passwordHash ?? ""}`);
-  const cookieOpts = (req: FastifyRequest) => ({ path: "/", httpOnly: true, sameSite: "lax" as const, secure: req.protocol === "https" || req.headers["x-forwarded-proto"] === "https", maxAge: 30 * 86_400 });
+  const cookieOpts = (req: FastifyRequest) => ({ path: "/", httpOnly: true, sameSite: "lax" as const, secure: requestIsHttps(req), maxAge: 30 * 86_400 });
 
   // Guessing links: a few misses per address per minute, then 429.
   const misses = new Map<string, { n: number; resetAt: number }>();
@@ -111,3 +112,4 @@ export async function masterRoutes(app: FastifyInstance) {
   });
 
 }
+

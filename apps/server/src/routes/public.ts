@@ -73,7 +73,7 @@ export async function publicRoutes(app: FastifyInstance) {
       deposit: s.priceCents > 0 && s.depositType !== "none" ? { type: s.depositType, value: s.depositValue } : null,
     };
   });
-  // Lets a visitor check a coupon and see the new price and deposit before they book.
+  // Lets a visitor check a coupon and see the new price and retainer before they book.
   app.post("/book/:slug/price", { config: limit(20) }, async (req, reply) => {
     const body = parse(z.object({ couponCode: z.string().trim().max(40).optional() }), req.body ?? {}, reply);
     if (!body) return;

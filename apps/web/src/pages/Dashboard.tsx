@@ -250,7 +250,7 @@ const READY_LABEL = {
     sent: "Contract unsigned",
     none: null,
   },
-  deposit: { paid: "Deposit paid", due: "Payment due", none: null },
+  deposit: { paid: "Retainer paid", due: "Payment due", none: null },
   questionnaire: {
     returned: "Questionnaire returned",
     sent: "Questionnaire out",
@@ -665,7 +665,7 @@ function FirstSteps({
     {
       n: 3,
       title: "Open your booking page",
-      body: "Pick your shoot types and prices. Clients book and pay the deposit without the back and forth.",
+      body: "Pick your shoot types and prices. Clients book and pay the retainer without the back and forth.",
       cta: "Set up booking",
       to: "/studio/booking",
       done: booking,
@@ -755,7 +755,7 @@ export function DashboardPage() {
     },
     {
       title: "Set up PayPal",
-      detail: "Take deposits and invoice payments online.",
+      detail: "Take retainers and invoice payments online.",
       done: !!paypal?.configured,
       to: "/studio/settings/payments",
     },

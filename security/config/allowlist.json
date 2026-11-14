@@ -31,6 +31,13 @@
       "path": "apps/web/",
       "justification": "Code-quality hint, not a security issue.",
       "expires": "2026-12-31"
+    },
+    {
+      "id": "CVE-2026-78661",
+      "package": "golang.org/x/net",
+      "path": "usr/local/bin/cloudflared",
+      "justification": "GHSA-75pg-wvh3-34jr affects the x/net/html parser. A go list -deps check of cloudflared 2026.10.7 (the latest release, built with x/net v0.61.0) found x/net/html is not linked into the binary, so the vulnerable code is not reachable. No fixed cloudflared release exists yet. Re-check on the next cloudflared release and by the review date.",
+      "expires": "2026-12-01"
     }
   ]
 }

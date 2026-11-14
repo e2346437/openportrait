@@ -22,7 +22,12 @@ export const emailLog = sqliteTable(
     /** Set by features that email about a shoot or gallery, so each can show what was sent. */
     shootId: text(),
     galleryId: text(),
-    status: text({ enum: ["queued", "sent", "failed"] }).notNull().default("queued"),
+    /**
+     * queued -> sending -> sent | failed. "sending" is claimed before the mail server is contacted, and
+     * "unconfirmed" means an attempt was cut off after that point (crash, restart, dropped connection), so
+     * it may or may not have gone out. Unconfirmed mail is never re-sent automatically.
+     */
+    status: text({ enum: ["queued", "sending", "sent", "failed", "unconfirmed"] }).notNull().default("queued"),
     error: text(),
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
     sentAt: integer({ mode: "timestamp_ms" }),
@@ -52,7 +57,7 @@ export const scheduler = sqliteTable(
     approval: text({ enum: ["manual", "auto"] }).notNull().default("manual"),
     /** What the session costs, in cents. Zero means the page is free to book. */
     priceCents: integer().notNull().default(0),
-    /** The deposit asked up front. "percent" stores `depositValue` in basis points (2500 = 25%); "fixed" stores cents. */
+    /** The retainer asked up front (stored as "deposit" internally so existing data needs no migration). "percent" stores `depositValue` in basis points (2500 = 25%); "fixed" stores cents. */
     depositType: text({ enum: ["none", "percent", "fixed"] }).notNull().default("none"),
     depositValue: integer().notNull().default(0),
     /** Turn a confirmed booking into a shoot (needs a shoot type), so it follows the usual workflow from there. */
@@ -85,7 +90,7 @@ export const schedulerBooking = sqliteTable(
       .references(() => contact.id),
     leadId: text().references(() => lead.id, { onDelete: "set null" }),
     entryId: text().references(() => calendarEntry.id, { onDelete: "set null" }),
-    /** The invoice raised for a paid page, so the deposit is paid and tracked like any other invoice. */
+    /** The invoice raised for a paid page, so the retainer is paid and tracked like any other invoice. */
     orderId: text(),
     /** The shoot made when this booking was confirmed, if its page does that. */
     shootId: text(),

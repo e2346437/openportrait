@@ -112,7 +112,7 @@ function values(ctx: ServiceContext, input: SchedulerInput) {
   if (input.shootTypeId && !ctx.db.select({ id: shootType.id }).from(shootType).where(eq(shootType.id, input.shootTypeId)).get()) throw new DomainError("invalid", "Choose a shoot type.");
   const priceCents = int(input.priceCents, 0, 0, 100_000_000, "The price");
   const depositType = priceCents > 0 ? (input.depositType ?? "none") : "none";
-  const depositValue = depositType === "none" ? 0 : int(input.depositValue, 0, 1, depositType === "percent" ? 10_000 : priceCents, depositType === "percent" ? "The deposit percentage" : "The deposit");
+  const depositValue = depositType === "none" ? 0 : int(input.depositValue, 0, 1, depositType === "percent" ? 10_000 : priceCents, depositType === "percent" ? "The retainer percentage" : "The retainer");
   const createShoot = input.createShoot ?? false;
   if (createShoot && !input.shootTypeId) throw new DomainError("invalid", "Choose a shoot type to make shoots from bookings.");
   const maxPerDay = int(input.maxPerDay, 0, 0, 100, "The daily limit");
@@ -261,7 +261,7 @@ export function priceFor(ctx: ServiceContext, s: typeof scheduler.$inferSelect, 
   const coupon = rawCode?.trim() ? evaluateCoupon(ctx, rawCode, lines, { manualDiscountCents: 0, schedulerId: s.id }) : null;
   const totals = totalsFor(lines, coupon?.cents ?? 0, ctx.settings.get("money.taxBps") ?? 0);
   const asked = s.depositType === "percent" ? Math.round((totals.totalCents * s.depositValue) / 10_000) : s.depositType === "fixed" ? s.depositValue : 0;
-  // A deposit is never more than the total; one that covers everything just means paying in full.
+  // A retainer is never more than the total; one that covers everything just means paying in full.
   const depositCents = Math.min(asked, totals.totalCents);
   const cur = ctx.settings.get("money.currency") || "USD";
   return {
@@ -273,7 +273,7 @@ export function priceFor(ctx: ServiceContext, s: typeof scheduler.$inferSelect, 
     totalCents: totals.totalCents,
     depositCents,
     balanceCents: totals.totalCents - depositCents,
-    summary: depositCents > 0 && depositCents < totals.totalCents ? `${formatMoney(depositCents, cur)} deposit now, ${formatMoney(totals.totalCents - depositCents, cur)} later` : formatMoney(totals.totalCents, cur),
+    summary: depositCents > 0 && depositCents < totals.totalCents ? `${formatMoney(depositCents, cur)} retainer now, ${formatMoney(totals.totalCents - depositCents, cur)} later` : formatMoney(totals.totalCents, cur),
   };
 }
 
@@ -334,7 +334,7 @@ export function createBooking(ctx: ServiceContext, slug: string, input: BookingI
       ? [`Hi ${firstName},`, `You're booked: ${s.name} on ${when}.`, ...(s.location ? [`Where: ${s.location}`] : [])]
       : [`Hi ${firstName},`, `Thanks for asking to book ${s.name} on ${when}. I'll confirm it by email shortly. Until then the time is held for you.`];
   if (agreement) lines.push(`Please review and sign your agreement first: ${agreement.url}`, "Once it's signed you can pay online.");
-  if (invoice && price) lines.push(price.depositCents > 0 && price.depositCents < price.totalCents ? `A ${formatMoney(price.depositCents, price.currency)} deposit is due to hold your time, and ${formatMoney(price.balanceCents, price.currency)} after that. You can pay it here: ${invoice.url}` : `The total is ${formatMoney(price.totalCents, price.currency)}. You can pay it here: ${invoice.url}`);
+  if (invoice && price) lines.push(price.depositCents > 0 && price.depositCents < price.totalCents ? `A ${formatMoney(price.depositCents, price.currency)} retainer is due to hold your time, and ${formatMoney(price.balanceCents, price.currency)} after that. You can pay it here: ${invoice.url}` : `The total is ${formatMoney(price.totalCents, price.currency)}. You can pay it here: ${invoice.url}`);
   const mail = composeEmail(studio, lines, { label: "Need to cancel?", url: cancelUrl });
   queueEmail(ctx, { to: email, toName: made.name, subject: made.status === "confirmed" ? `You're booked: ${s.name}` : `Booking request received: ${s.name}`, text: mail.text, html: mail.html, kind: made.status === "confirmed" ? "booking.confirmed" : "booking.requested", contactId: made.contactId });
   const owner = ctx.settings.get("studio.email");
@@ -346,7 +346,7 @@ export function createBooking(ctx: ServiceContext, slug: string, input: BookingI
 }
 
 /**
- * A page that charges gets an invoice the moment someone books, with the deposit as its first payment and the balance
+ * A page that charges gets an invoice the moment someone books, with the retainer as its first payment and the balance
  * due on the day. It is the same invoice clients pay everywhere else, so PayPal, credit and manual payments all work.
  */
 function raiseInvoice(ctx: ServiceContext, s: typeof scheduler.$inferSelect, made: { id: string; contactId: string; leadId: string; name: string }, price: NonNullable<ReturnType<typeof priceFor>>, day: string, couponCode?: string) {
@@ -358,7 +358,7 @@ function raiseInvoice(ctx: ServiceContext, s: typeof scheduler.$inferSelect, mad
     schedulerId: s.id,
     couponCode: couponCode?.trim() || null,
     lines: [{ description: s.name, unitCents: s.priceCents }],
-    schedule: full ? undefined : [{ label: "Deposit", amountCents: price.depositCents, dueDate: null }, { label: "Balance", amountCents: price.balanceCents, dueDate: day }],
+    schedule: full ? undefined : [{ label: "Retainer", amountCents: price.depositCents, dueDate: null }, { label: "Balance", amountCents: price.balanceCents, dueDate: day }],
   });
   ctx.db.update(tables.order).set({ status: "sent", sentAt: new Date() }).where(eq(tables.order.id, inv.id)).run();
   ctx.db.update(schedulerBooking).set({ orderId: inv.id }).where(eq(schedulerBooking.id, made.id)).run();

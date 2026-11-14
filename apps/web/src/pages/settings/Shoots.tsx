@@ -335,7 +335,7 @@ function StagesPanel() {
           noValidate
           className="input-row"
         >
-          <TextInput aria-label="New stage" placeholder="Add a stage, like “Waiting on deposit”" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+          <TextInput aria-label="New stage" placeholder="Add a stage, like “Waiting on retainer”" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
           <Button type="submit" icon="plus" loading={add.busy} disabled={!name.trim()}>
             Add
           </Button>

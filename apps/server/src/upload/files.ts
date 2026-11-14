@@ -195,3 +195,78 @@ export function sweepStaleUploads(root: string, maxAgeMs = 86_400_000, now = Dat
   walk(root, 0);
   return removed;
 }
+
+/** Hidden folder inside each camera login's folder where photos deleted by that login wait before they are removed for good. */
+export const TRASH_DIR = ".deleted";
+export const TRASH_KEEP_MS = 7 * 86_400_000;
+
+/** True when a camera-visible path points at, or into, the trash. Camera logins can't see or touch it. */
+export function isTrashPath(virtual: string): boolean {
+  return cleanVirtual(virtual).split("/").includes(TRASH_DIR);
+}
+
+/**
+ * Moves a photo into the login's trash instead of deleting it, keeping its path so it can be put back by hand.
+ * A name that is already taken there gets the time added. The file's time is set to now, so the 7 days count
+ * from the delete. Returns the new path.
+ */
+export function moveToTrash(root: string, full: string, now = Date.now()): string {
+  const rel = path.relative(path.resolve(root), full);
+  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) throw new Error("outside");
+  let dest = path.join(root, TRASH_DIR, rel);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  if (fs.existsSync(dest)) {
+    const ext = path.extname(dest);
+    dest = `${dest.slice(0, dest.length - ext.length)}.${now}${ext}`;
+  }
+  fs.renameSync(full, dest);
+  const when = new Date(now);
+  fs.utimesSync(dest, when, when);
+  return dest;
+}
+
+/** Removes trashed photos older than the keep time from every login folder under Incoming, and the folders they leave empty. */
+export function sweepTrash(incomingDir: string, keepMs = TRASH_KEEP_MS, now = Date.now()): number {
+  let removed = 0;
+  const empty = (dir: string, depth: number): boolean => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    let left = entries.length;
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (depth < 8 && empty(full, depth + 1)) {
+          try {
+            fs.rmdirSync(full);
+            left--;
+          } catch {
+            /* skip */
+          }
+        }
+      } else if (e.isFile()) {
+        try {
+          if (now - fs.lstatSync(full).mtimeMs > keepMs) {
+            fs.unlinkSync(full);
+            removed++;
+            left--;
+          }
+        } catch {
+          /* skip */
+        }
+      }
+    }
+    return left === 0;
+  };
+  let logins: fs.Dirent[];
+  try {
+    logins = fs.readdirSync(incomingDir, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const l of logins) if (l.isDirectory() && !l.name.startsWith(".")) empty(path.join(incomingDir, l.name, TRASH_DIR), 0);
+  return removed;
+}

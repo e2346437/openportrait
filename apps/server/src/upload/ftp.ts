@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { Writable } from "node:stream";
 import ftpSrv, { type FileSystem as FileSystemType, type FtpConnection, type FtpServer as FtpServerType } from "ftp-srv";
 import type { CameraLogin } from "./accounts.js";
-import { IncomingFile, jailPath, landingVirtual } from "./files.js";
+import { IncomingFile, TRASH_DIR, isTrashPath, jailPath, landingVirtual } from "./files.js";
 import type { ProtocolServer, ServerHooks } from "./types.js";
 
 // The package's CommonJS export carries the classes below at runtime, but its type definitions only declare them as named exports.
@@ -37,6 +37,8 @@ class CameraFs extends BaseFileSystem {
   private checked(p: string): { fsPath: string; clientPath: string } {
     const r = (this as unknown as Resolver)._resolvePath(p);
     try {
+      // The trash for photos a login deleted over SFTP is out of reach here too.
+      if (isTrashPath(r.clientPath)) throw new Error("outside");
       jailPath(this.root, r.clientPath);
     } catch {
       throw new ftpErrors.FileSystemError("Not allowed");
@@ -50,7 +52,7 @@ class CameraFs extends BaseFileSystem {
   }
   override list(p = ".") {
     this.checked(p);
-    return super.list(p).then((items: Array<{ name: string }>) => items.filter((i) => !(i.name.startsWith(".") && i.name.endsWith(".uploading"))));
+    return super.list(p).then((items: Array<{ name: string }>) => items.filter((i) => i.name !== TRASH_DIR && !(i.name.startsWith(".") && i.name.endsWith(".uploading"))));
   }
   override chdir(p = ".") {
     const { fsPath } = this.checked(p);

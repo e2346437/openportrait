@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ssh2, { type Connection, type Server as SshServer, type SFTPWrapper } from "ssh2";
 import type { CameraLogin } from "./accounts.js";
-import { IncomingFile, cleanVirtual, jailPath, landingVirtual, moveWithoutOverwrite } from "./files.js";
+import { IncomingFile, TRASH_DIR, cleanVirtual, isTrashPath, jailPath, landingVirtual, moveToTrash, moveWithoutOverwrite } from "./files.js";
 import type { ProtocolServer, ServerHooks } from "./types.js";
 
 const { Server, utils } = ssh2;
@@ -57,7 +57,7 @@ const DAY_FOLDER = /^\d{4}-\d{2}-\d{2}$/;
 export function findOwnFile(root: string, virtual: string, land: { sortByDay: boolean; today: string }): string | null | undefined {
   const v = cleanVirtual(virtual);
   const name = path.posix.basename(v);
-  if (v === "/" || name.startsWith(".")) return null;
+  if (v === "/" || name.startsWith(".") || isTrashPath(v)) return null;
   const candidates = [v];
   if (path.posix.dirname(v) === "/") {
     candidates.push(landingVirtual(v, { ...land, sortByDay: true }));
@@ -88,7 +88,7 @@ export function findOwnFile(root: string, virtual: string, land: { sortByDay: bo
 
 /**
  * The camera upload SFTP server. Each login is confined to its own folder in Incoming. Cameras can send files, make
- * folders and list what's there, and delete single photos they sent, but can't download anything, so a stolen
+ * folders and list what's there, and delete single photos they sent (kept in a hidden trash for 7 days), but can't download anything, so a stolen
  * camera password can't be used to take photos out.
  */
 export class SftpServer implements ProtocolServer {
@@ -206,6 +206,8 @@ export class SftpServer implements ProtocolServer {
     };
     const getHandle = (buf: Buffer) => (buf.length === 4 ? handles.get(buf.readUInt32BE(0)) : undefined);
     const resolve = (p: string): string | null => {
+      // The trash is out of reach: a login can't list it, write into it, or delete from it.
+      if (isTrashPath(p)) return null;
       try {
         return jailPath(root, p);
       } catch {
@@ -289,19 +291,22 @@ export class SftpServer implements ProtocolServer {
       // Never replaces a file that already exists (SEC-007).
       moveWithoutOverwrite(a, b, (err) => (err ? errStatus(reqid, err) : sftp.status(reqid, STATUS_CODE.OK)));
     });
-    // A login may delete single photos it sent, inside its own folder (the tether app's "delete this shot"). Folders
-    // can't be removed and nothing outside the login's folder is reachable, so a stolen camera password can't reach
-    // other cameras' photos, shoots or galleries. Every delete is written to the log.
+    // A login may delete single photos it sent, inside its own folder (the tether app's "delete this shot"). The
+    // photo is moved to a hidden trash in that folder and kept for 7 days, so a mistake or a stolen camera password
+    // can't destroy photos. Folders can't be removed and nothing outside the login's folder is reachable. Every
+    // delete is written to the log.
     sftp.on("REMOVE", (reqid: number, p: string) => {
       const full = findOwnFile(root, p, this.hooks.land());
       if (full === null) return denied(reqid);
       if (full === undefined) return sftp.status(reqid, STATUS_CODE.NO_SUCH_FILE);
-      fs.unlink(full, (err) => {
-        if (err) return errStatus(reqid, err);
+      try {
+        const kept = moveToTrash(root, full);
         this.hooks.onActivity();
-        this.hooks.log.info({ login: login.username, file: path.relative(root, full) }, "camera login deleted a photo");
+        this.hooks.log.info({ login: login.username, file: path.relative(root, full), keptAt: path.relative(root, kept) }, "camera login deleted a photo (kept in trash for 7 days)");
         sftp.status(reqid, STATUS_CODE.OK);
-      });
+      } catch (err) {
+        errStatus(reqid, err);
+      }
     });
     sftp.on("RMDIR", (reqid: number) => denied(reqid));
     sftp.on("SYMLINK", (reqid: number) => denied(reqid));
@@ -325,7 +330,7 @@ export class SftpServer implements ProtocolServer {
       h.done = true;
       fs.readdir(h.dir, { withFileTypes: true }, (err, entries) => {
         if (err) return errStatus(reqid, err);
-        const visible = entries.filter((e) => !(e.name.startsWith(".") && e.name.endsWith(".uploading")));
+        const visible = entries.filter((e) => e.name !== TRASH_DIR && !(e.name.startsWith(".") && e.name.endsWith(".uploading")));
         const out = visible.flatMap((e) => {
           try {
             const st = fs.statSync(path.join(h.dir, e.name));

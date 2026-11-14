@@ -5,7 +5,7 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 ### Changed
-- Camera upload (SFTP): a camera login can now delete single photos inside its own Incoming folder, so a tethering app can remove a rejected shot from the server. Folders and anything outside the login's folder stay protected, downloads stay off, and each delete is logged.
+- Camera upload (SFTP): a camera login can now delete single photos inside its own Incoming folder, so a tethering app can remove a rejected shot from the server. Folders and anything outside the login's folder stay protected, downloads stay off, and each delete is logged. A deleted photo is kept in a hidden `.deleted` folder inside that camera's folder for 7 days before it is removed for good, so a mistake or a leaked camera password can't destroy photos. Leftover partial uploads older than a day are now cleaned up hourly as well.
 
 ## [0.2.0-beta.2] - 2026-11-10
 

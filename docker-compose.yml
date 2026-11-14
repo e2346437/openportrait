@@ -3,7 +3,8 @@
 # then open http://<this-machine>:8080 and follow the setup screen.
 services:
   openportrait:
-    image: ghcr.io/e2346437/openportrait:latest
+    # Pinned to the beta build. Move to a release tag (or latest) when v0.2.0 ships.
+    image: ghcr.io/e2346437/openportrait:0.2.0-beta.2
     container_name: openportrait
     restart: unless-stopped
     # Hardened by default: no extra privileges, a read-only root filesystem, and only the four capabilities the

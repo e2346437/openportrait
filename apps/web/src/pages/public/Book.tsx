@@ -40,7 +40,7 @@ interface OrderPay {
   pay: { name: string; dueCents: number } | null;
 }
 
-/** Right after a paid booking: pay the deposit (or the whole amount) through the studio's online checkout, or see how else to pay. */
+/** Right after a paid booking: pay the retainer (or the whole amount) through the studio's online checkout, or see how else to pay. */
 function DepositStep({ made }: { made: NonNullable<Made["invoice"]> }) {
   const order = useLoad<OrderPay>(`/order/${encodeURIComponent(made.token)}`, { api: publicApi });
   const go = useSubmit(async () => {
@@ -56,14 +56,14 @@ function DepositStep({ made }: { made: NonNullable<Made["invoice"]> }) {
       {made.contractUrl ? (
         <>
           <h2>Sign your agreement</h2>
-          <p className="muted">Please sign first. We've also emailed you the link. Then you can pay {split ? "your deposit" : "online"}.</p>
+          <p className="muted">Please sign first. We've also emailed you the link. Then you can pay {split ? "your retainer" : "online"}.</p>
           <div className="form-actions"><a className="btn primary lg" href={made.contractUrl}>Review and sign</a></div>
         </>
       ) : null}
-      <h2>{split ? "Pay your deposit" : "Pay for your session"}</h2>
+      <h2>{split ? "Pay your retainer" : "Pay for your session"}</h2>
       {go.error ? <Callout tone="bad">{go.error}</Callout> : null}
       <p className="muted">
-        {split ? `A ${m(made.depositCents)} deposit holds your time. The remaining ${m(made.totalCents - made.depositCents)} is due on the day.` : `The total is ${m(made.totalCents)}.`}
+        {split ? `A ${m(made.depositCents)} retainer holds your time. The remaining ${m(made.totalCents - made.depositCents)} is due on the day.` : `The total is ${m(made.totalCents)}.`}
       </p>
       <div className="form-actions">
         {order.loading ? (
@@ -173,7 +173,7 @@ export function BookPage() {
             {page.price ? (
               <li>
                 <Icon name="receipt" width={16} height={16} /> {formatMoney(page.price.totalCents, page.price.currency)}
-                {page.price.depositCents > 0 && page.price.depositCents < page.price.totalCents ? `, ${formatMoney(page.price.depositCents, page.price.currency)} deposit` : ""}
+                {page.price.depositCents > 0 && page.price.depositCents < page.price.totalCents ? `, ${formatMoney(page.price.depositCents, page.price.currency)} retainer` : ""}
               </li>
             ) : null}
           </ul>
@@ -259,7 +259,7 @@ export function BookPage() {
                     {price.couponCents ? <div><dt>Coupon {price.couponCode}</dt><dd>−{formatMoney(price.couponCents, price.currency)}</dd></div> : null}
                     {price.taxCents ? <div><dt>Tax</dt><dd>{formatMoney(price.taxCents, price.currency)}</dd></div> : null}
                     <div className="grand"><dt>Total</dt><dd>{formatMoney(price.totalCents, price.currency)}</dd></div>
-                    {price.depositCents > 0 && price.depositCents < price.totalCents ? <div><dt>Deposit, due after booking</dt><dd>{formatMoney(price.depositCents, price.currency)}</dd></div> : null}
+                    {price.depositCents > 0 && price.depositCents < price.totalCents ? <div><dt>Retainer, due after booking</dt><dd>{formatMoney(price.depositCents, price.currency)}</dd></div> : null}
                   </dl>
                   <div className="coupon-row">
                     <Field label="Have a coupon?" error={check.error ?? undefined} hint={couponNote ?? undefined}>

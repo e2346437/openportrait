@@ -12,7 +12,7 @@ interface Panel {
   subject: string;
   message: string;
   link: string;
-  sent: Array<{ id: string; to: string; subject: string; kind: string; status: "queued" | "sent" | "failed"; error: string | null; createdAt: number }>;
+  sent: Array<{ id: string; to: string; subject: string; kind: string; status: "queued" | "sending" | "sent" | "failed" | "unconfirmed"; error: string | null; createdAt: number }>;
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -145,7 +145,7 @@ export function EmailDialog({ open, onClose, galleryId }: { open: boolean; onClo
                   {m.error ? <span className="err"> {m.error}</span> : null}
                 </span>
                 <span className="when">{timeAgo(m.createdAt)}</span>
-                <StatusChip tone={m.status === "sent" ? "ok" : m.status === "failed" ? "bad" : "info"}>{m.status === "sent" ? "Sent" : m.status === "failed" ? "Failed" : "Sending"}</StatusChip>
+                <StatusChip tone={m.status === "sent" ? "ok" : m.status === "failed" ? "bad" : m.status === "unconfirmed" ? "warn" : "info"}>{m.status === "sent" ? "Sent" : m.status === "failed" ? "Failed" : m.status === "unconfirmed" ? "Check Sent folder" : "Sending"}</StatusChip>
               </li>
             ))}
           </ul>

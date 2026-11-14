@@ -114,7 +114,7 @@ export const orderLine = sqliteTable(
   (t) => [index("order_line_order_idx").on(t.orderId, t.position)],
 );
 
-/** When money is due: a deposit, a balance. The amounts add up to the order total. Payments settle them in order. */
+/** When money is due: a retainer, a balance. The amounts add up to the order total. Payments settle them in order. */
 export const paymentSchedule = sqliteTable(
   "payment_schedule",
   {

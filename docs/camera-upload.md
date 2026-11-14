@@ -45,7 +45,7 @@ Choose **Add a camera**, name it (for example "Nikon Z9"), and copy the values s
 | Password | The generated password. It is shown once. Use **New password** if you lose it. |
 | Destination folder | Leave empty, or enter `/` |
 
-Each camera has its own login. It can only see its own folder inside Incoming (for example `Incoming/Nikon Z9/`), it can send files, make folders and list them, and it **can't download or delete** anything, so a lost camera card or a leaked password can't be used to take photos out. Remove a login or pick **Disable** to lock a camera out immediately.
+Each camera has its own login. It can only see its own folder inside Incoming (for example `Incoming/Nikon Z9/`), it can send files, make folders and list them, and it **can't download** anything, so a lost camera card or a leaked password can't be used to take photos out. Over SFTP a login can delete single photos in its own folder (this is how a tethering app removes a shot you reject). It can't remove folders or touch anything outside its own folder, and each delete is written to the server log. Remove a login or pick **Disable** to lock a camera out immediately.
 
 By default each photo is filed into a folder for the day, such as `Incoming/Nikon Z9/2026-11-14/DSC_0001.NEF`. Turn that off in the same screen if you'd rather keep everything flat. Files arrive under a hidden temporary name and are renamed when the whole photo has arrived, so nothing sees a half-sent file.
 

@@ -277,6 +277,22 @@
         "ZAP: Private IP Disclosure"
       ],
       "needsApproval": "none"
+    },
+    {
+      "id": "SEC-018",
+      "title": "Client order and invoice links must stay unguessable and throttled (regression guard)",
+      "severity": "Informational",
+      "status": "fixed",
+      "confirmed": false,
+      "deployments": [
+        "all deployments"
+      ],
+      "cvss4": "n/a (regression guard)",
+      "tests": [
+        "apps/server/test/security/findings.test.ts#SEC-018"
+      ],
+      "note": "No weakness was found. These tests lock in what the code does today: 192-bit random tokens from both order-creating paths, no reuse, and a per-address limit on guessing /api/public/order links. Renumbered from SEC-016, which is the session-controls finding.",
+      "needsApproval": "none"
     }
   ]
 }

@@ -278,6 +278,38 @@
         "ZAP: Private IP Disclosure"
       ],
       "needsApproval": "none"
+    },
+    {
+      "id": "SEC-018",
+      "title": "Client order and invoice links must stay unguessable and throttled (regression guard)",
+      "severity": "Informational",
+      "status": "fixed",
+      "confirmed": false,
+      "deployments": [
+        "all deployments"
+      ],
+      "cvss4": "n/a (regression guard)",
+      "tests": [
+        "apps/server/test/security/findings.test.ts#SEC-018"
+      ],
+      "note": "No weakness was found. These tests lock in what the code does today: 192-bit random tokens from both order-creating paths, no reuse, and a per-address limit on guessing /api/public/order links. Renumbered from SEC-016, which is the session-controls finding.",
+      "needsApproval": "none"
+    },
+    {
+      "id": "SEC-019",
+      "title": "Formatted-text cleaning must keep blocking script and active content (regression guard)",
+      "severity": "Informational",
+      "status": "fixed",
+      "confirmed": false,
+      "deployments": [
+        "all deployments"
+      ],
+      "cvss4": "n/a (regression guard)",
+      "tests": [
+        "apps/server/test/security/richtext.test.ts"
+      ],
+      "note": "No weakness was found. Payloads modelled on published sanitize-html bypasses and common XSS vectors are run through every cleaning path (sanitizeRich, cleanRich, safeRich). The app's tag allowlist never permits the affected tags, so these also pass on sanitize-html 2.17.0; the tests guard the allowlist and future library changes. Renumbered from SEC-017, which is the private-address finding.",
+      "needsApproval": "none"
     }
   ]
 }

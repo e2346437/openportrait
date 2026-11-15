@@ -41,7 +41,7 @@ for (const file of walk(path.join(server, "routes"))) {
     const local = match[2];
     const effectivePrefix = prefixes.get(activeExport) ?? prefix ?? galleryPrefix;
     const full = isAbsolute ? local : effectivePrefix === null || effectivePrefix === undefined ? null : effectivePrefix.replace(/\/$/, "") + (local.startsWith("/") ? local : "/" + local);
-    operations.push({ id: "HTTP:" + rel(file) + ":" + (i + 1), method: match[1].toUpperCase(), local_path: local, full_path: full, source: rel(file), line: i + 1, source_sha256: sha(source), prefix_status: prefix === null ? "unresolved" : "resolved", status: "source-declared-unverified" });
+    operations.push({ id: "HTTP:" + rel(file) + ":" + (i + 1), method: match[1].toUpperCase(), local_path: local, full_path: full, source: rel(file), line: i + 1, source_sha256: sha(source), prefix_status: full === null ? "unresolved" : "resolved", status: "source-declared-unverified" });
   }
   if (source.includes("app.route(")) warnings.push(rel(file) + ": app.route requires separate inspection");
 }

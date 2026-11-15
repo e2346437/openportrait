@@ -268,7 +268,22 @@ if (SFTP_PORT) {
   const put = (name, data) => new Promise((res) => { const w = s.createWriteStream(name); w.on("close", () => res("ok")); w.on("error", (e) => res("ERR " + e.message)); w.end(data); });
   await put("/d/good.jpg", "ORIGINAL");
   await put("/d/junk.jpg", "JUNK");
-  await control("SFTP-1", "a camera login cannot read, list parents of, or delete files", async () => (await call(s.readFile, "/d/good.jpg")).e && (await call(s.unlink, "/d/good.jpg")).e);
+  await put("/d/mine.jpg", "MINE");
+  // Camera logins may delete single photos in their own folder (they go to a hidden 7-day trash), but still cannot
+  // read anything back or remove folders. These controls answer strictly: only a real true passes.
+  await control("SFTP-1", "a camera login cannot read files back or remove folders", async () => {
+    const read = await call(s.readFile, "/d/good.jpg");
+    const rmdir = await call(s.rmdir, "/d");
+    return Boolean(read.e) && Boolean(rmdir.e);
+  });
+  await control("SFTP-3", "a camera login can delete only its own photos; they leave the listing and the trash is out of reach", async () => {
+    const outside = await call(s.unlink, "/../../outside.jpg");
+    const own = await call(s.unlink, "/d/mine.jpg");
+    const trash = await call(s.readdir, "/.deleted");
+    const listed = await call(s.readdir, "/d");
+    const names = Array.isArray(listed.r) ? listed.r.map((x) => x.filename) : [];
+    return Boolean(outside.e) && !own.e && Boolean(trash.e) && !names.includes("mine.jpg") && names.includes("good.jpg");
+  });
   await control("SFTP-2", "path traversal stays inside the camera's own folder", async () => {
     await put("/../../escape.txt", "x");
     const root = process.env.OP_A_INCOMING;

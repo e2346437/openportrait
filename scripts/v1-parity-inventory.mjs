@@ -50,8 +50,10 @@ const inventory = { schema_version: "0.1.0", generated_by: "scripts/v1-parity-in
 if (process.argv.includes("--check")) {
   // A baseline floor catches accidental mass omission; a committed snapshot is checked separately when present.
   const failures = [];
-  if (operations.length < 170) failures.push("HTTP inventory unexpectedly below 170 declarations");
-  if (uiRoutes.length < 58) failures.push("UI inventory unexpectedly below 58 routes");
+  if (operations.length < 319) failures.push("HTTP inventory unexpectedly below 319 declarations");
+  if (uiRoutes.length < 59) failures.push("UI inventory unexpectedly below 59 routes");
+  const unresolved = operations.filter(x=>x.full_path === null);
+  if (unresolved.length > 37) failures.push("More unresolved route prefixes than the reviewed 37-route baseline");
   const keys = new Set(operations.map(x=>x.method+" "+x.full_path));
   for (const expected of ["POST /api/studio/auth/login","POST /api/studio/orders/:id/refunds","POST /api/public/contract/:token/sign","POST /api/public/order/:token/pay","POST /api/studio/backups/restore/confirm"]) {
     if (!keys.has(expected)) failures.push("Missing high-risk route: "+expected);

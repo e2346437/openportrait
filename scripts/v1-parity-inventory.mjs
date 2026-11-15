@@ -33,7 +33,7 @@ for (const file of walk(path.join(server, "routes"))) {
   let activeExport = null;
   const lines = source.split("\n");
   for (let i = 0; i < lines.length; i++) {
-    const fn = lines[i].match(/export\\s+(?:async\\s+)?function\\s+(\\w+)\\s*\\(/);
+    const fn = lines[i].match(/export\s+(?:async\s+)?function\s+(\w+)\s*\(/);
     if (fn) activeExport = fn[1];
     // Supports app.get<FastifyType>(...) and app.get(...). It does not parse aliases or app.route.
     const match = lines[i].match(/\bapp\.(get|post|put|patch|delete|head|options)\s*(?:<.*?>)?\s*\(\s*["'`]([^"'`]+)["'`]/);

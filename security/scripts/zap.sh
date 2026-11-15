@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT="$(cd "${OUT:-security/reports}" 2>/dev/null && pwd || (mkdir -p security/reports && cd security/reports && pwd))"
 IMAGE="${IMAGE:?set IMAGE to the image to scan}"
-ZAP_IMAGE="${ZAP_IMAGE:-zaproxy/zap-stable}"
+ZAP_IMAGE="${ZAP_IMAGE:-zaproxy/zap-stable:20261008@sha256:7aaa659b0d43078febd82e29bad112285c370727e86ab8340444220e17d9f0d2}"
 RUN="op-zap-$$"; WORK="$(mktemp -d)"
 cleanup() { docker rm -f "$RUN-app" "$RUN-zap" >/dev/null 2>&1 || true; docker network rm "$RUN" >/dev/null 2>&1 || true; rm -rf "$WORK" 2>/dev/null || true; }
 trap cleanup EXIT
@@ -28,3 +28,4 @@ docker run --name "$RUN-zap" --network "$RUN" -v "$WORK/wrk:/zap/wrk:rw" -e TARG
   "$ZAP_IMAGE" zap.sh -cmd -silent -autorun /zap/wrk/plan.yaml || true
 cp "$WORK/wrk/zap.json" "$OUT/zap.json" 2>/dev/null && echo "wrote $OUT/zap.json" || echo "ZAP produced no report"
 cp "$WORK/wrk/zap.html" "$OUT/zap.html" 2>/dev/null || true
+

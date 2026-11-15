@@ -13,7 +13,7 @@ import { backupRoutes } from "./routes/backups.js";
 import { applyPendingRestore, RestoreService } from "./restore.js";
 import { logRoutes } from "./routes/logs.js";
 import { createLogStream } from "./logs.js";
-import { clientIp } from "./client-ip.js";
+import { clientIp, requestIsHttps } from "./client-ip.js";
 import { crossSiteBlocked, rejectCrossSite } from "./csrf.js";
 import { Secrets } from "./secrets.js";
 import { Settings } from "./settings.js";
@@ -246,7 +246,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     reply.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
     // HSTS only over HTTPS (a plain-HTTP response can't set it) and never for subdomains: the studio often shares its
     // parent domain with other sites.
-    if (req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" || typeof req.headers["cf-ray"] === "string") reply.header("Strict-Transport-Security", "max-age=15552000");
+    if (requestIsHttps(req)) reply.header("Strict-Transport-Security", "max-age=15552000");
     reply.header("X-Content-Type-Options", "nosniff");
     reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
     reply.header("X-Frame-Options", "SAMEORIGIN");
@@ -376,3 +376,4 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
 }
 
 export { lanAddresses } from "./lan.js";
+

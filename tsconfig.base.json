@@ -11,6 +11,7 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
     "declaration": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "types": ["node"]
   }
 }

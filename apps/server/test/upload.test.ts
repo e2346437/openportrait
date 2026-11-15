@@ -9,7 +9,7 @@ import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "@openportrait/config";
 import { buildApp } from "../src/app.js";
-import { cleanVirtual, jailPath, landingVirtual, sweepStaleUploads } from "../src/upload/files.js";
+import { TRASH_DIR, cleanVirtual, isTrashPath, jailPath, landingVirtual, moveToTrash, sweepStaleUploads, sweepTrash } from "../src/upload/files.js";
 import { generatePassword, normalizePublicKey, usernameFromLabel } from "../src/upload/accounts.js";
 import { loadHostKey } from "../src/upload/sftp.js";
 import { isRoutineDisconnect } from "../src/upload/ftp.js";
@@ -125,6 +125,32 @@ describe("files", () => {
     expect(landingVirtual("/Sub/DSC_1.NEF", { sortByDay: true, today: "2026-11-14" })).toBe("/Sub/DSC_1.NEF");
     expect(landingVirtual("/DSC_1.NEF", { sortByDay: false, today: "2026-11-14" })).toBe("/DSC_1.NEF");
   });
+  it("moves deleted photos to a trash, keeps them 7 days, then removes them and their empty folders", () => {
+    const login = path.join(root, "Cam A");
+    fs.mkdirSync(path.join(login, "2026-11-14"), { recursive: true });
+    const a = path.join(login, "2026-11-14", "a.jpg");
+    fs.writeFileSync(a, "1");
+    const now = Date.now();
+    const kept = moveToTrash(login, a, now);
+    expect(kept).toBe(path.join(login, TRASH_DIR, "2026-11-14", "a.jpg"));
+    expect(fs.existsSync(a)).toBe(false);
+    // A second photo with the same name doesn't replace the first one in the trash.
+    fs.writeFileSync(a, "2");
+    const kept2 = moveToTrash(login, a, now + 1);
+    expect(kept2).not.toBe(kept);
+    expect(fs.readFileSync(kept, "utf8")).toBe("1");
+    expect(() => moveToTrash(login, path.join(root, "other.jpg"), now)).toThrow();
+    expect(isTrashPath(`/${TRASH_DIR}/x.jpg`)).toBe(true);
+    expect(isTrashPath(`/a/../${TRASH_DIR}`)).toBe(true);
+    expect(isTrashPath("/2026-11-14/a.jpg")).toBe(false);
+    // Kept for 7 days, counted from the delete, not from when the photo was taken.
+    fs.writeFileSync(path.join(login, "live.jpg"), "x");
+    expect(sweepTrash(root, undefined, now + 6 * 86_400_000)).toBe(0);
+    expect(fs.existsSync(kept)).toBe(true);
+    expect(sweepTrash(root, undefined, now + 8 * 86_400_000)).toBe(2);
+    expect(fs.existsSync(path.join(login, TRASH_DIR, "2026-11-14"))).toBe(false);
+    expect(fs.existsSync(path.join(login, "live.jpg"))).toBe(true);
+  });
   it("sweeps old partial uploads but not new ones or real photos", () => {
     const old = path.join(root, ".a.jpg.1234.uploading");
     const fresh = path.join(root, ".b.jpg.1234.uploading");
@@ -229,7 +255,7 @@ describe("upload servers", () => {
     expect(actions).toEqual(expect.arrayContaining(["upload.opened", "upload.closed"]));
   });
 
-  it("rejects a wrong password, blocks repeated guessing, and can't read, delete or escape", { timeout: 20000 }, async () => {
+  it("rejects a wrong password, blocks repeated guessing, and can't read or escape, and deletes only its own photos", { timeout: 20000 }, async () => {
     const cam = await addCamera("Canon R5");
     await app.inject({ method: "POST", url: "/api/studio/upload/open", headers: { cookie }, payload: { minutes: 30 } });
     await expect(sftpConnect(cam.username, "wrong-password")).rejects.toThrow();
@@ -242,8 +268,29 @@ describe("upload servers", () => {
     expect(fs.existsSync(path.join(incoming, cam.folder, new Date().toISOString().slice(0, 10), "escape.jpg"))).toBe(true);
     const day = new Date().toISOString().slice(0, 10);
     await expect(new Promise((res, rej) => sftp.readFile(`/${day}/x.jpg`, (e, d) => (e ? rej(e) : res(d))))).rejects.toThrow();
-    await expect(new Promise((res, rej) => sftp.unlink(`/${day}/x.jpg`, (e) => (e ? rej(e) : res(null))))).rejects.toThrow();
-    expect(fs.existsSync(path.join(incoming, cam.folder, day, "x.jpg"))).toBe(true);
+    // Folders can't be removed, and neither can anything outside the login's own folder.
+    const unlink = (p: string) => new Promise((res, rej) => sftp.unlink(p, (e) => (e ? rej(e) : res(null))));
+    await expect(new Promise((res, rej) => sftp.rmdir(`/${day}`, (e) => (e ? rej(e) : res(null))))).rejects.toThrow();
+    await expect(unlink(`/${day}`)).rejects.toThrow();
+    fs.writeFileSync(path.join(incoming, "other.jpg"), "o");
+    await expect(unlink("/../other.jpg")).rejects.toThrow();
+    expect(fs.existsSync(path.join(incoming, "other.jpg"))).toBe(true);
+    await expect(unlink("/nothing.jpg")).rejects.toThrow();
+    // A login can delete a single photo it sent: by its full path, or by the bare name it uploaded it under.
+    await unlink(`/${day}/x.jpg`);
+    expect(fs.existsSync(path.join(incoming, cam.folder, day, "x.jpg"))).toBe(false);
+    await unlink("/escape.jpg");
+    expect(fs.existsSync(path.join(incoming, cam.folder, day, "escape.jpg"))).toBe(false);
+    // Deleted photos are kept in a hidden trash the login can't list, read into, write into or delete from.
+    const trashed = path.join(incoming, cam.folder, TRASH_DIR, day, "x.jpg");
+    expect(fs.existsSync(trashed)).toBe(true);
+    expect(fs.existsSync(path.join(incoming, cam.folder, TRASH_DIR, day, "escape.jpg"))).toBe(true);
+    const names = await new Promise<string[]>((res, rej) => sftp.readdir("/", (e, list) => (e ? rej(e) : res(list.map((i) => i.filename)))));
+    expect(names).not.toContain(TRASH_DIR);
+    await expect(unlink(`/${TRASH_DIR}/${day}/x.jpg`)).rejects.toThrow();
+    await expect(new Promise((res, rej) => sftp.readdir(`/${TRASH_DIR}`, (e, l) => (e ? rej(e) : res(l))))).rejects.toThrow();
+    await expect(sftpWrite(sftp, `/${TRASH_DIR}/planted.jpg`, Buffer.from("p"))).rejects.toThrow();
+    expect(fs.existsSync(trashed)).toBe(true);
     client.end();
 
     for (let i = 0; i < 7; i++) await sftpConnect(cam.username, "nope").catch(() => undefined);

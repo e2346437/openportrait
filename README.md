@@ -75,10 +75,10 @@ docker run -d --name openportrait --restart unless-stopped \
   -v "$PWD/galleries":/galleries \
   -v "$PWD/incoming":/incoming \
   -v "$PWD/cache":/cache \
-  ghcr.io/e2346437/openportrait:0.2.0-beta.1
+  ghcr.io/e2346437/openportrait:0.2.0-beta.2
 ```
 
-Use the newest version number from the [Releases page](https://github.com/e2346437/openportrait/releases) instead of `0.2.0-beta.1`. The tag is pinned on purpose: you choose when to update, and `latest` can change under you. The extra flags drop privileges the app does not need; [why and what each does](docs/install-docker.md#docker-run).
+Use the newest version number from the [Releases page](https://github.com/e2346437/openportrait/releases) instead of `0.2.0-beta.2`. The tag is pinned on purpose: you choose when to update, and `latest` can change under you. The extra flags drop privileges the app does not need; [why and what each does](docs/install-docker.md#docker-run).
 
 Then open `http://localhost:8080` and follow the setup screen.
 

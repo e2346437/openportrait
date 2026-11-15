@@ -229,7 +229,7 @@ describe("upload servers", () => {
     expect(actions).toEqual(expect.arrayContaining(["upload.opened", "upload.closed"]));
   });
 
-  it("rejects a wrong password, blocks repeated guessing, and can't read, delete or escape", { timeout: 20000 }, async () => {
+  it("rejects a wrong password, blocks repeated guessing, and can't read or escape, and deletes only its own photos", { timeout: 20000 }, async () => {
     const cam = await addCamera("Canon R5");
     await app.inject({ method: "POST", url: "/api/studio/upload/open", headers: { cookie }, payload: { minutes: 30 } });
     await expect(sftpConnect(cam.username, "wrong-password")).rejects.toThrow();
@@ -242,8 +242,19 @@ describe("upload servers", () => {
     expect(fs.existsSync(path.join(incoming, cam.folder, new Date().toISOString().slice(0, 10), "escape.jpg"))).toBe(true);
     const day = new Date().toISOString().slice(0, 10);
     await expect(new Promise((res, rej) => sftp.readFile(`/${day}/x.jpg`, (e, d) => (e ? rej(e) : res(d))))).rejects.toThrow();
-    await expect(new Promise((res, rej) => sftp.unlink(`/${day}/x.jpg`, (e) => (e ? rej(e) : res(null))))).rejects.toThrow();
-    expect(fs.existsSync(path.join(incoming, cam.folder, day, "x.jpg"))).toBe(true);
+    // Folders can't be removed, and neither can anything outside the login's own folder.
+    const unlink = (p: string) => new Promise((res, rej) => sftp.unlink(p, (e) => (e ? rej(e) : res(null))));
+    await expect(new Promise((res, rej) => sftp.rmdir(`/${day}`, (e) => (e ? rej(e) : res(null))))).rejects.toThrow();
+    await expect(unlink(`/${day}`)).rejects.toThrow();
+    fs.writeFileSync(path.join(incoming, "other.jpg"), "o");
+    await expect(unlink("/../other.jpg")).rejects.toThrow();
+    expect(fs.existsSync(path.join(incoming, "other.jpg"))).toBe(true);
+    await expect(unlink("/nothing.jpg")).rejects.toThrow();
+    // A login can delete a single photo it sent: by its full path, or by the bare name it uploaded it under.
+    await unlink(`/${day}/x.jpg`);
+    expect(fs.existsSync(path.join(incoming, cam.folder, day, "x.jpg"))).toBe(false);
+    await unlink("/escape.jpg");
+    expect(fs.existsSync(path.join(incoming, cam.folder, day, "escape.jpg"))).toBe(false);
     client.end();
 
     for (let i = 0; i < 7; i++) await sftpConnect(cam.username, "nope").catch(() => undefined);

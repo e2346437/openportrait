@@ -118,10 +118,10 @@ describe("SEC-005 guessing gallery links", () => {
   });
 });
 
-describe("SEC-016 client order and invoice links", () => {
+describe("SEC-018 client order and invoice links", () => {
   const staff = async (method: "POST", url: string, payload: unknown = {}) => json(await d.app.inject({ method, url: `/api/studio${url}`, payload: payload as object, headers: hdr() }));
 
-  control("SEC-016", "order links carry at least 128 bits of entropy and are never reused", async () => {
+  control("SEC-018", "order links carry at least 128 bits of entropy and are never reused", async () => {
     // Measure real links made through the staff API rather than assume how they are generated.
     const contact = await staff("POST", "/contacts", { firstName: "Link", lastName: "Check", email: "link-check@audit.invalid" });
     const tokens: string[] = [];
@@ -144,7 +144,7 @@ describe("SEC-016 client order and invoice links", () => {
     expect((await d.app.inject({ method: "GET", url: `/api/public/order/${near}`, remoteAddress: "198.51.100.40" })).statusCode).toBe(404);
   });
 
-  control("SEC-016b", "a visitor address that keeps guessing order links is throttled; other visitors are not", async () => {
+  control("SEC-018b", "a visitor address that keeps guessing order links is throttled; other visitors are not", async () => {
     const codes: number[] = [];
     for (let i = 0; i < 70; i++) codes.push((await d.app.inject({ method: "GET", url: `/api/public/order/guess-${i}`, remoteAddress: "198.51.100.41" })).statusCode);
     expect(codes.slice(0, 60).every((c) => c === 404)).toBe(true);
@@ -152,7 +152,7 @@ describe("SEC-016 client order and invoice links", () => {
     expect((await d.app.inject({ method: "GET", url: "/api/public/order/guess-x", remoteAddress: "198.51.100.42" })).statusCode).toBe(404);
   });
 
-  control("SEC-016c", "both code paths that create orders use the same strong generator", () => {
+  control("SEC-018c", "both code paths that create orders use the same strong generator", () => {
     // The importer writes orders directly; guard it so it can't drift to a weaker token than the API path.
     const src = (f: string) => fs.readFileSync(path.join(import.meta.dirname, "../../src", f), "utf8");
     const strong = /token:\s*crypto\.randomBytes\((\d+)\)\.toString\("base64url"\)/;

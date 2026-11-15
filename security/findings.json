@@ -251,13 +251,14 @@
       "id": "SEC-016",
       "title": "No second factor, no idle timeout, 30-day sessions (OWASP ASVS L2 gap)",
       "severity": "Low",
-      "status": "open",
+      "status": "mitigated",
       "confirmed": true,
       "cvss4": "n/a (missing control)",
       "tests": [
-        "apps/server/test/mfa.test.ts"
+        "apps/server/test/mfa.test.ts",
+        "apps/server/test/security/session-lifetime.test.ts"
       ],
-      "note": "Authenticator-app (TOTP) sign-in with recovery codes is implemented and tested. Still open: passkeys and an idle timeout.",
+      "note": "Authenticator-app (TOTP) sign-in with recovery codes is implemented and tested. A session now expires after 24 hours without use (renewed by use), retested 2026-11-15 from a real sign-in on both sides of the boundary and on a protected route. The absolute limit stays 30 days. Still open: passkeys.",
       "needsApproval": "authentication feature",
       "deployments": [
         "all deployments"

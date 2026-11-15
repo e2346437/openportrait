@@ -30,13 +30,16 @@ for (const file of walk(path.join(server, "routes"))) {
   const prefix = registered.length === 1 ? prefixes.get(registered[0]) : null;
   const isAbsolute = exported.includes("brandingRoutes");
   const galleryPrefix = exported.includes("galleryRoutes") ? prefixes.get("galleryRoutes") : null;
+  let activeExport = null;
   const lines = source.split("\n");
   for (let i = 0; i < lines.length; i++) {
+    const fn = lines[i].match(/export\\s+(?:async\\s+)?function\\s+(\\w+)\\s*\\(/);
+    if (fn) activeExport = fn[1];
     // Supports app.get<FastifyType>(...) and app.get(...). It does not parse aliases or app.route.
     const match = lines[i].match(/\bapp\.(get|post|put|patch|delete|head|options)\s*(?:<.*?>)?\s*\(\s*["'`]([^"'`]+)["'`]/);
     if (!match) continue;
     const local = match[2];
-    const effectivePrefix = prefix ?? galleryPrefix;
+    const effectivePrefix = prefixes.get(activeExport) ?? prefix ?? galleryPrefix;
     const full = isAbsolute ? local : effectivePrefix === null || effectivePrefix === undefined ? null : effectivePrefix.replace(/\/$/, "") + (local.startsWith("/") ? local : "/" + local);
     operations.push({ id: "HTTP:" + rel(file) + ":" + (i + 1), method: match[1].toUpperCase(), local_path: local, full_path: full, source: rel(file), line: i + 1, source_sha256: sha(source), prefix_status: prefix === null ? "unresolved" : "resolved", status: "source-declared-unverified" });
   }

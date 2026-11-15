@@ -28,13 +28,16 @@ for (const file of walk(path.join(server, "routes"))) {
   const exported = [...source.matchAll(/export\s+(?:async\s+)?function\s+(\w+)\s*\(/g)].map((m) => m[1]);
   const registered = exported.filter((n) => prefixes.has(n));
   const prefix = registered.length === 1 ? prefixes.get(registered[0]) : null;
+  const isAbsolute = exported.includes("brandingRoutes");
+  const galleryPrefix = exported.includes("galleryRoutes") ? prefixes.get("galleryRoutes") : null;
   const lines = source.split("\n");
   for (let i = 0; i < lines.length; i++) {
     // Supports app.get<FastifyType>(...) and app.get(...). It does not parse aliases or app.route.
     const match = lines[i].match(/\bapp\.(get|post|put|patch|delete|head|options)\s*(?:<.*?>)?\s*\(\s*["'`]([^"'`]+)["'`]/);
     if (!match) continue;
     const local = match[2];
-    const full = prefix === null ? null : prefix.replace(/\/$/, "") + (local.startsWith("/") ? local : "/" + local);
+    const effectivePrefix = prefix ?? galleryPrefix;
+    const full = isAbsolute ? local : effectivePrefix === null || effectivePrefix === undefined ? null : effectivePrefix.replace(/\/$/, "") + (local.startsWith("/") ? local : "/" + local);
     operations.push({ id: "HTTP:" + rel(file) + ":" + (i + 1), method: match[1].toUpperCase(), local_path: local, full_path: full, source: rel(file), line: i + 1, source_sha256: sha(source), prefix_status: prefix === null ? "unresolved" : "resolved", status: "source-declared-unverified" });
   }
   if (source.includes("app.route(")) warnings.push(rel(file) + ": app.route requires separate inspection");
@@ -50,10 +53,10 @@ const inventory = { schema_version: "0.1.0", generated_by: "scripts/v1-parity-in
 if (process.argv.includes("--check")) {
   // A baseline floor catches accidental mass omission; a committed snapshot is checked separately when present.
   const failures = [];
-  if (operations.length < 319) failures.push("HTTP inventory unexpectedly below 319 declarations");
-  if (uiRoutes.length < 59) failures.push("UI inventory unexpectedly below 59 routes");
+  if (operations.length !== 319) failures.push("HTTP inventory count drifted from reviewed 319 declarations");
+  if (uiRoutes.length !== 59) failures.push("UI inventory count drifted from reviewed 59 routes");
   const unresolved = operations.filter(x=>x.full_path === null);
-  if (unresolved.length > 37) failures.push("More unresolved route prefixes than the reviewed 37-route baseline");
+  if (unresolved.length !== 0) failures.push("Unresolved route prefixes: " + unresolved.length);
   const keys = new Set(operations.map(x=>x.method+" "+x.full_path));
   for (const expected of ["POST /api/studio/auth/login","POST /api/studio/orders/:id/refunds","POST /api/public/contract/:token/sign","POST /api/public/order/:token/pay","POST /api/studio/backups/restore/confirm"]) {
     if (!keys.has(expected)) failures.push("Missing high-risk route: "+expected);

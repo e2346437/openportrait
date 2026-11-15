@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ssh2, { type Connection, type Server as SshServer, type SFTPWrapper } from "ssh2";
 import type { CameraLogin } from "./accounts.js";
-import { IncomingFile, jailPath, landingVirtual, moveWithoutOverwrite } from "./files.js";
+import { IncomingFile, cleanVirtual, jailPath, landingVirtual, moveWithoutOverwrite } from "./files.js";
 import type { ProtocolServer, ServerHooks } from "./types.js";
 
 const { Server, utils } = ssh2;
@@ -46,10 +46,50 @@ function longname(name: string, st: fs.Stats): string {
   return `${type}rwxr-xr-x 1 camera camera ${String(st.size).padStart(12)} ${when} ${name}`;
 }
 
+const DAY_FOLDER = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
- * An upload-only SFTP server. Each login is confined to its own folder in Incoming. Cameras can send files, make
- * folders and list what's there, but can't download or delete, so a stolen camera password can't be used to take
- * photos out.
+ * Finds the file a login wants to delete. Returns its real path, `undefined` when there is no such file, or `null`
+ * when the request must be refused (outside the folder, a folder, a link, or an upload still in progress).
+ * A bare name such as "/DSC_0001.NEF" is also looked for in the day folders, newest first, because that is where
+ * the server filed it when it arrived.
+ */
+export function findOwnFile(root: string, virtual: string, land: { sortByDay: boolean; today: string }): string | null | undefined {
+  const v = cleanVirtual(virtual);
+  const name = path.posix.basename(v);
+  if (v === "/" || name.startsWith(".")) return null;
+  const candidates = [v];
+  if (path.posix.dirname(v) === "/") {
+    candidates.push(landingVirtual(v, { ...land, sortByDay: true }));
+    try {
+      const days = fs.readdirSync(root).filter((d) => DAY_FOLDER.test(d)).sort().reverse().slice(0, 14);
+      for (const d of days) candidates.push(`/${d}/${name}`);
+    } catch {
+      /* no folder yet */
+    }
+  }
+  for (const c of candidates) {
+    let full: string;
+    try {
+      full = jailPath(root, c);
+    } catch {
+      return null;
+    }
+    let st: fs.Stats;
+    try {
+      st = fs.lstatSync(full);
+    } catch {
+      continue;
+    }
+    return st.isFile() ? full : null;
+  }
+  return undefined;
+}
+
+/**
+ * The camera upload SFTP server. Each login is confined to its own folder in Incoming. Cameras can send files, make
+ * folders and list what's there, and delete single photos they sent, but can't download anything, so a stolen
+ * camera password can't be used to take photos out.
  */
 export class SftpServer implements ProtocolServer {
   private server: SshServer | null = null;
@@ -249,8 +289,20 @@ export class SftpServer implements ProtocolServer {
       // Never replaces a file that already exists (SEC-007).
       moveWithoutOverwrite(a, b, (err) => (err ? errStatus(reqid, err) : sftp.status(reqid, STATUS_CODE.OK)));
     });
-    // No deleting: a stolen camera password shouldn't be able to wipe the Incoming folder.
-    sftp.on("REMOVE", (reqid: number) => denied(reqid));
+    // A login may delete single photos it sent, inside its own folder (the tether app's "delete this shot"). Folders
+    // can't be removed and nothing outside the login's folder is reachable, so a stolen camera password can't reach
+    // other cameras' photos, shoots or galleries. Every delete is written to the log.
+    sftp.on("REMOVE", (reqid: number, p: string) => {
+      const full = findOwnFile(root, p, this.hooks.land());
+      if (full === null) return denied(reqid);
+      if (full === undefined) return sftp.status(reqid, STATUS_CODE.NO_SUCH_FILE);
+      fs.unlink(full, (err) => {
+        if (err) return errStatus(reqid, err);
+        this.hooks.onActivity();
+        this.hooks.log.info({ login: login.username, file: path.relative(root, full) }, "camera login deleted a photo");
+        sftp.status(reqid, STATUS_CODE.OK);
+      });
+    });
     sftp.on("RMDIR", (reqid: number) => denied(reqid));
     sftp.on("SYMLINK", (reqid: number) => denied(reqid));
     sftp.on("READLINK", (reqid: number) => denied(reqid));

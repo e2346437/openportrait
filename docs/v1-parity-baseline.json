@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "source": "GitHub Actions run 43669913255 artifact 14143981248 at commit 987a7c018d87b57a47f102872b00339f9c7d2aad",
+  "http_count": 319,
+  "ui_count": 59,
+  "unresolved_http": 0,
+  "signature_format": "SHA256(sorted HTTP method + space + full path, newline-joined, then newline--UI--newline, then sorted declared UI paths newline-joined)",
+  "signature_sha256": "2410f659bac051f58c821cb82faa12b2689e087c3da1bbfdbdaf2a57078be9e6",
+  "review_note": "Exact declared route signature only. Does not cover handler behavior, authorization, Pro extensions, dynamic endpoints, nested UI actions, or runtime route registration."
+}

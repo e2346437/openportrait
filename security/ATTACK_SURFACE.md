@@ -41,7 +41,7 @@ Content types the server parses: JSON (1 MB cap), form-encoded (OAuth token endp
 | Input | Becomes | Control |
 |---|---|---|
 | Photo upload (staff, resumable) | A file in a shoot folder | Extension allow-list; filename reduced to basename (tested GAL-4/5); 2 GB cap; **no quota** |
-| Camera upload (SFTP/FTP) | A file in `/incoming/<camera>/…` | Path jail with symlink check (tested SFTP-2); no read, no delete; **can overwrite** (SEC-007); **no quota** |
+| Camera upload (SFTP/FTP) | A file in `/incoming/<camera>/…` | Path jail with symlink check (tested SFTP-2); no read; SFTP may delete single photos in its own folder only, kept in a hidden 7-day trash it cannot reach (tested SFTP-3); **can overwrite** (SEC-007); **no quota** |
 | Files already on the share | Gallery photos | Extension allow-list; decoded by `sharp` with default pixel limit |
 | Logo upload | `/config/logo.png` | Re-encoded through `sharp` to PNG |
 | Tunnel token | Environment variable of the `cloudflared` child | Not on the command line, no shell |

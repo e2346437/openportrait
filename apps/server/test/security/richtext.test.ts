@@ -3,7 +3,7 @@ import { cleanRich, safeRich, sanitizeRich } from "../../src/domain/richtext.js"
 import { control } from "./harness.js";
 
 /**
- * SEC-017: formatted text (notes, contracts, quotes, questionnaires, inquiries, website copy) is cleaned
+ * SEC-019: formatted text (notes, contracts, quotes, questionnaires, inquiries, website copy) is cleaned
  * by `sanitizeRich` on the way in and again on the way out, then rendered as HTML. These payloads are
  * modelled on published sanitize-html bypasses and common XSS vectors. Every cleaning path must strip them.
  */
@@ -34,16 +34,16 @@ const paths: Array<[string, (s: string) => string]> = [
   ["sanitizeRich twice", (s) => sanitizeRich(sanitizeRich(s))],
 ];
 
-describe("SEC-017 rich-text cleaning blocks script and active content", () => {
+describe("SEC-019 rich-text cleaning blocks script and active content", () => {
   for (const [name, payload] of Object.entries(payloads)) {
-    control("SEC-017", name, () => {
+    control("SEC-019", name, () => {
       for (const [path, clean] of paths) expect(clean(payload), path).not.toMatch(dangerous);
     });
   }
 });
 
-describe("SEC-017b rich-text cleaning keeps ordinary formatting", () => {
-  // Guards against a "fix" that passes SEC-017 by stripping everything.
+describe("SEC-019b rich-text cleaning keeps ordinary formatting", () => {
+  // Guards against a "fix" that passes SEC-019 by stripping everything.
   it("keeps the allowed tags, alignment and safe links", () => {
     const input = `<h2 style="text-align:center">Title</h2><p>Some <strong>bold</strong>, <em>italic</em>, <u>under</u> and <s>struck</s> text.<br>Next line</p><ul><li>one</li></ul><ol><li>two</li></ol><blockquote>quote</blockquote><hr><p><a href="https://example.com">site</a> <a href="mailto:pat@example.com">mail</a></p>`;
     const out = sanitizeRich(input);
@@ -67,7 +67,7 @@ describe("SEC-017b rich-text cleaning keeps ordinary formatting", () => {
   });
 });
 
-describe("SEC-017c server and browser agree on what counts as formatted text", () => {
+describe("SEC-019c server and browser agree on what counts as formatted text", () => {
   // The server only cleans text it judges to be HTML; the browser only inserts as HTML what it judges to be HTML
   // (everything else is shown as plain text). If the two rules drifted, the browser could render markup the server
   // never cleaned.
@@ -76,7 +76,7 @@ describe("SEC-017c server and browser agree on what counts as formatted text", (
     "<script>alert(1)</script>", "<img src=x onerror=alert(1)>", "<svg onload=alert(1)>", "<pre>x</pre>", "<paragraph>", "<h7>x</h7>",
     "x <p>y</p>", "plain text", "", " ", " <p>x</p>", "﻿<p>x</p>", "<!-- c --><p>x</p>", "<P\nclass=a>", "<p/>", "<p\t>",
   ];
-  control("SEC-017c", "the server's and the browser's isHtml give the same answer for every sample", async () => {
+  control("SEC-019c", "the server's and the browser's isHtml give the same answer for every sample", async () => {
     const server = await import("../../src/domain/richtext.js");
     const web = await import("../../../web/src/lib/richtext.js");
     for (const s of samples) expect(web.isHtml(s), JSON.stringify(s)).toBe(server.isHtml(s));

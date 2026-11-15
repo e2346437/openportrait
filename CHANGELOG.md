@@ -7,6 +7,12 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 ### Changed
 - Camera upload (SFTP): a camera login can now delete single photos inside its own Incoming folder, so a tethering app can remove a rejected shot from the server. Folders and anything outside the login's folder stay protected, downloads stay off, and each delete is logged. A deleted photo is kept in a hidden `.deleted` folder inside that camera's folder for 7 days before it is removed for good, so a mistake or a leaked camera password can't destroy photos. Leftover partial uploads older than a day are now cleaned up hourly as well.
 
+### Security
+- Studio sign-ins now also expire after 24 hours without activity, in addition to the 30-day limit. Someone who has not used OpenPortrait for a day signs in again.
+- Session, gallery and Download-link cookies, and the HSTS header, now treat a request as HTTPS only when the connection itself is HTTPS or it comes from a trusted proxy (the built-in Cloudflare tunnel on this machine, or an address in `TRUSTED_PROXIES`). A reverse proxy running in a separate container needs its address in `TRUSTED_PROXIES` (see the install guide); without it, cookies lose the Secure flag and HSTS is not sent.
+- Optional: set `OPENPORTRAIT_EXTENSION_SHA256` to a comma-separated list of SHA-256 digests to load only approved add-on bundles. Unset, add-ons load as before. An empty or invalid list loads none.
+- Release checks: the image workflow builds one candidate, runs the scans, live security suite and ZAP against it, and publishes that exact image only after they pass. Workflow actions and scanner images are pinned, and the security gate now fails when scanner evidence is missing.
+
 ## [0.2.0-beta.2] - 2026-11-10
 
 Security patch build for the limited beta. Pin this tag; do not use `latest` during the beta.

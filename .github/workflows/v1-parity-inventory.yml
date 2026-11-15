@@ -13,4 +13,14 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-      - run: node scripts/v1-parity-inventory.mjs --check
+      - name: Verify critical routes and inventory baseline (if committed)
+        run: node scripts/v1-parity-inventory.mjs --check
+      - name: Generate complete current static inventory
+        run: node scripts/v1-parity-inventory.mjs
+      - name: Upload inventory for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-parity-inventory
+          path: docs/v1-parity-inventory.json
+          if-no-files-found: error
+          retention-days: 30

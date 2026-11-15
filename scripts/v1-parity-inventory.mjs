@@ -53,9 +53,17 @@ uiSource.split("\n").forEach((line, i) => {
 });
 operations.sort((a,b)=>a.source.localeCompare(b.source)||a.line-b.line);
 const inventory = { schema_version: "0.1.0", generated_by: "scripts/v1-parity-inventory.mjs", limitations: ["Static declarations only; no runtime tests", "Unresolved prefixes, dynamic routes, Pro extension routes, and actions inside screens require manual review", "Line-based IDs change when source is reordered"], counts: { http: operations.length, ui: uiRoutes.length, resolved_http: operations.filter(x=>x.full_path !== null).length }, warnings, http: operations, ui: uiRoutes };
+const baselinePath = path.join(root, "docs/v1-parity-baseline.json");
+const signatureInput = operations.map(x => x.method + " " + x.full_path).sort().join("\n") + "\n--UI--\n" + uiRoutes.map(x => x.declared_path).sort().join("\n");
+const signature = sha(signatureInput);
 if (process.argv.includes("--check")) {
   // A baseline floor catches accidental mass omission; a committed snapshot is checked separately when present.
   const failures = [];
+  if (!fs.existsSync(baselinePath)) failures.push("Missing reviewed exact parity baseline");
+  else {
+    const baseline = JSON.parse(read(baselinePath));
+    if (baseline.signature_sha256 !== signature) failures.push("Exact route inventory changed; review and explicitly update docs/v1-parity-baseline.json");
+  }
   if (operations.length !== 319) failures.push("HTTP inventory count drifted from reviewed 319 declarations");
   if (uiRoutes.length !== 59) failures.push("UI inventory count drifted from reviewed 59 routes");
   const unresolved = operations.filter(x=>x.full_path === null);

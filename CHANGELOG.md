@@ -4,7 +4,12 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.2.0-beta.3] - 2026-11-16
+
+Build for the limited beta. Pin this tag; do not use `latest` during the beta. PayPal has been tested against mocked PayPal responses only; a test against the PayPal sandbox is still to come.
+
 ### Changed
+- PayPal payments are now checked against the order before they are recorded. A payment whose amount, currency or order does not match goes to staff review and is not applied. If an invoice is voided or a booking is cancelled while a client is paying, no new charge is started; any payment PayPal already took is recorded once and the studio gets a refund-review notice. A declined card now shows as declined. When PayPal cannot be reached to verify a notification, the app answers with a temporary error so PayPal retries. Staff are notified once if an invoice is overpaid. Nothing is refunded automatically.
 - Camera upload (SFTP): a camera login can now delete single photos inside its own Incoming folder, so a tethering app can remove a rejected shot from the server. Folders and anything outside the login's folder stay protected, downloads stay off, and each delete is logged. A deleted photo is kept in a hidden `.deleted` folder inside that camera's folder for 7 days before it is removed for good, so a mistake or a leaked camera password can't destroy photos. Leftover partial uploads older than a day are now cleaned up hourly as well.
 
 ### Security
@@ -12,6 +17,14 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 - Session, gallery and Download-link cookies, and the HSTS header, now treat a request as HTTPS only when the connection itself is HTTPS or it comes from a trusted proxy (the built-in Cloudflare tunnel on this machine, or an address in `TRUSTED_PROXIES`). A reverse proxy running in a separate container needs its address in `TRUSTED_PROXIES` (see the install guide); without it, cookies lose the Secure flag and HSTS is not sent.
 - Optional: set `OPENPORTRAIT_EXTENSION_SHA256` to a comma-separated list of SHA-256 digests to load only approved add-on bundles. Unset, add-ons load as before. An empty or invalid list loads none.
 - Release checks: the image workflow builds one candidate, runs the scans, live security suite and ZAP against it, and publishes that exact image only after they pass. Workflow actions and scanner images are pinned, and the security gate now fails when scanner evidence is missing.
+- The release isolation check now tests the actual app process, and still fails if that process is missing, ambiguous, root or holds capabilities. The scanner exception list is validated by a test. The bundled cloudflared exception is renewed through 2026-12-31 after re-checking that its HTML-parsing library code is not in the binary.
+- The AI approval gate and exact-amount checks have more boundary tests, and `@hono/node-server` is updated to 2.1.8.
+
+### Fixed
+- The restore screen's backup preview always showed 0 orders.
+
+### Upgrade note
+- Database migration 0032 runs automatically on start. Take a backup first, as usual.
 
 ## [0.2.0-beta.2] - 2026-11-10
 

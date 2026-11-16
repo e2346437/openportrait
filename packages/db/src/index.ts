@@ -98,8 +98,8 @@ export function inspectDatabase(file: string): DatabaseInspection {
     const tables = new Set((client.prepare("select name from sqlite_master where type = 'table'").all() as Array<{ name: string }>).map((t) => t.name));
     if (!tables.has("__drizzle_migrations") || !tables.has("setting") || !tables.has("user")) return { ...base, ok: false, problem: "This file isn't an OpenPortrait database." };
     const latest = (client.prepare("select max(created_at) as m from __drizzle_migrations").get() as { m: number | null }).m;
-    const count = (t: string) => (tables.has(t) ? (client!.prepare(`select count(*) as n from ${t}`).get() as { n: number }).n : 0);
-    return { ...base, ok: true, latestMigration: latest, counts: { contacts: count("contact"), shoots: count("shoot"), orders: count('"order"') } };
+    const count = (t: string) => (tables.has(t) ? (client!.prepare(`select count(*) as n from "${t}"`).get() as { n: number }).n : 0);
+    return { ...base, ok: true, latestMigration: latest, counts: { contacts: count("contact"), shoots: count("shoot"), orders: count("order") } };
   } catch {
     return { ...base, ok: false, problem: "This file isn't a readable OpenPortrait database." };
   } finally {

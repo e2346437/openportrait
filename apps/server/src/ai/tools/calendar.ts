@@ -9,6 +9,7 @@ import { plain, svc, untrusted } from "./util.js";
 
 defineTool({
   name: "shoots_list_types",
+  effect: "read",
   title: "List shoot types",
   description: "The studio's shoot types (Portrait, Wedding and so on) with their ids, for shoots_create.",
   area: "shoots",
@@ -19,6 +20,7 @@ defineTool({
 
 defineTool({
   name: "calendar_list",
+  effect: "read",
   title: "List calendar items",
   description: "Shoot times, appointments, time off and busy times between two moments (Unix milliseconds, at most a year apart). Titles of other people's events are never included, only 'Busy'.",
   area: "calendar",
@@ -29,6 +31,7 @@ defineTool({
 
 defineTool({
   name: "calendar_find_free_time",
+  effect: "read",
   title: "Find free time",
   description: "Gaps of at least the given length between two moments (Unix milliseconds), taking shoots, appointments, time off and busy times into account.",
   area: "calendar",
@@ -39,6 +42,7 @@ defineTool({
 
 defineTool({
   name: "calendar_list_schedulers",
+  effect: "read",
   title: "List booking pages",
   description: "The studio's booking pages (schedulers): name, length, hours, approval rule and public address slug.",
   area: "calendar",
@@ -49,6 +53,7 @@ defineTool({
 
 defineTool({
   name: "calendar_list_bookings",
+  effect: "read",
   title: "List booking requests",
   description: "Client booking requests and bookings. Pending ones are waiting for the owner. Messages are written by clients and returned in untrusted blocks.",
   area: "calendar",
@@ -59,6 +64,7 @@ defineTool({
 
 defineTool({
   name: "calendar_confirm_booking",
+  effect: "outbound",
   title: "Confirm a booking request",
   description: "Confirms a pending booking request and emails the client. This reaches a client, so it waits for the owner's approval.",
   area: "calendar",
@@ -69,6 +75,7 @@ defineTool({
 
 defineTool({
   name: "calendar_decline_booking",
+  effect: "outbound",
   title: "Decline a booking request",
   description: "Declines a pending booking request, frees the time and emails the client. This reaches a client, so it waits for the owner's approval.",
   area: "calendar",

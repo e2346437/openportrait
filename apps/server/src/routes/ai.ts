@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { tables } from "@openportrait/db";
-import { AREAS, allTools } from "../ai/registry.js";
+import { AREAS } from "../ai/registry.js";
 import { createConnection, listConnections, revokeConnection } from "../ai/connections.js";
 import "../ai/tools/index.js";
 import { decide, listApprovals, pendingCount } from "../ai/approvals.js";
@@ -36,7 +36,7 @@ export async function aiRoutes(app: FastifyInstance) {
       urls: { public: base ? `${base}/mcp` : null, lan: lanMcpUrl() },
       online: tunnel.getStatus().state === "connected",
       areas: AREAS,
-      toolCount: allTools().length,
+      toolCount: app.ctx.tools.all().length,
       authCode: { set: hasCode(app.ctx), setAt: settings.get("ai.authCodeSetAt") || null },
       connections,
       lastSeenAt: connections.reduce<number | null>((m, c) => (c.lastUsedAt && (!m || c.lastUsedAt > m) ? c.lastUsedAt : m), null),

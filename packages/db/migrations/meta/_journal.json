@@ -218,6 +218,13 @@
       "when": 1793894849043,
       "tag": "0030_large_sasquatch",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1794800825188,
+      "tag": "0031_adorable_wrecker",
+      "breakpoints": true
     }
   ]
 }

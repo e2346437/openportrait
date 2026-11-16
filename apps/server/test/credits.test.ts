@@ -260,4 +260,70 @@ describe("AI tool: orders_apply_credit approves one exact amount", () => {
     expect(state(id, inv.id)).toEqual(before);
     expect(await balance(id)).toBe(50_001);
   });
+
+  describe("an approval that should not run never reaches the handler, and the audit trail says what happened", () => {
+    const audit = (action: string) => (sql("SELECT COUNT(*) AS n FROM audit_log WHERE action = ?").get(action) as { n: number }).n;
+    const unchanged = async (id: string, inv: { id: string }, before: ReturnType<typeof state>, credit: number) => {
+      expect(state(id, inv.id)).toEqual(before);
+      expect(await balance(id)).toBe(credit);
+    };
+
+    it("is refused while AI access is paused, and runs normally once resumed", async () => {
+      const { id, inv, token } = await setup(5_000);
+      const q = await call(token, { orderId: inv.id, amountCents: 5_000 });
+      const before = state(id, inv.id);
+      await ai("PUT", "", { paused: true });
+      const refused = (await approve(q.data.approvalId)).json();
+      expect(refused.status).toBe("failed");
+      expect(JSON.stringify(refused.result)).toMatch(/paused/);
+      await unchanged(id, inv, before, 5_000);
+      expect(audit("ai.approval.failed")).toBe(1);
+      expect(audit("ai.approval.approved")).toBe(0);
+    });
+
+    it("is refused once the connection is lowered to read-only", async () => {
+      const { id, inv, token } = await setup(5_000);
+      const q = await call(token, { orderId: inv.id, amountCents: 5_000 });
+      const before = state(id, inv.id);
+      sql("UPDATE ai_connection SET level = 'read'").run();
+      expect((await approve(q.data.approvalId)).json().status).toBe("failed");
+      await unchanged(id, inv, before, 5_000);
+    });
+
+    it("is refused, and marked expired, when the stored amount was raised after queuing", async () => {
+      const { id, inv, token } = await setup(30_000);
+      const q = await call(token, { orderId: inv.id, amountCents: 5_000 });
+      const before = state(id, inv.id);
+      sql("UPDATE ai_approval SET args = ? WHERE id = ?").run(JSON.stringify({ orderId: inv.id, amountCents: 30_000 }), q.data.approvalId);
+      const done = (await approve(q.data.approvalId)).json();
+      expect(done.status).toBe("expired");
+      expect(JSON.stringify(done.result)).toMatch(/out of date/);
+      await unchanged(id, inv, before, 30_000);
+      expect(audit("ai.approval.expired")).toBe(1);
+    });
+
+    it("applies a money approval exactly once when approved twice at the same time", async () => {
+      const { id, inv, token } = await setup(5_000);
+      const q = await call(token, { orderId: inv.id, amountCents: 5_000 });
+      const [a, b] = await Promise.all([approve(q.data.approvalId), approve(q.data.approvalId)]);
+      expect([a.statusCode, b.statusCode].sort()).toEqual([200, 409]);
+      expect(state(id, inv.id)).toEqual({ entries: 2, payments: 1 }); // the grant, plus one use
+      expect(await balance(id)).toBe(0);
+      expect(audit("ai.approval.approved")).toBe(1);
+    });
+
+    it("cannot be approved after a decline or after it expired", async () => {
+      const { id, inv, token } = await setup(10_000);
+      const declined = await call(token, { orderId: inv.id, amountCents: 5_000 });
+      expect((await ai("POST", `/approvals/${declined.data.approvalId}/decline`)).json().status).toBe("declined");
+      const lapsed = await call(token, { orderId: inv.id, amountCents: 4_000 });
+      sql("UPDATE ai_approval SET expires_at = 1 WHERE id = ?").run(lapsed.data.approvalId);
+      const before = state(id, inv.id);
+      expect((await approve(declined.data.approvalId)).statusCode).toBe(409);
+      expect((await approve(lapsed.data.approvalId)).statusCode).toBe(409);
+      await unchanged(id, inv, before, 10_000);
+      expect(audit("ai.approval.approved")).toBe(0);
+      expect(audit("ai.approval.declined")).toBe(1);
+    });
+  });
 });

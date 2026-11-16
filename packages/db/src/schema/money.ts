@@ -173,7 +173,12 @@ export const paymentAttempt = sqliteTable(
     /** The processor's own id for the checkout (PayPal's order id). */
     providerOrderId: text().notNull(),
     amountCents: integer().notNull(),
-    status: text({ enum: ["started", "paid", "failed"] }).notNull().default("started"),
+    /** The currency the checkout was created in. Null on attempts from before this was stored: those can't be reconciled automatically. */
+    currency: text(),
+    /** `review` means the processor's report couldn't be matched to this attempt, so a person must reconcile it. Nothing was recorded. */
+    status: text({ enum: ["started", "paid", "failed", "review"] }).notNull().default("started"),
+    /** Why the attempt needs review. Holds only our own wording and ids, never card or payer details. */
+    reviewNote: text(),
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),
   },
   (t) => [uniqueIndex("payment_attempt_provider_idx").on(t.provider, t.providerOrderId), index("payment_attempt_order_idx").on(t.orderId)],

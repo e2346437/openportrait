@@ -122,6 +122,8 @@ export const aiApproval = sqliteTable(
     tier: text({ enum: ["outward", "money"] }).notNull(),
     summary: text().notNull(),
     args: text({ mode: "json" }).notNull(),
+    /** Hash of the registration identity, connection and validated arguments this approval was queued for. Null on rows from before bindings existed; those never run. */
+    binding: text(),
     status: text({ enum: ["pending", "approved", "declined", "expired", "failed"] }).notNull().default("pending"),
     result: text({ mode: "json" }),
     createdAt: integer({ mode: "timestamp_ms" }).notNull().default(now),

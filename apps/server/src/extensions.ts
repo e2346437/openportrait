@@ -11,7 +11,8 @@ import { financialReport, resolveRange, type FinancialReport } from "./domain/re
 import { VERSION, type AppContext } from "./app.js";
 import { hashPassword, generateLoginPassword } from "./auth.js";
 import { backupProviders, incomingSubfolderHooks, mailSenders, shootScopeHooks } from "./extension-hooks.js";
-import { defineTool, grantCapability, lockCapability, revokeCapability } from "./ai/registry.js";
+import { expireForRemovedTools } from "./ai/approvals.js";
+import type { defineTool, FeaturePolicy, RegistryScope } from "./ai/registry.js";
 import { registerSiteExtension, registerSiteTemplate, unregisterSiteExtension, unregisterSiteTemplate, type SiteExtension, type SiteTemplate } from "./site/registry.js";
 
 /**
@@ -252,6 +253,12 @@ export interface ExtensionApi {
   lockCapability(id: string): void;
   grantCapability(id: string): void;
   revokeCapability(id: string): void;
+  /**
+   * Adds a generic feature policy that is checked every time one of this module's tools (or a group it locked) is about
+   * to run, whether the call is live or an approval resumed later. Return `true` to allow; `false`, `{ allow: false,
+   * message }`, a throw or anything else refuses. It can only restrict. Keep it synchronous and quick.
+   */
+  featurePolicy(policy: FeaturePolicy): void;
   /** Shows a card under Settings > Extensions (owner only). */
   settingsCard(card: SettingsCard): void;
   /** Adds a section to the Reports page (owner only). */
@@ -368,6 +375,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
     const full = path.join(dir, file);
     const info: ExtensionInfo = { id, file, sha256: "", status: "failed", cards: [], reports: [], shootCards: [], pages: [] };
     infos.push(info);
+    let scope: RegistryScope | undefined;
     try {
       if (!ID.test(id)) throw new Error("file name must be lowercase letters, digits and dashes");
       if (allowedDigests && !fs.lstatSync(full).isFile()) throw new Error("managed extension must be a regular file");
@@ -383,12 +391,16 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       const pages: ExtensionPage[] = [];
       let crewPanel: string | undefined;
       let crewPanelAt: number | undefined;
+      // Tools, capability locks and grants, and feature policies are staged: nothing is visible until register() finishes, and a failure anywhere below removes them all.
+      // Removing this module's tools expires their pending approvals in this app's own database.
+      scope = ctx.tools.createScope(`ext:${id}`, info.sha256, { onRemove: (names) => expireForRemovedTools(ctx, names) });
+      const staged = scope;
       await mod.register({
         id,
         appVersion: VERSION,
         ctx,
         log: app.log,
-        defineTool,
+        defineTool: staged.defineTool,
         originals: ctx.originals,
         z,
         routes: (plugin) => void routes.push(plugin),
@@ -452,9 +464,10 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
           if (pages.some((p) => p.slug === page.slug)) throw new Error(`duplicate page slug "${page.slug}"`);
           pages.push(page);
         },
-        lockCapability,
-        grantCapability,
-        revokeCapability,
+        lockCapability: staged.lockCapability,
+        grantCapability: staged.grantCapability,
+        revokeCapability: staged.revokeCapability,
+        featurePolicy: staged.registerFeaturePolicy,
         site: {
           registerTemplate: (t) => registerSiteTemplate({ ...t, extra: true }),
           unregisterTemplate: unregisterSiteTemplate,
@@ -463,6 +476,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         },
         onClose: (fn) => void app.addHook("onClose", async () => void (await fn())),
       });
+      staged.commit();
       for (const plugin of routes) {
         await app.register(
           async (scope) => {
@@ -481,6 +495,14 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       info.status = "loaded";
       app.log.info({ extension: id, sha256: info.sha256 }, "extension loaded");
     } catch (err) {
+      try {
+        scope?.rollback(); // drops whatever was staged, or removes what was already published
+      } catch (rollbackErr) {
+        // The database write that expires this module's pending approvals failed, so its tools are still published. Carrying on would serve a half-loaded extension, so startup stops here.
+        const detail = `${(err as Error).message}; rollback failed: ${(rollbackErr as Error).message}`;
+        app.log.fatal({ extension: id, err: detail }, "extension could not be removed, stopping");
+        throw new Error(`Extension "${id}" failed to load and could not be removed (${detail}). The server will not start with it half loaded.`, { cause: rollbackErr });
+      }
       info.error = (err as Error).message;
       app.log.error({ extension: id, err: info.error }, "extension skipped");
     }

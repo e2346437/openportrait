@@ -5,7 +5,7 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { loadConfig } from "@openportrait/config";
-import { defineTool, setCapabilityEnabled } from "../src/ai/registry.js";
+import { defineTool } from "../src/ai/registry.js";
 import { buildApp } from "../src/app.js";
 
 const sent: string[] = [];
@@ -28,7 +28,6 @@ let app: FastifyInstance;
 let cookie: string;
 beforeEach(async () => {
   sent.length = 0;
-  setCapabilityEnabled("test-group", true);
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "op-appr-"));
   app = await buildApp({ config: loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web") }), startBackground: false, setupCode: null, logger: false });
   const res = await app.inject({ method: "POST", url: "/api/studio/setup", payload: { studioName: "Studio", ownerName: "Pat", email: "pat@example.com", password: "correct horse battery", timezone: "UTC" } });
@@ -118,9 +117,9 @@ describe("approval queue", () => {
 
   it("can switch off a group of tools", async () => {
     const token = await connect("assist", ["email"]);
-    setCapabilityEnabled("test-group", false);
+    app.ctx.tools.setCapabilityEnabled("test-group", false);
     expect((await call(token, "email_test_flaky")).isError).toBe(true);
-    setCapabilityEnabled("test-group", true);
+    app.ctx.tools.setCapabilityEnabled("test-group", true);
     expect((await call(token, "email_test_flaky")).data.status).toBe("pending_approval");
   });
 });
@@ -203,7 +202,7 @@ describe("approval-time reauthorization", () => {
   it("does not run an approval after its capability group is switched off", async () => {
     const token = await connect("full", ["email"]);
     const { data } = await call(token, "email_test_flaky");
-    setCapabilityEnabled("test-group", false);
+    app.ctx.tools.setCapabilityEnabled("test-group", false);
     const res = (await approve(data.approvalId)).json();
     expect(res).toMatchObject({ status: "failed" });
     expect(res.result.error).toMatch(/no longer allowed/);

@@ -64,10 +64,16 @@ export function OrderViewPage() {
     } else if (qs.get("pay") === "return" && paypalId && !captured.current) {
       captured.current = true;
       setNote({ tone: "warn", text: "Confirming your payment…" });
-      publicApi<View & { outcome: "paid" | "pending" }>(`/order/${encodeURIComponent(token)}/pay/capture`, { body: { providerOrderId: paypalId } })
+      publicApi<View & { outcome: "paid" | "pending" | "review" }>(`/order/${encodeURIComponent(token)}/pay/capture`, { body: { providerOrderId: paypalId } })
         .then((r) => {
           setData(r);
-          setNote(r.outcome === "paid" ? { tone: "ok", text: "Payment received. Thank you!" } : { tone: "warn", text: "Your payment is being processed. This page will show it once PayPal confirms." });
+          setNote(
+            r.outcome === "paid"
+              ? { tone: "ok", text: "Payment received. Thank you!" }
+              : r.outcome === "review"
+                ? { tone: "warn", text: "We couldn't confirm this payment automatically. The studio has been told and will check it with you. Please don't pay again until they do." }
+                : { tone: "warn", text: "Your payment is being processed. This page will show it once PayPal confirms." },
+          );
         })
         .catch((e: Error) => setNote({ tone: "bad", text: e.message }))
         .finally(() => setQs({}, { replace: true }));

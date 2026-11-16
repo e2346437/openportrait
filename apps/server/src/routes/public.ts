@@ -169,7 +169,14 @@ export async function publicRoutes(app: FastifyInstance) {
       const h = req.headers;
       const one = (k: string) => (typeof h[k] === "string" ? (h[k] as string) : undefined);
       const c = ctx(req);
-      const ok = await verifyWebhook(c, { authAlgo: one("paypal-auth-algo"), certUrl: one("paypal-cert-url"), transmissionId: one("paypal-transmission-id"), transmissionSig: one("paypal-transmission-sig"), transmissionTime: one("paypal-transmission-time") }, raw);
+      let ok: boolean;
+      try {
+        ok = await verifyWebhook(c, { authAlgo: one("paypal-auth-algo"), certUrl: one("paypal-cert-url"), transmissionId: one("paypal-transmission-id"), transmissionSig: one("paypal-transmission-sig"), transmissionTime: one("paypal-transmission-time") }, raw);
+      } catch (err) {
+        // PayPal couldn't be asked (token or network trouble). Say so plainly so PayPal retries; this is not a rejection of the event.
+        app.log.warn({ err }, "paypal webhook could not be verified");
+        return reply.code(503).send({ error: "unavailable" });
+      }
       if (!ok) return reply.code(401).send({ error: "unverified" });
       let event: { event_type?: string; resource?: Record<string, unknown> };
       try {

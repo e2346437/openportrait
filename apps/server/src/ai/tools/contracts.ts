@@ -8,6 +8,7 @@ import { svc } from "./util.js";
 
 defineTool({
   name: "contract_templates_list",
+  effect: "read",
   title: "List contract templates",
   description: "The studio's contract templates, with their wording. Use a template's id to draft a contract.",
   area: "contracts",
@@ -19,6 +20,7 @@ defineTool({
 
 defineTool({
   name: "contracts_list",
+  effect: "read",
   title: "List contracts",
   description: "Contracts, newest first. State is draft, sent, signed, countersigned or void.",
   area: "contracts",
@@ -30,6 +32,7 @@ defineTool({
 
 defineTool({
   name: "contracts_get",
+  effect: "read-existing",
   title: "Get a contract",
   description: "One contract with its full text and signing status.",
   area: "contracts",
@@ -44,6 +47,7 @@ defineTool({
 
 defineTool({
   name: "contracts_create_draft",
+  effect: "write",
   title: "Draft a contract from a template",
   description: "Creates a draft contract for a contact from a template, filling in merge fields. Link a shoot or quote if the template uses shoot or order fields. Nothing is sent; the owner reviews it and sends it, or you can ask for it to be sent with contracts_send.",
   area: "contracts",
@@ -58,6 +62,7 @@ defineTool({
 
 defineTool({
   name: "contracts_send",
+  effect: "outbound",
   title: "Send a contract to the client to sign",
   description: "Emails the client a link to review and sign a draft contract. This reaches a client, so it waits for the owner's approval.",
   area: "contracts",

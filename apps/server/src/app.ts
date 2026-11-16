@@ -31,6 +31,8 @@ import { proofingRoutes } from "./routes/proofing.js";
 import { siteRoutes } from "./routes/site.js";
 import { registerFreeTemplates } from "./site/templates.js";
 import { mcpRoutes } from "./ai/mcp.js";
+import { expireForAbsentTools } from "./ai/approvals.js";
+import { ToolRegistry } from "./ai/registry.js";
 import { Originals } from "./galleries/originals.js";
 import { DEFAULT_RAW_SUBDIR } from "./domain/folders.js";
 import { enforceShootScope, shootScopeFor } from "./scope.js";
@@ -100,6 +102,8 @@ export interface AppContext {
   originals: Originals;
   backups: BackupService;
   restore: RestoreService;
+  /** This app's MCP tools: the shared built-ins plus whatever this app's extensions registered. Never shared with another app. */
+  tools: ToolRegistry;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
   publicUrl(): string;
   /** This server's address on the home network (see lan.ts). */
@@ -186,6 +190,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     galleries,
     originals,
     backups,
+    tools: new ToolRegistry(),
     restore: new RestoreService({ configDir: config.configDir, galleriesDir: config.galleriesDir, backups, log: app.log }),
     lan() {
       return lanInfo(settings, config);
@@ -313,6 +318,8 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
 
   // Optional extension modules from /config/extensions. A broken one is skipped; core always boots.
   const extensions = await loadExtensions(app, ctx);
+  // Loading is over and nothing is listening yet. A pending approval for a tool that isn't registered (its module was deleted or failed while the server was down) expires now, so an identical tool that returns later can't pick it up.
+  expireForAbsentTools(ctx, ctx.tools.all().map((t) => t.name));
   await app.register(extensionRoutes(extensions), { prefix: "/api/studio/extensions" });
 
   app.all("/api/*", async (_req, reply) => reply.code(404).send({ error: "not_found", message: "No such endpoint." }));

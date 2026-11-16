@@ -14,6 +14,7 @@ const line = z.object({ description: z.string().min(1).max(300), quantity: z.num
 
 defineTool({
   name: "catalog_list",
+  effect: "read",
   title: "List packages and products",
   description: "The studio's packages and products with prices in cents. Use these as the lines of a quote.",
   area: "quotes",
@@ -25,6 +26,7 @@ defineTool({
 
 defineTool({
   name: "orders_list",
+  effect: "read",
   title: "List quotes and invoices",
   description: "Quotes and invoices, newest first. State is draft, sent, expired, declined, void, unpaid, partial or paid.",
   area: "orders",
@@ -36,6 +38,7 @@ defineTool({
 
 defineTool({
   name: "orders_get",
+  effect: "read-existing",
   title: "Get a quote or invoice",
   description: "One quote or invoice with its lines, payment schedule and payments.",
   area: "orders",
@@ -50,6 +53,7 @@ defineTool({
 
 defineTool({
   name: "quotes_create_draft",
+  effect: "write",
   title: "Draft a quote",
   description: "Creates a draft quote for a contact. Nothing is sent to the client; the owner reviews it and sends it, or you can ask for it to be sent with quotes_send. Tax is added from the studio's rate.",
   area: "quotes",
@@ -64,6 +68,7 @@ defineTool({
 
 defineTool({
   name: "quotes_send",
+  effect: "outbound",
   title: "Send a quote or invoice to the client",
   description: "Sends a draft quote or invoice to the client by email with a link to view it. This reaches a client, so it waits for the owner's approval.",
   area: "quotes",
@@ -79,6 +84,7 @@ defineTool({
 
 defineTool({
   name: "orders_record_payment",
+  effect: "write",
   title: "Record a payment",
   description: "Records money received on a sent invoice (cash, check, Venmo and so on). This changes the studio's books, so it waits for the owner's approval.",
   area: "orders",
@@ -94,6 +100,7 @@ defineTool({
 
 defineTool({
   name: "coupons_list",
+  effect: "read",
   title: "List coupon codes",
   description: "The studio's coupon codes with what each takes off, its expiry, use limit and how many times it has been used. Percent coupons store basis points (1000 = 10%); fixed coupons store cents.",
   area: "quotes",
@@ -105,6 +112,7 @@ defineTool({
 
 defineTool({
   name: "coupons_create",
+  effect: "write",
   title: "Create a coupon code",
   description: "Creates a discount code. Percent: value is basis points (1000 = 10%). Fixed: value is cents. It changes what the studio charges, so it waits for the owner's approval.",
   area: "quotes",
@@ -120,6 +128,7 @@ defineTool({
 
 defineTool({
   name: "credits_get",
+  effect: "read-existing",
   title: "Get a client's credit",
   description: "A client's credit balance in cents and their recent credit history.",
   area: "orders",
@@ -134,6 +143,7 @@ defineTool({
 
 defineTool({
   name: "credits_grant",
+  effect: "write",
   title: "Add credit for a client",
   description: "Adds credit to a client's balance, for example a gift card or a prepayment. It is money the studio owes the client, so it waits for the owner's approval.",
   area: "orders",
@@ -146,12 +156,13 @@ defineTool({
 
 defineTool({
   name: "orders_apply_credit",
+  effect: "write",
   title: "Pay an invoice from the client's credit",
-  description: "Uses the client's credit toward a sent invoice. Without an amount it uses as much as it can. It records a payment, so it waits for the owner's approval.",
+  description: "Uses an exact amount of the client's credit toward a sent invoice. The amount is required and is what the owner approves: it is applied in full or not at all, never more or less. It records a payment, so it waits for the owner's approval.",
   area: "orders",
   capability: "invoicing",
   tier: "money",
-  input: { orderId: z.string(), amountCents: z.number().int().min(1).optional() },
-  summarize: (a) => `Pay invoice ${a.orderId} from the client's credit${a.amountCents ? ` (${(a.amountCents / 100).toFixed(2)})` : ""}.`,
+  input: { orderId: z.string(), amountCents: z.number().int().min(1).describe("Exactly how much credit to use, in cents.") },
+  summarize: (a) => `Pay ${(a.amountCents / 100).toFixed(2)} of invoice ${a.orderId} from the client's credit.`,
   handler: (ctx, a) => credits.applyCredit(svc(ctx), a.orderId, a.amountCents),
 });

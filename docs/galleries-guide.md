@@ -136,7 +136,7 @@ Average similarity to the original across the five photos (1.0 is identical, so 
 What to take from it:
 
 - **Strong lowers the best result the most**, and Balanced lowers it a little. Light was no better than the old grid in this test.
-- **Part of the gain is simply covering more of the photo and showing it smaller**, not the irregular layout alone. This test cannot separate those.
+- **Part of the gain comes from covering more of the photo and showing it smaller**, not the irregular layout alone. This test cannot separate those.
 - **Strong makes the client's own preview softer too.** Its unattacked preview scores 0.72 against the original. Check one on a phone before you choose it.
 - **Guessing the mark automatically did about the same against every option** (0.74 to 0.81), so the irregular layout did not clearly make the mark harder to find.
 - **A learned model did a little better than the classical tool**, by about 0.01 to 0.02 in every column, but the order stayed the same: the old grid was easiest to clean up and Strong the hardest.

@@ -1,6 +1,6 @@
 # Camera upload
 
-OpenPortrait includes a server your camera can send photos to as you shoot. The photos land in the **Incoming** share, where the live view ([tethering.md](tethering.md)) shows them and you can sort them into shoots.
+OpenPortrait includes a server your camera can send photos to as you shoot. The photos land in the **Incoming** share, where the live view ([Tethering](tethering.md)) shows them and you can sort them into shoots.
 
 Everything is set up in **Settings > Camera upload**.
 

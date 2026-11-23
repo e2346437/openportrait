@@ -93,7 +93,7 @@ If your camera's port field is fixed to 22 (SFTP) or 21 (FTP), the container's d
 
 On Unraid these are fields in the template. The SFTP and FTP ports and the passive range are published for you, but nothing listens on them until the server is opened in Settings.
 
-Away from home, a camera needs a route to the server. Cloudflare Tunnel carries web traffic only, so use a WireGuard connection (recommended) or forward a single SFTP port. See [SPEC.md](SPEC.md) section 4.
+Away from home, a camera needs a route to the server. Cloudflare Tunnel carries web traffic only, so use a travel router with a WireGuard or Tailscale connection (recommended) or forward a single SFTP port. The travel router setup is in [Camera upload away from home](camera-upload-wireguard.md).
 
 ## Troubleshooting
 

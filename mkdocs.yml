@@ -51,6 +51,7 @@ nav:
       - Google Calendar: google-calendar.md
   - Photos and tethering:
       - Camera upload: camera-upload.md
+      - Camera upload away from home: camera-upload-wireguard.md
       - Tethering: tethering.md
   - Website and AI:
       - Website builder: website.md

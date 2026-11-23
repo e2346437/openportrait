@@ -10,7 +10,9 @@ OpenPortrait is one container image, `ghcr.io/e2346437/openportrait`, built for 
 
 ## Unraid
 
-1. Open **Apps**, search for **OpenPortrait**, and click **Install**. (Until the app is listed in Community Applications, go to **Docker > Add Container**, paste `https://raw.githubusercontent.com/e2346437/openportrait/main/unraid/openportrait.xml` into **Template**, and continue.)
+OpenPortrait is not listed in Unraid's Community Applications yet, so you add its template by hand. It takes one paste.
+
+1. Go to **Docker > Add Container**, paste `https://raw.githubusercontent.com/e2346437/openportrait/main/unraid/openportrait.xml` into **Template**, and continue.
 2. Check the three paths:
     - **App data** (`/mnt/user/appdata/openportrait`): the database, encryption key and backups.
     - **Galleries** (`/mnt/user/galleries`): your photo share.

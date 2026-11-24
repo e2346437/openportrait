@@ -144,30 +144,7 @@ function pulse(ctx: ServiceContext, now: number): HomeSummary["pulse"] {
   const sent = ctx.db.select({ id: order.id, totalCents: order.totalCents }).from(order).where(and(eq(order.kind, "invoice"), eq(order.status, "sent"))).all();
   const paidMap = paidByOrder(ctx, sent.map((o) => o.id));
   const invoices = sent.map((o) => ({ ...o, paid: paidMap.get(o.id) ?? 0 })).filter((o) => o.totalCents - o.paid > 0);
-  let overdueInvoices = 0;
-  if (invoices.length) {
-    const sched = ctx.db
-      .select()
-      .from(paymentSchedule)
-      .where(
-        inArray(
-          paymentSchedule.orderId,
-          invoices.map((i) => i.id),
-        ),
-      )
-      .orderBy(asc(paymentSchedule.position))
-      .all();
-    for (const inv of invoices) {
-      let left = inv.paid;
-      let overdue = false;
-      for (const s of sched.filter((r) => r.orderId === inv.id)) {
-        const covered = Math.min(left, s.amountCents);
-        left -= covered;
-        if (covered < s.amountCents && s.dueDate && s.dueDate < today) overdue = true;
-      }
-      if (overdue) overdueInvoices++;
-    }
-  }
+  const { count: overdueInvoices } = overdueSummary(ctx, invoices, today);
 
   const photoCounts = ctx.db
     .select({ galleryId: photo.galleryId, ready: sql<number>`sum(case when ${photo.state} = 'ready' then 1 else 0 end)`, pending: sql<number>`sum(case when ${photo.state} = 'pending' then 1 else 0 end)` })
@@ -190,6 +167,36 @@ function pulse(ctx: ServiceContext, now: number): HomeSummary["pulse"] {
     galleriesToDeliver,
     galleriesDeliveredThisYear,
   };
+}
+
+/**
+ * Invoices with an unpaid instalment past its due date, and the oldest such instalment.
+ * Paid instalments never count, so a long-settled invoice cannot be named as the one that is overdue.
+ */
+function overdueSummary(ctx: ServiceContext, invoices: { id: string; paid: number }[], today: string): { count: number; oldest: { orderId: string; dueDate: string } | null } {
+  let count = 0;
+  let oldest: { orderId: string; dueDate: string } | null = null;
+  if (!invoices.length) return { count, oldest };
+  const sched = ctx.db
+    .select()
+    .from(paymentSchedule)
+    .where(inArray(paymentSchedule.orderId, invoices.map((i) => i.id)))
+    .orderBy(asc(paymentSchedule.position))
+    .all();
+  for (const inv of invoices) {
+    let left = inv.paid;
+    let overdue = false;
+    for (const s of sched.filter((r) => r.orderId === inv.id)) {
+      const covered = Math.min(left, s.amountCents);
+      left -= covered;
+      if (covered < s.amountCents && s.dueDate && s.dueDate < today) {
+        overdue = true;
+        if (!oldest || s.dueDate < oldest.dueDate) oldest = { orderId: inv.id, dueDate: s.dueDate };
+      }
+    }
+    if (overdue) count++;
+  }
+  return { count, oldest };
 }
 
 function needs(ctx: ServiceContext, app: AppContext, now: number, p: HomeSummary["pulse"]): NeedItem[] {
@@ -235,14 +242,18 @@ function needs(ctx: ServiceContext, app: AppContext, now: number, p: HomeSummary
 
   if (p.overdueInvoices) {
     const today = ymdIn(now, tzOf(ctx));
-    const oldest = ctx.db
-      .select({ orderId: paymentSchedule.orderId, dueDate: paymentSchedule.dueDate, firstName: contact.firstName, lastName: contact.lastName, company: contact.company, email: contact.email })
-      .from(paymentSchedule)
-      .innerJoin(order, eq(order.id, paymentSchedule.orderId))
-      .innerJoin(contact, eq(contact.id, order.contactId))
-      .where(and(eq(order.kind, "invoice"), eq(order.status, "sent"), lt(paymentSchedule.dueDate, today)))
-      .orderBy(asc(paymentSchedule.dueDate))
-      .get();
+    const sent = ctx.db.select({ id: order.id, totalCents: order.totalCents }).from(order).where(and(eq(order.kind, "invoice"), eq(order.status, "sent"))).all();
+    const paidMap = paidByOrder(ctx, sent.map((o) => o.id));
+    const open = sent.map((o) => ({ ...o, paid: paidMap.get(o.id) ?? 0 })).filter((o) => o.totalCents - o.paid > 0);
+    const found = overdueSummary(ctx, open, today).oldest;
+    const oldest = found
+      ? ctx.db
+          .select({ dueDate: sql<string>`${found.dueDate}`, firstName: contact.firstName, lastName: contact.lastName, company: contact.company, email: contact.email })
+          .from(order)
+          .innerJoin(contact, eq(contact.id, order.contactId))
+          .where(eq(order.id, found.orderId))
+          .get()
+      : undefined;
     const since = oldest?.dueDate ? startOfDay(oldest.dueDate, tzOf(ctx)) : now;
     out.push({
       key: "overdue",

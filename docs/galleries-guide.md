@@ -21,7 +21,7 @@ flowchart LR
 1. **Book the shoot.** OpenPortrait creates a folder for it on your gallery share, such as `2026/2026-11-14 Family - Smith Family/`, with `Gallery/` for finished photos and `Originals/RAW/` for camera files.
 2. **Export into `Gallery/`.** From Lightroom, Aftershoot or any editor, export JPEGs there. Exporting straight into the folder needs your computer to reach the server's share, which is not possible if OpenPortrait is hosted remotely (see [Hosting remotely](install-docker.md#known-issue-hosting-openportrait-remotely)); upload instead. Each subfolder becomes a set, for example `Highlights` and `Full Gallery`. Folders starting with `_` or `.` and RAW files are never shown.
 3. **Review the draft.** The gallery appears under **Galleries** when the folder has been quiet for a moment. Pick a cover photo and check the sets.
-4. **Publish.** Click **Publish and email client**, choose the download options below, and send the link.
+4. **Share.** Click **Share with client**, choose when downloads open (see below), and click **Share**. Copy the link from the dialog, or use **Email client** to send it.
 
    Each email to a client is sent at most once, even after a restart or crash. If sending was cut off midway, the gallery's email list shows **Check Sent folder** instead of sending again: look in your mail account's Sent folder, and if it isn't there, send it again yourself.
 5. **After that.** Photos you add later appear straight away. Favorites arrive on the gallery's Favorites tab, and every view and download is on its Activity tab.
@@ -30,11 +30,11 @@ flowchart LR
 
 | Access | Good for | Watch out for |
 |---|---|---|
-| **Private link** (default) | Most clients. One tap, no password | Anyone with the link can open it, so don't post it publicly |
+| **Registration: Not required** (default) | Most clients. One tap, no password | Anyone with the link can open it, so don't post it publicly |
+| **Registration: Email first**, or **Name and email first** | Knowing who looked | Visitors fill it in before seeing any photos |
 | **Password** | Sensitive shoots | Clients must type it, and you share it separately from the link |
-| **Registration** | Knowing who looked | Visitors give their email before seeing photos |
 
-An email is asked for only when a client first favorites or downloads, never before they see the photos.
+Set these under **Access** on the gallery's **Settings** tab. With registration not required, an email is asked for only when a client first favorites or downloads, never before they see the photos.
 
 ## Choose what clients can download
 
@@ -42,9 +42,9 @@ Set this per gallery under **Settings** on the gallery.
 
 | Size | What the client gets | Pros | Cons |
 |---|---|---|---|
-| **No downloads** | View and favorite only | Full control, good for proofing | Clients may ask for files another way |
+| **Full size** | The files exactly as you exported them | Print-ready | Files are large; use a lock so you're paid first |
 | **Web size** | A 2048 px JPEG | Small, quick to share, fine for screens and social | Not for large prints |
-| **Web size and full resolution** | Both | Everything in one place | Full-size files are large; use a lock so you're paid first |
+| **No downloads** | View and favorite only | Full control, good for proofing | Clients may ask for files another way |
 
 ### Set the web-size quality
 
@@ -71,15 +71,15 @@ The size column comes from a test image and is a rough guide; your photos will v
 
 ## Decide when downloads open
 
-Under **Download lock** (studio default in **Settings > Galleries**, changeable for each gallery when you publish):
+Under **Download lock** (studio default in **Settings > Galleries**, changeable for each gallery when you share it):
 
 | Mode | What happens | Pros | Cons |
 |---|---|---|---|
-| **Locked until paid** (default) | Clients view and favorite; downloads open after the final balance is paid | Protects payment | Clients wait for the unlock |
+| **Locked until paid** (default) | Clients view and favorite; downloads open once you mark the gallery paid | Protects payment | Clients wait for you to unlock |
 | **Highlights now, the rest after payment** | Sets you mark "early download" open now | Gives clients something to share while paying | You must mark the early sets |
 | **Downloads open now** | No lock | Simplest | No payment protection |
 
-While anything is locked, previews of locked photos carry your watermark, and the download dialog tells the client why and links to the invoice. When the client pays, switch the lock off on the gallery. The watermark disappears with it, and downloaded files never carry a watermark. Set the watermark under **Settings > Galleries**.
+While anything is locked, previews of locked photos carry your watermark, and the download dialog tells the client why and links to the invoice. When the client pays, choose **Mark as paid** on the gallery's **Settings** tab. In this release paying the invoice does not open the downloads by itself. The watermark disappears with the lock, and downloaded files never carry a watermark. Set the watermark under **Settings > Galleries**.
 
 ### Protected proofing
 
@@ -157,7 +157,7 @@ Remember what this does not show. Strong also hides more of the photo for your c
 ## Favorites and proofing
 
 - Each gallery has a **Favorites** list. Add more lists with a limit, such as "Album picks (40)".
-- Clients can add notes to a favorite and then **Submit to photographer**. You get an email and the list appears on the Favorites tab, with filenames you can paste into Lightroom's search.
+- Clients can add notes to a favorite and then send the list with **Send "Favorites" to the studio** (the button names the list). You get an email and the list appears on the Favorites tab, with filenames you can paste into Lightroom's search.
 
 ## Zip downloads
 

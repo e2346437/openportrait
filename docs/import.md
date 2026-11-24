@@ -1,6 +1,6 @@
 # Importing your data
 
-**Settings > Import data** (owner only) brings clients, shoots, and invoices with their payments into OpenPortrait from a file. It is built for a one-time move from another system, and it works with any CSV or JSON list.
+**Settings > Import and export** (owner only) brings clients, shoots, and invoices with their payments into OpenPortrait from a file. It is built for a one-time move from another system, and it works with any CSV or JSON list.
 
 ## How it works
 

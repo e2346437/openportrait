@@ -1,6 +1,6 @@
 # Connect your AI
 
-OpenPortrait has a built-in MCP (Model Context Protocol) server. Connect an AI assistant such as Claude, ChatGPT, Claude Code or Cursor, and it can look up clients, shoots, bookings, quotes and galleries, and help you run the studio.
+OpenPortrait has a built-in MCP (Model Context Protocol) server. Connect an AI assistant such as Claude, ChatGPT, Claude Code or Cursor, and it can look up clients, shoots, bookings, quotes and contracts, and help you run the studio.
 
 Access is off until you turn it on, and it is built to keep you in charge.
 
@@ -16,7 +16,7 @@ Go to **Settings > Connect your AI** (owner only) and switch it on. Remote assis
 1. The status line says whether AI access is on or off.
 2. The switch is the only control that turns access on. Turning it off stops every connected assistant at once.
 
-The page confirms the connection the first time the assistant calls OpenPortrait. **Test connection** runs a harmless read.
+Each connection appears under **Connections** with when it was last used, so you can see that the assistant got through.
 
 ## Choose what it can do
 
@@ -24,17 +24,17 @@ Each connection has an access level:
 
 | Level | What the assistant can do |
 |---|---|
-| **Read** | Look at contacts, leads, shoots, the calendar, orders and galleries |
-| **Assist** | Read, plus make internal drafts such as notes, tasks and draft quotes. It can also ask to send, publish or record money, but every such request waits for your approval |
+| **Look only** | Read and search contacts, leads, shoots, the calendar, quotes, orders and contracts. It can't change anything |
+| **Assist** | Look only, plus make internal drafts such as notes, tasks and draft quotes. It can also ask to send, publish or record money, but every such request waits for your approval |
 | **Full** | The same tools as Assist. Today the two differ only in label; Full is reserved for per-action auto-approval later. Anything that reaches a client or money still asks you first |
 
-Use the per-area switches to limit a connection further, for example to galleries only.
+Use the per-area switches to limit a connection further, for example to the calendar only. The areas are Studio info, Contacts, Leads, Shoots, Calendar, Quotes, Orders and Contracts. Galleries and Email are listed as **Soon**: assistants can't read galleries or send free-form email in this release.
 
 ## Approvals
 
-Anything that reaches a client or touches money goes to **Approvals** first. That includes sending an email, sending a quote or contract, publishing a gallery, confirming a booking, sending a questionnaire, recording a payment, or issuing a credit. You see the exact content and can approve, edit or decline it. Pending items expire after 7 days. Approving checks the connection again at that moment: if it was revoked, expired, lost access to that area or was cut back to read-only after the request was made, the action does not run. Revoking a connection cancels everything it had waiting.
+Anything that reaches a client or touches money goes to **Approvals** first. That includes sending a quote, invoice or contract, confirming or declining a booking, sending a questionnaire, recording a payment, creating a coupon, and adding or using client credit. You see the exact content and can approve, edit or decline it. Pending items expire after 7 days. Approving checks the connection again at that moment: if it was revoked, expired, lost access to that area or was cut back to read-only after the request was made, the action does not run. Revoking a connection cancels everything it had waiting.
 
-Auto-approval is a setting you can turn on for each kind of action. It is off by default, and new kinds of action always start in approval.
+There is no auto-approval in this release. Every one of these actions waits for you.
 
 Client-written text, such as inquiry messages and questionnaire answers, is passed to the assistant as untrusted content. Assistants are told not to follow instructions found in it, and the approval step still applies.
 
@@ -78,9 +78,9 @@ Free, with no extra cost.
 
 ## Limits and records
 
-- Each connection is rate limited, and client emails sent through an assistant are capped per day.
-- An assistant can only email people who are already your contacts.
-- Every call is written to the activity log with the connection, the tool, the result, and who approved it. **Settings > Connect your AI > Activity** shows it as a timeline.
+- Each connection is rate limited, and it can queue at most 25 requests for approval per day.
+- An assistant can only send a quote, contract or questionnaire to someone who is already in your studio.
+- Every call is written to the activity log with the connection, the tool, the result, and who approved it. **Settings > Connect your AI > Recent activity** lists it.
 - No tool returns passwords, tokens or the tunnel secret, and no tool can change access settings.
 
 ## Give it a good brief

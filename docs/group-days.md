@@ -31,7 +31,7 @@ flowchart TD
 2. **Paste a list.** Add many people at once from a spreadsheet column or an email.
 3. **Add one person.** For a mini session, use the family name and set the headcount on the person's page.
 
-On a person's own page, the **Group day** panel lets you switch **Show on the organisation's page** on or off, set **People in this shoot** (a family of four is 4) and choose how that person is **Billed**.
+On a person's own page, the **Group day** panel lets you switch **Show on the organisation's page** on or off, set **People in this shoot** (a family of four is 4) and choose that person's **Billing**.
 
 ## Sort photos by name cards
 

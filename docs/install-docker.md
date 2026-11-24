@@ -74,7 +74,7 @@ What the flags do, and why they are there:
 
 ## First run
 
-The first visit opens a two-step setup: your studio's name and time zone, then the owner account. Because a new install is open to whoever reaches it first, the second step asks for a **setup code**. Find it in the container's log (`docker logs openportrait`, or the Logs button on Unraid): it looks like `==== OpenPortrait setup code: ABCDE-FGHJK ====` and changes each time the container starts until setup is done. To choose your own, set `SETUP_CODE`. After that, **Settings > Internet access** connects your domain through Cloudflare.
+The first visit opens a three-step setup: your studio's name and time zone, then the owner account, then an optional [authorization code](ai-access.md#authorization-code-for-sensitive-actions) for AI access, which you can skip. Because a new install is open to whoever reaches it first, the second step asks for a **setup code**. Find it in the container's log (`docker logs openportrait`, or the Logs button on Unraid): it looks like `==== OpenPortrait setup code: ABCDE-FGHJK ====` and changes each time the container starts until setup is done. To choose your own, set `SETUP_CODE`. After that, **Settings > Internet access** connects your domain through Cloudflare.
 
 ## Settings
 
@@ -149,4 +149,4 @@ A backup from a newer version of OpenPortrait than the one you are running is re
 
 ## Updating
 
-Unraid: **Docker > Check for Updates**. Compose: `docker compose pull && docker compose up -d`. Plain Docker: change the version number in your command, then stop, remove and run it again. Database changes are applied automatically when the new version starts, and a backup is taken nightly.
+Unraid: the template pins a version, so edit the container, change the version number at the end of **Repository** to the newest one on the Releases page, and click **Apply**. Compose: change the version number on the `image:` line, then `docker compose pull && docker compose up -d`. Plain Docker: change the version number in your command, then stop, remove and run it again. Database changes are applied automatically when the new version starts, and a backup is taken nightly.

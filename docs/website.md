@@ -45,7 +45,7 @@ Any host that serves static files works: upload the contents of the zip to the w
 
 ## Inquiry form
 
-A static site can't receive form posts, so buttons that go to **Your inquiry form** link to the inquiry page on your OpenPortrait address. New inquiries land in Leads as usual. Set a public address under **Settings, Internet** for this to work. The contact section also shows your email, phone and links.
+A static site can't receive form posts, so buttons that go to **Your inquiry form** link to the inquiry page on your OpenPortrait address. New inquiries land in Leads as usual. Set a public address under **Settings > Internet access** for this to work. The contact section also shows your email, phone and links.
 
 ## Extensions
 

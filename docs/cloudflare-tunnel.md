@@ -8,7 +8,7 @@ The same steps are in the app under **Settings > Internet access**, with live ch
 
 - A domain, such as `yourstudio.com`, whose DNS is on Cloudflare. The free plan is enough. If your domain is somewhere else, add it in Cloudflare (**Add a domain**) and switch your registrar's nameservers to the two Cloudflare gives you. That usually takes a few minutes and can take up to a day.
 - A Cloudflare account. Creating a tunnel doesn't need a credit or debit card.
-- OpenPortrait installed and set up (see [install-docker.md](install-docker.md)).
+- OpenPortrait installed and set up (see [Install with Docker, Compose or Unraid](install-docker.md)).
 
 ## Setup (about five minutes)
 

@@ -33,7 +33,7 @@ Everything above the storage step is free and open source. Cloud storage for ori
 
 | Option | Best for | Pros | Cons | Cost |
 |---|---|---|---|---|
-| **Unraid app** | Anyone with an Unraid server | Fill-in form for every setting, app icon, one-click updates | Needs an Unraid server | Free |
+| **Unraid app** | Anyone with an Unraid server | Fill-in form for every setting, app icon, one-click updates | Needs an Unraid server. You paste the template address once, because the app isn't in Community Applications yet | Free |
 | **Docker Compose** | Linux, Synology, TrueNAS, Docker Desktop | Hardened settings come ready-made, easy to copy and back up | You edit a text file | Free |
 | **`docker run`** | Quick tests, custom setups | One command | You must keep the safety flags yourself | Free |
 
@@ -66,7 +66,7 @@ Provider prices change. Check the provider's current price page before you commi
 
 - **Studio:** clients, households, leads, shoots with a day-of timeline, tasks, and a calendar with Google Calendar sync.
 - **Selling:** booking pages, quotes, invoices, coupons, client credit, PayPal payments, contracts with e-signatures, questionnaires.
-- **Photos:** client galleries with favorites, downloads and download limits, camera upload by SFTP or FTP, and tethering.
+- **Photos:** client galleries with favorites, downloads and download limits, camera upload by SFTP, FTPS or FTP, and tethering.
 - **Safety:** two-step sign-in, nightly backups, hardened container. A studio sign-in ends after 24 hours without activity, and after 30 days in any case, so expect to sign in again after a day away.
 - **Reach:** a studio website builder and AI access so an assistant can read your studio data.
 - **Yours:** AGPL open source, no per-gallery fees, and you can export your data at any time.

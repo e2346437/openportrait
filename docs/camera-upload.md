@@ -1,6 +1,8 @@
 # Camera upload
 
-OpenPortrait includes a server your camera can send photos to as you shoot. The photos land in the **Incoming** share, where the live view ([tethering.md](tethering.md)) shows them and you can sort them into shoots.
+OpenPortrait includes a server your camera can send photos to as you shoot. The photos land in the **Incoming** share, where the live view ([Tethering](tethering.md)) shows them and you can sort them into shoots.
+
+Your camera needs built-in FTP, SFTP or FTPS and a network connection, either Wi-Fi or Ethernet. Many professional and enthusiast bodies have this, often under a menu called **Connect to FTP server** or **FTP transfer**. A camera that only offers a phone app can't upload this way.
 
 Everything is set up in **Settings > Camera upload**.
 

@@ -1,12 +1,12 @@
 # OpenPortrait: product spec and architecture
 
-Status: living document. Milestones 2 to 5 are built and shipping; sections describe what OpenPortrait does, with planned items marked as such. Decisions are in section 12.
+Status: living document. Sections describe what OpenPortrait does, with planned items marked as such. The main design choices are in section 12.
 
 ## 1. What OpenPortrait is
 
 OpenPortrait is a self-hosted alternative to hosted studio-management services. One install serves one studio: the photographer, any staff, and their clients. It runs as a single Docker container. Gallery images stay on the photographer's own storage (an Unraid share) instead of paid cloud storage.
 
-It is built first for the studio and released as open source, so everything studio-specific (name, logo, colors, email copy, packages) is a setting, not code.
+It is open source and built to be generic, so everything studio-specific (name, logo, colors, email copy, packages) is a setting, not code.
 
 ### Goals
 
@@ -411,9 +411,7 @@ OpenPortrait can load optional extension modules. An extension is an ES module (
 
 Each milestone ships as a tagged release that installs and runs on Unraid.
 
-## 12. Decisions
-
-Decided by Eric on 2026-11-01:
+## 12. Design choices
 
 1. **Contracts and e-signatures** are in 1.0.
 2. **Payments:** PayPal first, behind a provider interface. Manual payments are always available.
@@ -424,6 +422,6 @@ Decided by Eric on 2026-11-01:
 7. **In-camera upload:** a built-in SFTP/FTP server writes to an Incoming share, with a sorting screen that moves files into each shoot's `Originals/RAW/`. Because Cloudflare Tunnel can't carry it, both remote routes are supported, each with a setup wizard and docs: direct SFTP on a DNS-only Cloudflare record with dynamic DNS, and a WireGuard travel router through Unraid's VPN Manager. At home the camera uploads straight over the LAN (section 4).
 8. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
 
-9. **AI access:** proposed in section 10. Eric chose on 2026-11-01 that outward and money actions need approval by default. The rest of the design, the failsafe default, and the first clients to verify are awaiting confirmation.
+9. **AI access:** described in section 10. Outward and money actions need approval by default.
 
 The importer (section 3, [`import.md`](import.md)) reads generic CSV and JSON exports.

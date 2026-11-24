@@ -810,7 +810,7 @@ describe("PayPal money that exceeds what the invoice still owed", () => {
   });
 });
 
-// Pending Eric's decisions on refund accounting (see HANDOFF-PAYPAL-VOID.md, T1 and T4). Nothing here changes behaviour yet.
+// Pending the maintainer's decisions on refund accounting (T1 and T4). Nothing here changes behaviour yet.
 describe("return and webhook racing, and late processor errors after settlement", () => {
   const start = async () => {
     const { id, token } = await invoice();

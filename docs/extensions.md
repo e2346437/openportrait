@@ -68,8 +68,6 @@ Passwords come from `api.createCameraLogin({ label })` and `api.resetCameraLogin
 
 Where a feature that an optional add-on provides would appear (QuickBooks Online, Microsoft 365, S3 and B2 bucket storage, second shooters), the owner sees one quiet line saying the add-on provides it, with a link. It shows only to the owner, disappears once the add-on is installed, and can be dismissed for good.
 
-For the full design, see the Extensions section of [the product spec](SPEC.md#extensions).
-
 ## Sending email through an outside mailbox
 
 An extension can call `api.mailSender({ label, ready, send })` to offer a mailbox, for example a hosted account that signs in with OAuth instead of a password. While `ready()` is true, all of the studio's email goes through `send`, and Settings > Email says so. When it is not ready, the SMTP settings are used as before.

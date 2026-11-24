@@ -18,7 +18,7 @@ OpenPortrait is not listed in Unraid's Community Applications yet, so you add it
     wget -O /boot/config/plugins/dockerMan/templates-user/my-openportrait.xml https://raw.githubusercontent.com/e2346437/openportrait/main/unraid/openportrait.xml
     ```
 
-2. Go to **Docker > Add Container**, open the **Template** list and choose **openportrait** under **User-defined templates**. **Repository** should end in a version number, not `latest`.
+2. Go to **Docker > Add Container**, open the **Template** list and choose **openportrait** under **User templates**. **Repository** should end in a version number, not `latest`.
 3. Check the three paths:
     - **App data** (`/mnt/user/appdata/openportrait`): the database, encryption key and backups.
     - **Galleries** (`/mnt/user/galleries`): your photo share.
@@ -26,7 +26,11 @@ OpenPortrait is not listed in Unraid's Community Applications yet, so you add it
 4. Leave **Cloudflare Tunnel token** empty for now unless you already have one. The app walks you through it.
 5. Click **Apply**, then open the WebUI from the container's menu.
 
-The container is named `openportrait`. If you already run a container with that name, change **Name** before you click **Apply**, or Unraid replaces the one you have.
+These steps are for a server that doesn't run OpenPortrait yet. If it already does and you want a second copy beside it, three things change:
+
+- In step 1, save the template under another file name, for example `my-openportrait-second.xml`. Unraid keeps your existing container's settings in `my-openportrait.xml`, and the command above would overwrite them.
+- Change **Name** before you click **Apply**. The template names the container `openportrait`, and Unraid replaces a container that has the same name.
+- Give the second copy its own **App data**, **Galleries** and **Incoming** folders and its own ports. Two copies that share **App data** would write to the same database.
 
 The template uses Unraid's usual `99`/`100` (nobody:users) owner, so files OpenPortrait writes look like files from any other app on your shares.
 

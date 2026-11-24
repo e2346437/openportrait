@@ -480,7 +480,7 @@ function AddSheet({ base, everyone, state, forPerson, onClose, onDone }: { base:
                 <Field label="Camera name" hint="Names their folder in Incoming. Edit it if you like." error={save.fieldErrors.camera}>
                   {(p) => <TextInput {...p} value={camLabel} placeholder={defaultCam} onChange={(e) => setCamLabel(e.target.value)} />}
                 </Field>
-                <Callout tone="info">You'll see the address, username and a one-time password next. This login can only send photos to its own folder. It can't read or delete anything.</Callout>
+                <Callout tone="info">You'll see the address, username and a one-time password next. This login can only send photos to its own folder. It can't download anything, and a photo it deletes over SFTP is kept for 7 days.</Callout>
                 <SwitchRow checked={expire} onChange={setExpire} label="Turn the login off after the shoot" hint="Recommended for second shooters. It switches off 7 days after the shoot date, and you can turn it back on." />
               </>
             ) : null}

@@ -319,7 +319,7 @@ export function CameraUploadSettingsPage() {
 
       <Panel
         title="Camera logins"
-        description="Each camera gets its own login, limited to its own folder in Incoming. A login can send photos but can't download or delete them."
+        description="Each camera gets its own login, limited to its own folder in Incoming. A login can send photos but can't download them. Over SFTP it can delete a photo it sent, and that photo is kept for 7 days."
         actions={
           <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>
             Add a camera

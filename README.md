@@ -7,11 +7,17 @@
 
 <p align="center">An open-source, self-hosted studio CRM for photographers. Runs as a Docker container and an Unraid app.</p>
 
-<p align="center"><a href="https://openportrait.app">openportrait.app</a></p>
+<p align="center"><a href="https://openportrait.app">openportrait.app</a> · <a href="https://demo.openportrait.app">Try the demo</a></p>
 
 ---
 
 Brand assets (logo, icons, colors) live in [`docs/brand`](docs/brand/README.md).
+
+## Try the demo
+
+A live sample studio is at [demo.openportrait.app](https://demo.openportrait.app), with a year of made-up clients, shoots, invoices and AI-generated sample galleries. The access code is on [openportrait.app/demo](https://openportrait.app/demo).
+
+The demo is **simulated**. Payments, email, cloud storage and outside connections are stand-ins, so nothing real is sent or charged, and the whole demo resets every hour.
 
 ## What's in it
 

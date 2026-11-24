@@ -10,15 +10,23 @@ OpenPortrait is one container image, `ghcr.io/e2346437/openportrait`, built for 
 
 ## Unraid
 
-OpenPortrait is not listed in Unraid's Community Applications yet, so you add its template by hand. It takes one paste.
+OpenPortrait is not listed in Unraid's Community Applications yet, so you add its template by hand, once.
 
-1. Go to **Docker > Add Container**, paste `https://raw.githubusercontent.com/e2346437/openportrait/main/unraid/openportrait.xml` into **Template**, and continue.
-2. Check the three paths:
+1. Open the Unraid terminal (the **>_** icon in the top bar) and run this one line. It saves the template where Unraid keeps your own templates:
+
+    ```
+    wget -O /boot/config/plugins/dockerMan/templates-user/my-openportrait.xml https://raw.githubusercontent.com/e2346437/openportrait/main/unraid/openportrait.xml
+    ```
+
+2. Go to **Docker > Add Container**, open the **Template** list and choose **openportrait** under **User-defined templates**. **Repository** should end in a version number, not `latest`.
+3. Check the three paths:
     - **App data** (`/mnt/user/appdata/openportrait`): the database, encryption key and backups.
     - **Galleries** (`/mnt/user/galleries`): your photo share.
     - **Incoming** (`/mnt/user/incoming`): photos sent straight from the camera.
-3. Leave **Cloudflare Tunnel token** empty for now unless you already have one. The app walks you through it.
-4. Click **Apply**, then open the WebUI from the container's menu.
+4. Leave **Cloudflare Tunnel token** empty for now unless you already have one. The app walks you through it.
+5. Click **Apply**, then open the WebUI from the container's menu.
+
+The container is named `openportrait`. If you already run a container with that name, change **Name** before you click **Apply**, or Unraid replaces the one you have.
 
 The template uses Unraid's usual `99`/`100` (nobody:users) owner, so files OpenPortrait writes look like files from any other app on your shares.
 

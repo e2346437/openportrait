@@ -9,8 +9,12 @@ use_directory_urls: true
 exclude_docs: |
   releasing.md
   brand/README.md
+  SPEC.md
+  GALLERIES.md
+  PROOFING.md
 theme:
   name: material
+  custom_dir: overrides
   logo: brand/openportrait-mark-dark.svg
   favicon: brand/favicon.svg
   font:
@@ -53,7 +57,7 @@ extra_css:
   - stylesheets/brand.css
 
 nav:
-  - Home: index.md
+  - Docs home: index.md
   - Getting started:
       - Start here, choose your setup: start-here.md
       - Install with Docker, Compose or Unraid: install-docker.md
@@ -68,7 +72,6 @@ nav:
       - Group days: group-days.md
       - Gallery expiry and archive: gallery-expiry.md
       - Client galleries, step by step: galleries-guide.md
-      - Galleries design notes: GALLERIES.md
       - Tasks: tasks.md
       - Households: households.md
       - Google Calendar: google-calendar.md
@@ -86,4 +89,3 @@ nav:
   - Reference:
       - Light and dark appearance: appearance.md
       - Accessibility: accessibility.md
-      - Product spec and architecture: SPEC.md

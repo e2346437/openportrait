@@ -9,7 +9,7 @@ Thanks for helping. OpenPortrait is licensed under the [GNU Affero General Publi
 
 ## Contributor agreement
 
-The project maintainer may one day offer a paid edition alongside the open-source one. To keep that possible, every pull request must include this statement in its description:
+OpenPortrait is open source, and the maintainer also offers an optional paid add-on alongside it. To keep that possible, every pull request must include this statement in its description:
 
 > I agree that my contribution is licensed to the public under AGPL-3.0, and I grant the OpenPortrait maintainer a perpetual, worldwide, non-exclusive, royalty-free license to use, modify, and relicense my contribution under other terms. I confirm I have the right to make this contribution.
 

@@ -31,6 +31,13 @@
       "path": "apps/web/",
       "justification": "Code-quality hint, not a security issue.",
       "expires": "2026-12-31"
+    },
+    {
+      "id": "CVE-2026-78661",
+      "package": "golang.org/x/net",
+      "path": "usr/local/bin/cloudflared",
+      "justification": "GHSA-75pg-wvh3-34jr affects the x/net/html parser. Binary strings analysis with positive controls, run 2026-11-16 on the pinned cloudflared 2026.10.7 linux-amd64 and linux-arm64 release binaries (publisher SHA-256 matched), found both built with go1.27.3 and x/net v0.61.0. Each contains symbols for 13 other x/net packages (http2, idna, ipv4, ipv6 and others) but none for x/net/html, so the vulnerable parser is not linked and the code is not reachable. No fixed cloudflared release exists: 2026.11.0 still declares x/net v0.61.0 as of that review. Re-check at the next upstream cloudflared release and by the review date.",
+      "expires": "2026-12-31"
     }
   ]
 }

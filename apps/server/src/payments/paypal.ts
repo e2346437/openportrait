@@ -58,15 +58,31 @@ export async function testPayPal(ctx: Ctx): Promise<void> {
   await accessToken(ctx);
 }
 
+/** Issues PayPal gives on a refused capture when the payer's funding source was turned down, so no money was taken. */
+const DECLINED = new Set(["INSTRUMENT_DECLINED", "TRANSACTION_REFUSED"]);
+
 interface PayPalOrder {
   id: string;
   status: string;
+  details?: Array<{ issue?: string }>;
   links?: Array<{ rel: string; href: string }>;
   payer?: { email_address?: string };
-  purchase_units?: Array<{ payments?: { captures?: Array<{ id: string; status: string; amount: { value: string } }> } }>;
+  purchase_units?: Array<{ custom_id?: string; reference_id?: string; payments?: { captures?: Array<{ id: string; status: string; custom_id?: string; amount?: { value?: string; currency_code?: string } }> } }>;
 }
 
-const toCents = (v: string) => Math.round(Number(v) * 100);
+type Capture = NonNullable<NonNullable<NonNullable<PayPalOrder["purchase_units"]>[number]["payments"]>["captures"]>[number];
+function toResult(order: PayPalOrder, cap: Capture): CaptureResult {
+  const unit = order.purchase_units?.find((u) => u.payments?.captures?.includes(cap)) ?? order.purchase_units?.[0];
+  return {
+    status: cap.status === "COMPLETED" ? "completed" : cap.status === "PENDING" ? "pending" : "failed",
+    amount: String(cap.amount?.value ?? ""),
+    currency: String(cap.amount?.currency_code ?? ""),
+    orderId: String(order.id ?? ""),
+    customId: String(cap.custom_id ?? unit?.custom_id ?? ""),
+    providerRef: cap.id,
+    payerEmail: order.payer?.email_address,
+  };
+}
 
 export const paypal: PaymentProvider = {
   id: "paypal",
@@ -95,10 +111,23 @@ export const paypal: PaymentProvider = {
     let order = json;
     // Already captured (a webhook got there first, or the client reloaded): read it instead.
     if (status === 422 || status === 409) order = (await call<PayPalOrder>(ctx, "GET", `/v2/checkout/orders/${encodeURIComponent(providerOrderId)}`)).json;
-    else if (status >= 300) throw new PaymentError("PayPal couldn't complete the payment. You haven't been charged. Please try again.");
-    const cap = order.purchase_units?.[0]?.payments?.captures?.[0];
-    if (!cap) return { status: "pending", amountCents: 0, providerRef: "" };
-    return { status: cap.status === "COMPLETED" ? "completed" : cap.status === "PENDING" ? "pending" : "failed", amountCents: toCents(cap.amount.value), providerRef: cap.id, payerEmail: order.payer?.email_address };
+    else if (status >= 300) throw new PaymentError("PayPal couldn't confirm the payment. We can't tell whether you were charged, so please check PayPal before paying again.");
+    const unit = order.purchase_units?.[0];
+    const cap = unit?.payments?.captures?.[0];
+    if (!cap) {
+      // PayPal said no, and its own order shows nothing was captured. That is a decline, not a payment still in progress.
+      if (status === 422 && json.details?.some((d) => d.issue && DECLINED.has(d.issue))) return { status: "failed", amount: "", currency: "", orderId: "", customId: "", providerRef: "" };
+      return { status: "pending", amount: "", currency: "", orderId: "", customId: "", providerRef: "" };
+    }
+    return toResult(order, cap);
+  },
+
+  async lookupCapture(ctx, providerOrderId, captureId): Promise<CaptureResult | null> {
+    const { status, json } = await call<PayPalOrder>(ctx, "GET", `/v2/checkout/orders/${encodeURIComponent(providerOrderId)}`);
+    if (status === 404) return null;
+    if (status >= 300) throw new PaymentError("PayPal couldn't be asked about this order right now.");
+    const cap = json.purchase_units?.flatMap((u) => u.payments?.captures ?? []).find((c) => c.id === captureId);
+    return cap ? toResult(json, cap) : null;
   },
 };
 

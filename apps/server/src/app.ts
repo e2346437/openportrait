@@ -13,7 +13,7 @@ import { backupRoutes } from "./routes/backups.js";
 import { applyPendingRestore, RestoreService } from "./restore.js";
 import { logRoutes } from "./routes/logs.js";
 import { createLogStream } from "./logs.js";
-import { clientIp } from "./client-ip.js";
+import { clientIp, requestIsHttps } from "./client-ip.js";
 import { crossSiteBlocked, rejectCrossSite } from "./csrf.js";
 import { Secrets } from "./secrets.js";
 import { Settings } from "./settings.js";
@@ -21,6 +21,7 @@ import { TunnelManager } from "./tunnel.js";
 import { registerDerivativesJob } from "./galleries/derivatives.js";
 import { GalleryIngest } from "./galleries/ingest.js";
 import { tickCheckouts } from "./domain/storage-checkout.js";
+import { tickExpiry } from "./domain/gallery-expiry.js";
 import { startGalleryWatcher } from "./galleries/watcher.js";
 import { clientGalleryRoutes, mediaRoutes } from "./routes/client-gallery.js";
 import { masterRoutes } from "./routes/master.js";
@@ -30,6 +31,8 @@ import { proofingRoutes } from "./routes/proofing.js";
 import { siteRoutes } from "./routes/site.js";
 import { registerFreeTemplates } from "./site/templates.js";
 import { mcpRoutes } from "./ai/mcp.js";
+import { expireForAbsentTools } from "./ai/approvals.js";
+import { ToolRegistry } from "./ai/registry.js";
 import { Originals } from "./galleries/originals.js";
 import { DEFAULT_RAW_SUBDIR } from "./domain/folders.js";
 import { enforceShootScope, shootScopeFor } from "./scope.js";
@@ -99,6 +102,8 @@ export interface AppContext {
   originals: Originals;
   backups: BackupService;
   restore: RestoreService;
+  /** This app's MCP tools: the shared built-ins plus whatever this app's extensions registered. Never shared with another app. */
+  tools: ToolRegistry;
   /** Public base URL: setting, then APP_URL, then the tunnel's first hostname. */
   publicUrl(): string;
   /** This server's address on the home network (see lan.ts). */
@@ -185,6 +190,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     galleries,
     originals,
     backups,
+    tools: new ToolRegistry(),
     restore: new RestoreService({ configDir: config.configDir, galleriesDir: config.galleriesDir, backups, log: app.log }),
     lan() {
       return lanInfo(settings, config);
@@ -245,7 +251,7 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     reply.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
     // HSTS only over HTTPS (a plain-HTTP response can't set it) and never for subdomains: the studio often shares its
     // parent domain with other sites.
-    if (req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" || typeof req.headers["cf-ray"] === "string") reply.header("Strict-Transport-Security", "max-age=15552000");
+    if (requestIsHttps(req)) reply.header("Strict-Transport-Security", "max-age=15552000");
     reply.header("X-Content-Type-Options", "nosniff");
     reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
     reply.header("X-Frame-Options", "SAMEORIGIN");
@@ -312,6 +318,8 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
 
   // Optional extension modules from /config/extensions. A broken one is skipped; core always boots.
   const extensions = await loadExtensions(app, ctx);
+  // Loading is over and nothing is listening yet. A pending approval for a tool that isn't registered (its module was deleted or failed while the server was down) expires now, so an identical tool that returns later can't pick it up.
+  expireForAbsentTools(ctx, ctx.tools.all().map((t) => t.name));
   await app.register(extensionRoutes(extensions), { prefix: "/api/studio/extensions" });
 
   app.all("/api/*", async (_req, reply) => reply.code(404).send({ error: "not_found", message: "No such endpoint." }));
@@ -349,12 +357,17 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
     const stopWatcher = startGalleryWatcher({ dir: config.galleriesDir, ingest: galleries, rescanMinutes: config.watchRescanMinutes, settleSeconds: config.ingestSettleSeconds, logger: app.log });
     // Check Out: notice when files are back, and send idle shoots offsite again.
     const checkoutTimer = setInterval(() => tickCheckouts({ db, settings, config, actorId: null, publicUrl: ctx.publicUrl }, originals), 60_000);
+    // Gallery expiry: reminders to attached clients, then a zip in the Archive folder.
+    const expiryCtx = { db, settings, config, actorId: null, publicUrl: ctx.publicUrl };
+    const expiryTimer = setInterval(() => void tickExpiry(expiryCtx, originals, (msg, err) => app.log.warn({ err: String(err) }, msg)), 3_600_000);
+    setTimeout(() => void tickExpiry(expiryCtx, originals, (msg, err) => app.log.warn({ err: String(err) }, msg)), 60_000).unref();
     const googleTimer = setInterval(() => requestSync(db, 0), 5 * 60_000);
     setTimeout(() => requestSync(db, 0), 10_000).unref();
     app.addHook("onClose", async () => {
       clearInterval(hourly);
       clearInterval(googleTimer);
       clearInterval(checkoutTimer);
+      clearInterval(expiryTimer);
       await stopWatcher();
       await uploads.stop();
       await jobs.stop();
@@ -370,3 +383,4 @@ export async function buildApp({ config, startBackground = true, logger, setupCo
 }
 
 export { lanAddresses } from "./lan.js";
+

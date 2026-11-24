@@ -22,7 +22,7 @@ beforeEach(async () => {
       return {} as never;
     },
   }));
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "op-deposit-"));
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "op-retainer-"));
   const config = loadConfig({ OPENPORTRAIT_DATA_ROOT: root, WEB_DIR: path.join(root, "web") });
   fs.mkdirSync(config.galleriesDir, { recursive: true });
   app = await buildApp({ config, startBackground: false, setupCode: null, logger: false });
@@ -61,26 +61,26 @@ function monday() {
 }
 
 describe("rebalance", () => {
-  const rows = [{ label: "Deposit", amountCents: 30_000, dueDate: null }, { label: "Balance", amountCents: 70_000, dueDate: "2027-01-01" }];
+  const rows = [{ label: "Retainer", amountCents: 30_000, dueDate: null }, { label: "Balance", amountCents: 70_000, dueDate: "2027-01-01" }];
   it("lets the balance absorb a smaller or larger total", () => {
     expect(rebalance(rows, 55_000).map((r) => r.amountCents)).toEqual([30_000, 25_000]);
     expect(rebalance(rows, 120_000).map((r) => r.amountCents)).toEqual([30_000, 90_000]);
   });
-  it("eats into the deposit only when the balance is gone, and keeps one payment", () => {
-    expect(rebalance(rows, 20_000).map((r) => [r.label, r.amountCents])).toEqual([["Deposit", 20_000]]);
+  it("eats into the retainer only when the balance is gone, and keeps one payment", () => {
+    expect(rebalance(rows, 20_000).map((r) => [r.label, r.amountCents])).toEqual([["Retainer", 20_000]]);
     expect(rebalance(rows, 0)).toHaveLength(1);
   });
 });
 
 describe("coupons on a sent quote", () => {
   const lines = [{ description: "Wedding collection", unitCents: 100_000, taxable: false }];
-  const schedule = [{ label: "Deposit", amountCents: 30_000 }, { label: "Balance", amountCents: 70_000, dueDate: "2099-01-01" }];
+  const schedule = [{ label: "Retainer", amountCents: 30_000 }, { label: "Balance", amountCents: 70_000, dueDate: "2099-01-01" }];
   async function sentQuote(extra: object = {}) {
     const q = await staff("POST", "/orders", { kind: "quote", contactId: await contact(), title: "Smith wedding", lines, schedule, ...extra });
     await staff("POST", `/orders/${q.body.id}/send`);
     return q.body as { id: string; token: string };
   }
-  it("recalculates the total and takes the change off the balance, not the deposit", async () => {
+  it("recalculates the total and takes the change off the balance, not the retainer", async () => {
     await coupon();
     const q = await sentQuote();
     const r = await pub("POST", `/order/${q.token}/coupon`, { code: " spring25 " });
@@ -122,14 +122,14 @@ describe("paid booking pages", () => {
   }
   const who = { firstName: "Ana", email: "ana@example.com" };
 
-  it("validates the price and deposit", async () => {
+  it("validates the price and retainer", async () => {
     const bad = await staff("POST", "/schedulers", { name: "X", durationMinutes: 30, priceCents: 10_000, depositType: "fixed", depositValue: 20_000, availability: {} });
     expect(bad.status).toBe(400);
     const free = (await staff("POST", "/schedulers", { name: "Free", durationMinutes: 30, depositType: "percent", depositValue: 500, availability: {} })).body;
     expect(free).toMatchObject({ priceCents: 0, depositType: "none", depositValue: 0 });
     expect((await pub("GET", `/book/${free.slug}`)).body.price).toBeNull();
   });
-  it("shows the price and deposit, and previews a coupon", async () => {
+  it("shows the price and retainer, and previews a coupon", async () => {
     const { s } = await page();
     await coupon();
     expect((await pub("GET", `/book/${s.slug}`)).body.price).toMatchObject({ totalCents: 20_000, depositCents: 10_000, balanceCents: 10_000 });
@@ -137,7 +137,7 @@ describe("paid booking pages", () => {
     expect(p).toMatchObject({ couponCode: "SPRING25", couponCents: 5_000, totalCents: 15_000, depositCents: 7_500, balanceCents: 7_500 });
     expect((await pub("POST", `/book/${s.slug}/price`, { couponCode: "NOPE" })).status).toBe(400);
   });
-  it("raises an invoice with a deposit and a balance due on the day", async () => {
+  it("raises an invoice with a retainer and a balance due on the day", async () => {
     const { s, day, at } = await page();
     await coupon();
     const r = await pub("POST", `/book/${s.slug}`, { ...who, startsAt: at, couponCode: "SPRING25" });
@@ -145,8 +145,8 @@ describe("paid booking pages", () => {
     expect(r.body.invoice).toMatchObject({ totalCents: 15_000, depositCents: 7_500 });
     const inv = (await pub("GET", `/order/${r.body.invoice.token}`)).body;
     expect(inv).toMatchObject({ kind: "invoice", title: "Mini session", couponCode: "SPRING25", totalCents: 15_000 });
-    expect(inv.schedule.map((x: { label: string; amountCents: number; dueDate: string | null }) => [x.label, x.amountCents, x.dueDate])).toEqual([["Deposit", 7_500, null], ["Balance", 7_500, day]]);
-    // The staff list shows it unpaid, then partly paid once the deposit comes in.
+    expect(inv.schedule.map((x: { label: string; amountCents: number; dueDate: string | null }) => [x.label, x.amountCents, x.dueDate])).toEqual([["Retainer", 7_500, null], ["Balance", 7_500, day]]);
+    // The staff list shows it unpaid, then partly paid once the retainer comes in.
     const list = async () => (await staff("GET", "/bookings?status=confirmed")).body.items[0].payment;
     expect(await list()).toMatchObject({ status: "unpaid", totalCents: 15_000 });
     const orderId = (await staff("GET", "/orders?kind=invoice")).body.items[0].id;
@@ -167,7 +167,7 @@ describe("paid booking pages", () => {
     const q = await staff("POST", "/orders", { kind: "quote", contactId: await contact(), title: "T", lines: [{ description: "x", unitCents: 1000 }], couponCode: "HERE" });
     expect(q.status).toBe(400);
   });
-  it("charges in full when there is no deposit, and voids an unpaid invoice when the client cancels", async () => {
+  it("charges in full when there is no retainer, and voids an unpaid invoice when the client cancels", async () => {
     const { s, at } = await page({ depositType: "none", depositValue: 0 });
     const r = await pub("POST", `/book/${s.slug}`, { ...who, startsAt: at });
     expect(r.body.invoice).toMatchObject({ totalCents: 20_000, depositCents: 0 });

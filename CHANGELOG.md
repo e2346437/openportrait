@@ -4,13 +4,58 @@ All notable changes to OpenPortrait. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-Heading toward 1.0.
+## [0.2.0-beta.3] - 2026-11-16
+
+Build for the limited beta. Pin this tag; do not use `latest` during the beta. PayPal has been tested against mocked PayPal responses only; a test against the PayPal sandbox is still to come.
+
+### Changed
+- PayPal payments are now checked against the order before they are recorded. A payment whose amount, currency or order does not match goes to staff review and is not applied. If an invoice is voided or a booking is cancelled while a client is paying, no new charge is started; any payment PayPal already took is recorded once and the studio gets a refund-review notice. A declined card now shows as declined. When PayPal cannot be reached to verify a notification, the app answers with a temporary error so PayPal retries. Staff are notified once if an invoice is overpaid. Nothing is refunded automatically.
+- Camera upload (SFTP): a camera login can now delete single photos inside its own Incoming folder, so a tethering app can remove a rejected shot from the server. Folders and anything outside the login's folder stay protected, downloads stay off, and each delete is logged. A deleted photo is kept in a hidden `.deleted` folder inside that camera's folder for 7 days before it is removed for good, so a mistake or a leaked camera password can't destroy photos. Leftover partial uploads older than a day are now cleaned up hourly as well.
+
+### Security
+- Studio sign-ins now also expire after 24 hours without activity, in addition to the 30-day limit. Someone who has not used OpenPortrait for a day signs in again.
+- Session, gallery and Download-link cookies, and the HSTS header, now treat a request as HTTPS only when the connection itself is HTTPS or it comes from a trusted proxy (the built-in Cloudflare tunnel on this machine, or an address in `TRUSTED_PROXIES`). A reverse proxy running in a separate container needs its address in `TRUSTED_PROXIES` (see the install guide); without it, cookies lose the Secure flag and HSTS is not sent.
+- Optional: set `OPENPORTRAIT_EXTENSION_SHA256` to a comma-separated list of SHA-256 digests to load only approved add-on bundles. Unset, add-ons load as before. An empty or invalid list loads none.
+- Release checks: the image workflow builds one candidate, runs the scans, live security suite and ZAP against it, and publishes that exact image only after they pass. Workflow actions and scanner images are pinned, and the security gate now fails when scanner evidence is missing.
+- The release isolation check now tests the actual app process, and still fails if that process is missing, ambiguous, root or holds capabilities. The scanner exception list is validated by a test. The bundled cloudflared exception is renewed through 2026-12-31 after re-checking that its HTML-parsing library code is not in the binary.
+- The AI approval gate and exact-amount checks have more boundary tests, and `@hono/node-server` is updated to 2.1.8.
 
 ### Fixed
+- The restore screen's backup preview always showed 0 orders.
+
+### Upgrade note
+- Database migration 0032 runs automatically on start. Take a backup first, as usual.
+
+## [0.2.0-beta.2] - 2026-11-10
+
+Security patch build for the limited beta. Pin this tag; do not use `latest` during the beta.
+
+### Security
+- The image is rebuilt on the current Debian base, which fixes a high-severity `apt` vulnerability found by the pre-release security scan of beta.1. The bundled cloudflared tunnel binary is unchanged (still the latest release); a reported weakness in one of its libraries is in HTML-parsing code that the binary does not include, and will be re-checked when a new release appears.
+
+### Changed
+- Docs: Home screenshots use the retainer wording, and a note on emails that are sent once.
+
+## [0.2.0-beta.1] - 2026-11-07
+
+The first build for the limited beta. Pin this tag; do not use `latest` during the beta.
+
+### Changed
+- The Pro add-on notes inside the app link to the beta page instead of the pricing page while pricing is not promoted.
+- "Deposit" is now "retainer" everywhere a client or the studio sees it: booking pages, the scheduler form, payment schedules, quotes and invoices, emails, Home, the docs and the example contract. Existing bookings, invoices and signed contracts are not changed.
+- The example contract has a retainer clause, proofs, delivery after the final payment, copyright and usage, and chargeback wording. Have a lawyer review it before you rely on it.
+
+### Fixed
+- A client can no longer get the same email twice after a restart or crash. Each email is claimed before it is sent and sent at most once; if an attempt is cut off mid-send, it is marked "Check Sent folder" instead of being sent again, and every email carries one fixed Message-ID. Connection failures that happen before anything is sent still retry.
 - AI approvals are checked again when you approve: if the connection was revoked, expired, cut back to read-only or lost the area or feature since the request was made, the action no longer runs. Revoking a connection now cancels everything it had waiting.
 - The AI rate limiter forgets connections that have gone quiet instead of growing without bound.
 
+### Changed
+- The `docker run` example in the README and install guide is hardened: a pinned version tag, dropped capabilities, read-only root, resource limits, real host folders, and no secrets on the command line (`--env-file` if you need one).
+
 ### Added
+- Docs: how to restore a backup onto a new install, and why `secret.key` is not in a backup.
+- Gallery expiry and archive: galleries now expire 12 months after their first publish (change or turn off in Settings > Galleries; existing published galleries are untouched). Clients attached to the shoot get reminder emails 90, 30 and 7 days before. When a gallery expires it is packed into one zip in an Archive folder next to your shoots and taken offline; nothing is deleted. Download or restore the zip from the gallery's Settings tab, and see the status on the shoot record.
 - Check Out: on a gallery's Storage tab, bring its offsite Originals (RAW) and/or Gallery (JPG) files back to this server to edit. You see progress, get a task and an email when everything is back, and the shoot returns offsite when you check it in or after 14 idle days. A cost warning appears first because storage providers can bill for retrieval.
 - Each shoot's Originals/RAW folder is now tracked, so an extension that adds remote storage can move those files and bring them back (they are never shown to clients). Each gallery can also choose, per folder, to follow the studio default, stay on this server, or go to remote storage.
 - Extension settings cards can show a connection block (a clear tick or warning with title, detail and buttons) and keep their form closed behind an Edit button, pre-filled with the saved values. Secret fields show "Saved" and never receive the stored secret.

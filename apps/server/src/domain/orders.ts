@@ -202,7 +202,7 @@ function clean(ctx: ServiceContext, input: OrderInput, taxBps: number, existing?
   if (totals.totalCents < 0) throw new DomainError("invalid", "The total can't be below zero.");
   if (input.validUntil && !isYmd(input.validUntil)) throw new DomainError("invalid", "Enter the “valid until” date as year-month-day.");
   const schedule = (input.schedule?.length ? input.schedule : [{ label: "Payment in full", amountCents: totals.totalCents, dueDate: null }]).map((s) => {
-    if (!s.label.trim()) throw new DomainError("invalid", "Name each payment, such as “Deposit”.");
+    if (!s.label.trim()) throw new DomainError("invalid", "Name each payment, such as “Retainer”.");
     if (!Number.isInteger(s.amountCents) || s.amountCents < 0) throw new DomainError("invalid", "Payment amounts must be zero or more.");
     if (s.dueDate && !isYmd(s.dueDate)) throw new DomainError("invalid", "Enter due dates as year-month-day.");
     return { label: s.label.trim().slice(0, 100), amountCents: s.amountCents, dueDate: s.dueDate || null };
@@ -340,7 +340,10 @@ export interface PaymentInput {
 /** Records money received outside the app (cash, check, Venmo) or confirmed by a processor. */
 export function recordPayment(ctx: ServiceContext, id: string, input: PaymentInput, source: { provider?: string; providerRef?: string } = {}) {
   const o = rowOf(ctx, id);
-  if (o.kind !== "invoice" || o.status !== "sent") throw new DomainError("invalid", "Payments can be recorded on a sent invoice.");
+  // Money PayPal already took can land on an invoice voided after the client started paying. Nothing else can.
+  const verifiedPayPal = source.provider === "paypal" && !!source.providerRef;
+  const onVoid = o.kind === "invoice" && o.status === "void" && verifiedPayPal;
+  if (o.kind !== "invoice" || (o.status !== "sent" && !onVoid)) throw new DomainError("invalid", "Payments can be recorded on a sent invoice.");
   if (!METHODS.includes(input.method)) throw new DomainError("invalid", "Choose how it was paid.");
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) throw new DomainError("invalid", "Enter the amount received.");
   if (input.method === "credit" && source.provider !== "credit") throw new DomainError("invalid", "Use “Apply credit” to pay from a client's credit.");
@@ -358,8 +361,20 @@ export function recordPayment(ctx: ServiceContext, id: string, input: PaymentInp
     .insert(payment)
     .values({ id: paymentId, orderId: id, amountCents: input.amountCents, method: input.method, provider: source.provider ?? "manual", providerRef: source.providerRef ?? null, note: input.note?.trim().slice(0, 500) || null, paidAt: new Date(input.paidAt ?? Date.now()), recordedBy: ctx.actorId })
     .run();
+  if (onVoid) {
+    // The invoice stays void. No receipt goes to the client; the studio is told a refund needs review.
+    logActivity(ctx, { contactId: o.contactId, kind: "payment.void_paid", summary: `${money(ctx, input.amountCents)} paid by PayPal on ${label(o)}, which was voided. Refund review needed`, shootId: o.shootId });
+    notifyStudio(ctx, `Refund review: payment on voided ${label(o)}`, `${money(ctx, input.amountCents)} was paid by PayPal on ${label(o)} (${o.title}) after it was voided. It is recorded on the invoice. Please review it and refund it from PayPal if it isn't owed.`);
+    return getOrder(ctx, id);
+  }
   logActivity(ctx, { contactId: o.contactId, kind: "payment.received", summary: `${money(ctx, input.amountCents)} received for ${label(o)} (${input.method})`, shootId: o.shootId });
   const left = Math.max(0, balance - input.amountCents);
+  // PayPal money is recorded even when it exceeds what was owed (two checkouts open, or a hand-recorded payment landed first). The ledger stays truthful; the studio is told once per payment so the extra can be refunded from PayPal if it isn't wanted.
+  const over = source.provider === "paypal" ? input.amountCents - Math.max(0, balance) : 0;
+  if (over > 0) {
+    logActivity(ctx, { contactId: o.contactId, kind: "payment.overpaid", summary: `${money(ctx, over)} more than owed was paid by PayPal on ${label(o)}. Refund review needed`, shootId: o.shootId });
+    notifyStudio(ctx, `Overpayment on ${label(o)}`, `${money(ctx, input.amountCents)} was paid by PayPal on ${label(o)} (${o.title}), which is ${money(ctx, over)} more than was owed. All of it is recorded on the invoice. Please review it and refund the extra from PayPal if it isn't wanted.`);
+  }
   notifyClient(ctx, o, `Receipt: ${money(ctx, input.amountCents)} for ${o.title}`, [`Thank you. I received ${money(ctx, input.amountCents)} for ${label(o)}.`, left > 0 ? `The balance is ${money(ctx, left)}.` : "It's paid in full."], { label: "View your invoice", url: linkTo(ctx, `/o/${o.token}`) }, "payment.receipt");
   return getOrder(ctx, id);
 }
@@ -386,6 +401,13 @@ export function recordProcessorRefund(ctx: ServiceContext, orderId: string, inpu
   if (seen) return;
   ctx.db.insert(payment).values({ id: newId(), orderId, amountCents: -input.amountCents, method: input.method, provider: input.provider, providerRef: input.providerRef, note: "Refunded by the payment processor", paidAt: new Date() }).run();
   logActivity(ctx, { contactId: o.contactId, kind: "payment.refunded", summary: `${money(ctx, input.amountCents)} refunded on ${label(o)} (${input.method})`, shootId: o.shootId });
+}
+
+/** A processor report that couldn't be matched to the checkout. Tells the studio, and writes nothing to the ledger. */
+export function flagPaymentForReview(ctx: ServiceContext, orderId: string, detail: string) {
+  const o = rowOf(ctx, orderId);
+  logActivity(ctx, { contactId: o.contactId, kind: "payment.review", summary: `Online payment on ${label(o)} needs manual reconciliation`, shootId: o.shootId, detail: { reason: detail } });
+  notifyStudio(ctx, `Payment on ${label(o)} needs review`, `An online payment for ${o.title} could not be matched automatically, so nothing was recorded and the invoice status is unchanged. ${detail} Check the payment in PayPal and record it by hand if money was taken.`);
 }
 
 /** What the next payment on the schedule still needs, capped at the balance. Zero when nothing is owed. */
@@ -480,7 +502,7 @@ export function rebalance(rows: Array<{ label: string; amountCents: number; dueD
 
 /**
  * The client types a coupon code on a quote they haven't accepted yet. The discount and total are recalculated and the
- * payment schedule follows: the deposit stays the same and the balance absorbs the change. A code that would give less
+ * payment schedule follows: the retainer stays the same and the balance absorbs the change. A code that would give less
  * than the discount the quote already has is refused, so entering a code can only help the client.
  */
 export function applyQuoteCoupon(ctx: ServiceContext, token: string, rawCode: string) {

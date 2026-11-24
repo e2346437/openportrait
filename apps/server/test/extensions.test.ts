@@ -1,11 +1,12 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { FastifyInstance } from "fastify";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "@openportrait/config";
 import { buildApp } from "../src/app.js";
-import { allTools, lockCapability, toolsFor } from "../src/ai/registry.js";
+import { lockCapability } from "../src/ai/registry.js";
 
 let app: FastifyInstance | undefined;
 let root = "";
@@ -20,6 +21,7 @@ async function boot(files: Record<string, string>) {
   return `op_session=${res.cookies.find((c) => c.name === "op_session")!.value}`;
 }
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await app?.close();
   app = undefined;
   fs.rmSync(root, { recursive: true, force: true });
@@ -36,6 +38,20 @@ describe("extensions", () => {
     expect(me.build).toMatchObject({ version: expect.stringMatching(/^\d+\.\d+\.\d+/), channel: expect.any(String) });
     const list = await app!.inject({ url: "/api/studio/extensions", headers: { cookie } });
     expect(list.json().extensions[0]).toMatchObject({ id: "addon", version: "2.3.4" });
+  });
+
+  it("loads only operator-approved extension digests when an allowlist is configured", async () => {
+    const approved = "export function register() {}";
+    vi.stubEnv("OPENPORTRAIT_EXTENSION_SHA256", createHash("sha256").update(approved).digest("hex"));
+    const cookie = await boot({
+      "approved.mjs": approved,
+      "changed.mjs": approved + " // changed",
+    });
+    const response = await app!.inject({ url: "/api/studio/extensions", headers: { cookie } });
+    expect(response.json().extensions).toMatchObject([
+      { id: "approved", status: "loaded" },
+      { id: "changed", status: "failed" },
+    ]);
   });
 
   it("loads a module, mounts owner-only routes, and lists it", async () => {
@@ -112,8 +128,8 @@ describe("extensions", () => {
         });
       }`,
     });
-    expect(allTools().some((t) => t.name === "studio_ext_test")).toBe(true);
-    const visible = () => toolsFor(caller).some((t) => t.name === "studio_ext_test");
+    expect(app!.ctx.tools.all().some((t) => t.name === "studio_ext_test")).toBe(true);
+    const visible = () => app!.ctx.tools.toolsFor(caller).some((t) => t.name === "studio_ext_test");
     expect(visible()).toBe(false);
     await app!.inject({ method: "POST", url: "/api/studio/extensions/grants/on", headers: { cookie }, payload: {} });
     expect(visible()).toBe(true);
@@ -125,7 +141,7 @@ describe("extensions", () => {
 describe("open-source tools stay free", () => {
   it("offers the invoicing tools with no extension installed", async () => {
     await boot({});
-    const names = toolsFor({ level: "full", areas: ["quotes", "orders"] }).filter((t) => t.capability === "invoicing").map((t) => t.name);
+    const names = app!.ctx.tools.toolsFor({ level: "full", areas: ["quotes", "orders"] }).filter((t) => t.capability === "invoicing").map((t) => t.name);
     expect(names.length).toBeGreaterThan(0);
   });
 });
@@ -243,3 +259,4 @@ describe("extension mail sender", () => {
     expect(audit).not.toContain(reset.password);
   });
 });
+

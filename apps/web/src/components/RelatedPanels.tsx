@@ -169,6 +169,7 @@ export function GalleriesPanel({ shootIds }: { shootIds: string[] }) {
                 <b>{g.title}</b>
                 <span>
                   {g.photoCount === 1 ? "1 photo" : `${g.photoCount} photos`}
+                  {g.status === "archived" ? " · zip saved in the Archive folder" : g.expiresAt ? ` · expires ${new Date(g.expiresAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}` : ""}
                 </span>
               </span>
               <StatusChip tone={GALLERY_STATE[g.status].tone}>

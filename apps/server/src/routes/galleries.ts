@@ -13,6 +13,7 @@ import { parse } from "../validate.js";
 import { emailPanel, sendGalleryEmail } from "../galleries/mail.js";
 import { DomainError } from "../domain/context.js";
 import { checkIn, checkoutView, startCheckout } from "../domain/storage-checkout.js";
+import { archiveFile, archiveGallery, archivesOf, defaultExpiry, expiryMonths, restoreArchive } from "../domain/gallery-expiry.js";
 import { serviceContext } from "./crm.js";
 
 const { gallery, gallerySet, photo, ingestFolder, favoriteList, favoriteSelection, favoriteItem, galleryView, downloadEvent, galleryVisitor, emailLog } = tables;
@@ -92,6 +93,9 @@ const GallerySettings = z.object({
     .refine((s) => !/[\\/:*?"<>|]/.test(s) && !s.startsWith("."), "Use a plain folder name without slashes."),
   privateFolders: z.array(z.string().trim().min(1).max(60)).max(10),
   defaultDownloadLock: lock,
+  /** Months a gallery stays up after its first publish (0 = never). Only affects galleries published afterwards. */
+  expiryMonths: z.number().int().min(0).max(120).optional(),
+  expiryReminders: z.boolean().optional(),
   /** Edited from the watermark panel (routes/watermark.ts); only changed here when sent. */
   watermarkText: z.string().trim().max(60).optional(),
 });
@@ -147,6 +151,8 @@ export async function galleryRoutes(app: FastifyInstance) {
         coverFocalX: g.coverFocalX,
         coverFocalY: g.coverFocalY,
         publishedAt: g.publishedAt?.getTime() ?? null,
+        expiresAt: g.expiresAt?.getTime() ?? null,
+        archivedAt: g.archivedAt?.getTime() ?? null,
         updatedAt: g.updatedAt.getTime(),
       })),
     };
@@ -198,6 +204,8 @@ export async function galleryRoutes(app: FastifyInstance) {
         gallery: app.ctx.originals.counts(g.shootFolder),
         checkout: checkoutView(mailCtx(), app.ctx.originals, g.id),
       },
+      /** Expiry and the zips made when this gallery expired or was archived by hand. */
+      archive: { archivedAt: g.archivedAt?.getTime() ?? null, items: archivesOf(mailCtx(), g.id) },
       sets: sets.map((s) => ({ id: s.id, name: s.name, folderName: s.folderName, hidden: s.hidden, earlyDownload: s.earlyDownload, coverPhotoId: s.coverPhotoId, coverFocalX: s.coverFocalX, coverFocalY: s.coverFocalY, sort: s.sort })),
       photos: photos.map((p) => ({ ...photoJson(secrets, p), state: p.state, error: p.error, hidden: p.hidden, relPath: p.relPath })),
       lists: lists.map((l) => ({ id: l.id, name: l.name, maxCount: l.maxCount })),
@@ -233,12 +241,50 @@ export async function galleryRoutes(app: FastifyInstance) {
         ...rest,
         ...access,
         ...(design ? { design: { ...(g.design ?? {}), ...design } } : {}),
-        ...(expiresAt !== undefined ? { expiresAt: expiresAt === null ? null : new Date(expiresAt) } : {}),
+        ...(expiresAt !== undefined ? { expiresAt: expiresAt === null ? null : new Date(expiresAt), expiryReminderDays: 0 } : {}),
         updatedAt: new Date(),
       })
       .where(eq(gallery.id, g.id))
       .run();
     return detail(g.id);
+  });
+
+  /** Archive: a gallery's zip. Making one hides the gallery from clients; it never deletes files. */
+  app.post<{ Params: { id: string } }>("/:id/archive", async (req, reply) => {
+    if (!db.select({ id: gallery.id }).from(gallery).where(eq(gallery.id, req.params.id)).get()) return notFound(reply);
+    try {
+      await archiveGallery(mailCtx(), app.ctx.originals, req.params.id, "manual");
+    } catch (e) {
+      if (e instanceof DomainError) return reply.code(e.status).send({ error: e.code, message: e.message });
+      throw e;
+    }
+    return detail(req.params.id);
+  });
+
+  app.post<{ Params: { id: string; aid: string } }>("/:id/archive/:aid/restore", async (req, reply) => {
+    if (!db.select({ id: gallery.id }).from(gallery).where(eq(gallery.id, req.params.id)).get()) return notFound(reply);
+    try {
+      await restoreArchive(mailCtx(), req.params.id, req.params.aid);
+    } catch (e) {
+      if (e instanceof DomainError) return reply.code(e.status).send({ error: e.code, message: e.message });
+      throw e;
+    }
+    await galleries.syncGallery(req.params.id);
+    return detail(req.params.id);
+  });
+
+  app.get<{ Params: { id: string; aid: string } }>("/:id/archive/:aid/download", async (req, reply) => {
+    try {
+      const f = archiveFile(mailCtx(), req.params.id, req.params.aid);
+      return reply
+        .header("content-type", "application/zip")
+        .header("content-length", f.size)
+        .header("content-disposition", `attachment; filename="${f.name.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "")}"; filename*=UTF-8''${encodeURIComponent(f.name)}`)
+        .send(fs.createReadStream(f.file));
+    } catch (e) {
+      if (e instanceof DomainError) return reply.code(e.status).send({ error: e.code, message: e.message });
+      throw e;
+    }
   });
 
   /** Check Out: bring this shoot's offsite files back to the server for editing. Check In sends them back. */
@@ -269,7 +315,12 @@ export async function galleryRoutes(app: FastifyInstance) {
     if (!g) return notFound(reply);
     const ready = db.select({ n: count() }).from(photo).where(and(eq(photo.galleryId, g.id), eq(photo.state, "ready"), eq(photo.hidden, false))).get()?.n ?? 0;
     if (ready === 0) return reply.code(409).send({ error: "empty", message: "There are no visible photos to share yet." });
-    db.update(gallery).set({ status: "live", downloadLock: body.downloadLock, publishedAt: g.publishedAt ?? new Date(), updatedAt: new Date() }).where(eq(gallery.id, g.id)).run();
+    if (g.archivedAt) return reply.code(409).send({ error: "archived", message: "This gallery is archived. Restore it before publishing." });
+    const first = !g.publishedAt;
+    const publishedAt = g.publishedAt ?? new Date();
+    // The expiry rule applies to first publishes only, and never replaces a date the owner already chose.
+    const expiry = first && !g.expiresAt ? defaultExpiry({ settings: app.ctx.settings }, publishedAt) : null;
+    db.update(gallery).set({ status: "live", downloadLock: body.downloadLock, publishedAt, ...(expiry ? { expiresAt: expiry, expiryReminderDays: 0 } : {}), updatedAt: new Date() }).where(eq(gallery.id, g.id)).run();
     return detail(g.id);
   });
 
@@ -538,6 +589,8 @@ export async function ingestRoutes(app: FastifyInstance) {
     defaultDownloadLock: settings.get("galleries.defaultDownloadLock") ?? "until_paid",
     webQuality: webQualityOf(settings),
     watermarkText: settings.get("galleries.watermarkText") ?? "",
+    expiryMonths: expiryMonths({ settings }),
+    expiryReminders: settings.get("galleries.expiryReminders") !== false,
   }));
 
   app.put("/settings", { preHandler: requireOwner }, async (req, reply) => {
@@ -548,7 +601,9 @@ export async function ingestRoutes(app: FastifyInstance) {
     settings.set("galleries.defaultDownloadLock", body.defaultDownloadLock);
     if (body.webQuality !== undefined) settings.set("galleries.webQuality", body.webQuality);
     if (body.watermarkText !== undefined) settings.set("galleries.watermarkText", body.watermarkText);
+    if (body.expiryMonths !== undefined) settings.set("galleries.expiryMonths", body.expiryMonths);
+    if (body.expiryReminders !== undefined) settings.set("galleries.expiryReminders", body.expiryReminders);
     void galleries.scan();
-    return { ...body, webQuality: webQualityOf(settings), watermarkText: settings.get("galleries.watermarkText") ?? "" };
+    return { ...body, expiryMonths: expiryMonths({ settings }), expiryReminders: settings.get("galleries.expiryReminders") !== false, webQuality: webQualityOf(settings), watermarkText: settings.get("galleries.watermarkText") ?? "" };
   });
 }

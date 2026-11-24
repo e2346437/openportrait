@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import nodemailer, { type Transporter } from "nodemailer";
 import { tables, type Db } from "@openportrait/db";
 import { defineJob, enqueue } from "@openportrait/jobs";
@@ -148,20 +148,53 @@ export function queueEmail(ctx: { db: Db; settings: Settings }, mail: OutgoingEm
   if (!emailConfigured(ctx.settings)) return null;
   if (!EMAIL.test(mail.to)) return null;
   const id = crypto.randomUUID();
-  ctx.db.insert(emailLog).values({ id, toAddress: mail.to, toName: mail.toName ?? null, subject: mail.subject, bodyText: mail.text, bodyHtml: mail.html ?? null, kind: mail.kind ?? "other", contactId: mail.contactId ?? null, shootId: mail.shootId ?? null, galleryId: mail.galleryId ?? null }).run();
-  enqueue(ctx.db, "email.send", { id });
+  // The log row and its job are saved together, so a crash can't leave a row nothing will ever send.
+  ctx.db.transaction((tx) => {
+    tx.insert(emailLog).values({ id, toAddress: mail.to, toName: mail.toName ?? null, subject: mail.subject, bodyText: mail.text, bodyHtml: mail.html ?? null, kind: mail.kind ?? "other", contactId: mail.contactId ?? null, shootId: mail.shootId ?? null, galleryId: mail.galleryId ?? null }).run();
+    enqueue(tx as unknown as Db, "email.send", { id });
+  });
   return id;
 }
 
+/** Stable per email, so if a server ever did receive it twice, mail systems can see it is the same message. */
+function messageIdFor(id: string, fromAddress: string): string {
+  const domain = fromAddress.split("@")[1] || "openportrait.local";
+  return `<${id}@${domain}>`;
+}
+
+/**
+ * True when the error proves the message was NOT accepted, so trying again can't double-send: the
+ * connection never opened, the login failed, or the server answered with a refusal. Anything else
+ * (a timeout or dropped socket mid-conversation) leaves it unknown.
+ */
+export function notDeliveredForSure(err: unknown): boolean {
+  const e = err as { code?: string; command?: string; responseCode?: number };
+  if (e.command === "CONN") return true;
+  if (e.code === "EAUTH" || e.code === "EENVELOPE" || e.code === "ECONNREFUSED" || e.code === "ENOTFOUND" || e.code === "EAI_AGAIN") return true;
+  return typeof e.responseCode === "number" && e.responseCode >= 400;
+}
+
+/**
+ * At-most-once delivery. The row is claimed (queued -> sending) before the mail server is contacted, so a
+ * second run of the same job, after a crash, restart or retry, finds it claimed and never sends again.
+ */
 async function deliver(db: Db, settings: Settings, id: string): Promise<void> {
   const row = db.select().from(emailLog).where(eq(emailLog.id, id)).get();
-  if (!row || row.status === "sent") return;
+  if (!row) return;
+  if (row.status === "sending") {
+    // The job is running again but the last attempt never reported back, so it died mid-send.
+    db.update(emailLog).set({ status: "unconfirmed", error: "OpenPortrait restarted while this was sending, so it may or may not have gone out. Check your email's Sent folder before sending it again." }).where(and(eq(emailLog.id, id), eq(emailLog.status, "sending"))).run();
+    return;
+  }
+  if (row.status !== "queued") return; // sent, failed or unconfirmed: already settled
   const outside = outsideSender();
   const config = getEmailConfig(settings);
   if (!config && !outside) {
     db.update(emailLog).set({ status: "failed", error: "Email isn't set up." }).where(eq(emailLog.id, id)).run();
     return;
   }
+  const claimed = db.update(emailLog).set({ status: "sending" }).where(and(eq(emailLog.id, id), eq(emailLog.status, "queued"))).returning({ id: emailLog.id }).get();
+  if (!claimed) return; // another run got it first
   try {
     if (outside) {
       await outside.send({ fromName: config?.fromName || settings.get("studio.name") || "", to: row.toAddress, toName: row.toName, replyTo: config?.replyTo || undefined, subject: row.subject, text: row.bodyText, html: row.bodyHtml ?? undefined });
@@ -169,6 +202,7 @@ async function deliver(db: Db, settings: Settings, id: string): Promise<void> {
       from: { name: config.fromName, address: config.fromAddress },
       to: row.toName ? { name: row.toName, address: row.toAddress } : row.toAddress,
       replyTo: config.replyTo || undefined,
+      messageId: messageIdFor(id, config.fromAddress),
       subject: row.subject,
       text: row.bodyText,
       html: row.bodyHtml ?? undefined,
@@ -176,9 +210,14 @@ async function deliver(db: Db, settings: Settings, id: string): Promise<void> {
     db.update(emailLog).set({ status: "sent", sentAt: new Date(), error: null }).where(eq(emailLog.id, id)).run();
   } catch (err) {
     const message = friendlyEmailError(err);
-    db.update(emailLog).set({ status: "failed", error: message }).where(eq(emailLog.id, id)).run();
-    // A wrong password won't fix itself, so don't retry those; network trouble is worth another try.
+    if (!notDeliveredForSure(err)) {
+      // It may have gone out. Don't retry; let the owner check rather than risk a second copy to a client.
+      db.update(emailLog).set({ status: "unconfirmed", error: `${message} It may still have been delivered, so check your Sent folder before sending it again.` }).where(eq(emailLog.id, id)).run();
+      return;
+    }
+    // A wrong password or a refused address won't fix itself; connection trouble and temporary (4xx) refusals are worth another try.
     const permanent = (err as { code?: string }).code === "EAUTH" || ((err as { responseCode?: number }).responseCode ?? 0) >= 500;
+    db.update(emailLog).set({ status: permanent ? "failed" : "queued", error: message }).where(eq(emailLog.id, id)).run();
     if (!permanent) throw err;
   }
 }

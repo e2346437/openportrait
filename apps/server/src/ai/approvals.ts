@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
-import { z } from "zod";
+import { and, desc, eq, gte, inArray, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 import { tables } from "@openportrait/db";
 import type { AppContext } from "../app.js";
-import { findTool, toolsFor, type Caller, type ToolDef } from "./registry.js";
+import { authorize, GateError, invoke, type GateGrant } from "./gate.js";
+import type { Caller } from "./registry.js";
 
 const EXPIRES_DAYS = 7;
 /** Most outward actions one connection may queue per day, so a runaway assistant can't flood the inbox. */
@@ -37,12 +37,42 @@ const view = (r: typeof tables.aiApproval.$inferSelect, connection: string): App
   expiresAt: r.expiresAt.getTime(),
 });
 
+/** Pending requests past their time expire. So do any with no binding: they were queued before approvals were tied to an exact action and details, and can't be checked. */
 export function expireOld(ctx: AppContext): void {
-  ctx.db.update(tables.aiApproval).set({ status: "expired", decidedAt: new Date() }).where(and(eq(tables.aiApproval.status, "pending"), lt(tables.aiApproval.expiresAt, new Date()))).run();
+  ctx.db
+    .update(tables.aiApproval)
+    .set({ status: "expired", decidedAt: new Date() })
+    .where(and(eq(tables.aiApproval.status, "pending"), or(lt(tables.aiApproval.expiresAt, new Date()), isNull(tables.aiApproval.binding))))
+    .run();
 }
 
-/** Queues a tool call for the owner. Returns what the assistant is told. */
-export function queueApproval(ctx: AppContext, caller: Caller, tool: ToolDef, args: unknown) {
+/** A tool was removed, so every pending request queued for it expires now and stays expired, even if an identical registration returns after a restart. */
+export function expireForRemovedTools(ctx: AppContext, toolNames: string[]): void {
+  if (!toolNames.length) return;
+  ctx.db
+    .update(tables.aiApproval)
+    .set({ status: "expired", decidedAt: new Date() })
+    .where(and(eq(tables.aiApproval.status, "pending"), inArray(tables.aiApproval.tool, toolNames)))
+    .run();
+}
+
+/**
+ * Run once at startup, after extensions have loaded and before requests are accepted: a pending request whose tool isn't
+ * registered expires. This covers a module that was deleted or failed to load while the server was down, which produces no
+ * removal event. A tool that comes back later is a new registration, not the one the owner was asked about.
+ */
+export function expireForAbsentTools(ctx: AppContext, registered: string[]): void {
+  const pending = eq(tables.aiApproval.status, "pending");
+  ctx.db
+    .update(tables.aiApproval)
+    .set({ status: "expired", decidedAt: new Date() })
+    .where(registered.length ? and(pending, notInArray(tables.aiApproval.tool, registered)) : pending)
+    .run();
+}
+
+/** Queues a gate-checked tool call for the owner. The validated arguments are stored, bound to the registration and connection. Returns what the assistant is told. */
+export function queueApproval(ctx: AppContext, grant: GateGrant) {
+  const { caller, tool, args, binding } = grant;
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
   const today = ctx.db
@@ -55,7 +85,7 @@ export function queueApproval(ctx: AppContext, caller: Caller, tool: ToolDef, ar
   const id = crypto.randomUUID();
   ctx.db
     .insert(tables.aiApproval)
-    .values({ id, connectionId: caller.connectionId, tool: tool.name, tier: tool.tier as "outward" | "money", summary, args, expiresAt: new Date(Date.now() + EXPIRES_DAYS * 86_400_000) })
+    .values({ id, connectionId: caller.connectionId, tool: tool.name, tier: tool.tier as "outward" | "money", summary, args, binding, expiresAt: new Date(Date.now() + EXPIRES_DAYS * 86_400_000) })
     .run();
   return { status: "pending_approval", approvalId: id, summary, message: "The studio owner has to approve this first. Check back with approvals_get; do not repeat the request." };
 }
@@ -104,21 +134,12 @@ export async function decide(ctx: AppContext, id: string, userId: string, approv
   let result: unknown = null;
   let status: ApprovalView["status"] = approve ? "approved" : "declined";
   if (approve) {
-    const tool = findTool(r.tool);
     try {
-      // Re-check the connection as it is now. accessExpiresAt is not checked: it only marks the short-lived OAuth access token, which refreshes while the connection itself stays valid.
-      const now = Date.now();
-      if (conn.revokedAt || (conn.expiresAt && conn.expiresAt.getTime() <= now)) {
-        throw new Error("This connection has been revoked or has expired, so the action was not run.");
-      }
-      if (!tool) throw new Error("This action isn't available any more.");
-      if (!toolsFor({ level: conn.level, areas: conn.areas }).some((t) => t.name === tool.name)) {
-        throw new Error("This connection is no longer allowed to do this, so the action was not run.");
-      }
-      const args = z.object(tool.input).parse(r.args);
-      result = await tool.handler(ctx, args as never, { connectionId: conn.id, label: conn.label, level: conn.level, areas: conn.areas });
+      // The same gate a live call goes through (connection, registration, switches, area, tier, capability, policy), plus the binding recorded when the request was queued.
+      const grant = authorize(ctx, { connectionId: r.connectionId, tool: r.tool, args: r.args, expectedBinding: r.binding });
+      result = await invoke(ctx, grant, "approved");
     } catch (err) {
-      status = "failed";
+      status = err instanceof GateError && err.code === "stale" ? "expired" : "failed";
       result = { error: err instanceof Error ? err.message : "The action failed." };
     }
     ctx.db.update(tables.aiApproval).set({ status, result }).where(eq(tables.aiApproval.id, id)).run();

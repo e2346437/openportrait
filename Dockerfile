@@ -3,7 +3,7 @@
 
 ARG NODE_VERSION=22
 # Pinned by digest so a build is reproducible; Dependabot proposes new digests weekly (.github/dependabot.yml).
-ARG NODE_IMAGE=node:22-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da
+ARG NODE_IMAGE=node:22-bookworm-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
 ARG CLOUDFLARED_VERSION=2026.10.7
 ARG TINI_VERSION=0.19.0
 ARG GOSU_VERSION=1.19
@@ -42,6 +42,17 @@ LABEL org.opencontainers.image.title="OpenPortrait" \
       org.opencontainers.image.url="https://openportrait.app" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.version="${VERSION}"
+
+# Debian DLA-4880-1. Use TLS and disable redirects and retries during the
+# bootstrap upgrade because this layer starts with the affected APT client.
+# The slim image lacks the OS trust bundle. Bootstrap with Node's bundled roots.
+RUN node -e 'console.log(require("node:tls").rootCertificates.join("\n"))' > /tmp/apt-roots.pem \
+  && sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+  && apt-get -o Acquire::https::CAInfo=/tmp/apt-roots.pem -o Acquire::Retries=0 -o Acquire::https::AllowRedirect=false update \
+  && apt-get -o Acquire::https::CAInfo=/tmp/apt-roots.pem -o Acquire::Retries=0 -o Acquire::https::AllowRedirect=false install -y --no-install-recommends --only-upgrade apt libapt-pkg6.0 \
+  && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' apt)" ge 2.6.2 \
+  && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' libapt-pkg6.0)" ge 2.6.2 \
+  && rm -rf /tmp/apt-roots.pem /var/lib/apt/lists/*
 
 # Static release binaries: cloudflared for the built-in tunnel, tini as PID 1, gosu to drop to PUID:PGID.
 ADD --chmod=755 https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${TARGETARCH} /usr/local/bin/cloudflared

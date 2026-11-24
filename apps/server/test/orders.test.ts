@@ -260,8 +260,7 @@ describe("sales tax places", () => {
 
 describe("AI tools", () => {
   it("keeps every invoicing tool in one switchable group", async () => {
-    const { allTools } = await import("../src/ai/registry.js");
-    const mine = allTools().filter((t) => ["quotes", "orders"].includes(t.area) || t.name === "catalog_list");
+    const mine = app.ctx.tools.all().filter((t) => ["quotes", "orders"].includes(t.area) || t.name === "catalog_list");
     expect(mine.length).toBeGreaterThanOrEqual(6);
     expect(mine.every((t) => t.capability === "invoicing")).toBe(true);
   });

@@ -69,6 +69,10 @@ export interface SettingTypes {
   "galleries.watermarkImageVersion": number;
   /** JPEG quality (60-100) of "web size" downloads. Missing means 88. */
   "galleries.webQuality": number;
+  /** Months after first publish that a gallery expires and is archived. 0 means never. Missing means 12. Applies to galleries published after it is set. */
+  "galleries.expiryMonths": number;
+  /** Email the shoot's clients before a gallery expires. Missing means on. */
+  "galleries.expiryReminders": boolean;
   "galleries.defaultDownloadLock": "until_paid" | "highlights_early" | "none";
   "ai.enabled": boolean;
   "ai.paused": boolean;

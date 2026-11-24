@@ -1,12 +1,12 @@
 # OpenPortrait: product spec and architecture
 
-Status: living document. Milestones 2 to 5 are built and shipping; sections describe what OpenPortrait does, with planned items marked as such. Decisions are in section 12.
+Status: living document. Sections describe what OpenPortrait does, with planned items marked as such. The main design choices are in section 12.
 
 ## 1. What OpenPortrait is
 
 OpenPortrait is a self-hosted alternative to hosted studio-management services. One install serves one studio: the photographer, any staff, and their clients. It runs as a single Docker container. Gallery images stay on the photographer's own storage (an Unraid share) instead of paid cloud storage.
 
-It is built first for ERW Photography and released as open source, so everything studio-specific (name, logo, colors, email copy, packages) is a setting, not code.
+It is open source and built to be generic, so everything studio-specific (name, logo, colors, email copy, packages) is a setting, not code.
 
 ### Goals
 
@@ -31,10 +31,10 @@ All of these are in scope for 1.0. The milestones in section 11 set the build or
 | **Leads** | Inquiries from a public contact form or booking page, a lead pipeline with configurable stages, lead source tracking, convert lead to shoot. |
 | **Shoots** | A job for a client: type (wedding, portrait, mini session, and so on), one or more dates and locations, status, linked quote, orders, questionnaires, gallery, and tasks. |
 | **Calendar** | Studio calendar of shoots, appointments, and personal blocks, with two-way Google Calendar sync. |
-| **Booking pages** | Public, branded pages that sell a package or session type: pick a time, answer questions, pay a deposit, and get a shoot created automatically. |
+| **Booking pages** | Public, branded pages that sell a package or session type: pick a time, answer questions, pay a retainer, and get a shoot created automatically. |
 | **Schedulers** | Availability rules (weekly hours, date overrides, buffers, minimum notice, max per day), session types and lengths, and mini-session slot lists. Used by booking pages and by direct "book a call" links. |
 | **Quotes and orders** | Package and product catalog, quotes with line items and options, client acceptance, then orders or invoices with payment schedules, online payments through PayPal (behind a provider interface, so Stripe or Square can be added later), and manual payments (cash, check, Venmo). |
-| **Contracts** | Contract templates with merge fields, client e-signature on booking pages and in the portal (typed or drawn signature, consent checkbox), countersignature by the studio, and a signed PDF with an audit trail (signer name, email, IP address, user agent, timestamps, document hash) stored on the shoot. A booking can require a signed contract before the deposit. |
+| **Contracts** | Contract templates with merge fields, client e-signature on booking pages and in the portal (typed or drawn signature, consent checkbox), countersignature by the studio, and a signed PDF with an audit trail (signer name, email, IP address, user agent, timestamps, document hash) stored on the shoot. A booking can require a signed contract before the retainer. |
 | **Credits and coupons** | Client account credit (gift cards, package print credit) applied to orders. Coupon codes (percent or fixed, expiry, usage limits, scoped to products or booking pages). |
 | **Questionnaires** | A form builder (text, choice, date, file upload, and so on), templates attached to shoot types, sent automatically or by hand, and answers stored on the shoot. |
 | **Galleries** | Client galleries fed from the Unraid share or a web upload, with sets, cover images, multiple favorites lists (each with an optional cap, submitted by the client), downloads (full, web-size, or per photo), access by private link (default), password, or invited emails, expiry dates, and view and download tracking. Each gallery has a payment-lock mode chosen when it is published (lock all downloads until paid, Highlights early with the rest when paid, or no lock), and the studio default lives in Settings > Galleries. The watermark shows only while downloads are payment-locked and goes away automatically once the balance is paid; downloaded files are never watermarked. Each shoot type has an auto-publish switch (off by default) that sends the gallery live as soon as an export finishes. |
@@ -74,7 +74,7 @@ All of these are in scope for 1.0. The milestones in section 11 set the build or
 ### Routes
 
 - Staff pages live under `/studio/*` and the staff API under `/api/studio/*`. Staff sign in with OpenPortrait's own login. Cloudflare Access is not used.
-- `/studio` is the home page: one owner-only call (`GET /api/studio/home`) returns the pulse numbers (open leads, this month's shoots and invoiced total, money outstanding and overdue, galleries to deliver), the next seven days with each shoot's contract, deposit and questionnaire readiness, a "needs you" list, and the latest gallery cover for the hero. A new studio sees a first-steps walkthrough instead. The sign-in page shows the studio's optional sign-in photo (Settings > Studio), served publicly like the logo at `/api/branding/sign-in`, resized and stripped of camera data.
+- `/studio` is the home page: one owner-only call (`GET /api/studio/home`) returns the pulse numbers (open leads, this month's shoots and invoiced total, money outstanding and overdue, galleries to deliver), the next seven days with each shoot's contract, retainer and questionnaire readiness, a "needs you" list, and the latest gallery cover for the hero. A new studio sees a first-steps walkthrough instead. The sign-in page shows the studio's optional sign-in photo (Settings > Studio), served publicly like the logo at `/api/branding/sign-in`, resized and stripped of camera data.
 - Client pages (`/g`, `/book`, `/portal`, `/sign`) and `/api/health` stay public. The AI endpoints (`/mcp`, `/oauth/*`, `/.well-known/oauth-*`) are public paths with their own authentication (section 10). `/` redirects to `/studio` until client pages exist.
 - `/api/health` returns the version and an instance id (an HMAC of the instance's secret key), which the tunnel test uses to confirm the public hostname reaches this server.
 
@@ -179,7 +179,7 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 - **Shoot** (subject name, type, status, folder path, contacts, dates/locations as **ShootEvent**); **ShootType** (name, folder label, auto-publish switch, default questionnaire and contract)
 - **CalendarEvent** (shoot events, appointments, blocks, with a Google event ID and etag for sync)
 - **Scheduler** (availability rules, overrides, buffers) and **SessionType**; **Appointment**
-- **BookingPage** (public slug, linked packages, scheduler, questionnaire, deposit rule)
+- **BookingPage** (public slug, linked packages, scheduler, questionnaire, retainer rule)
 - **Product** and **Package** (catalog); **Quote** and **QuoteLine**
 - **Order** (invoice) and **OrderLine**, **PaymentSchedule**, **Payment** (PayPal or manual; `provider` column for future processors)
 - **ContractTemplate**, **Contract** (rendered snapshot, status, signed PDF path), **Signature** (signer, method, IP, user agent, timestamp, document hash)
@@ -197,7 +197,7 @@ Adobe has a Lightroom Partner API that could pull albums straight from Lightroom
 | **Google Calendar** | OAuth 2.0 with the photographer's own Google Cloud OAuth client (setup guide in the docs). Two-way sync using sync tokens and incremental polling every few minutes. Push notifications are optional when the install has a public HTTPS URL. Studio events go in a dedicated "OpenPortrait" calendar, and other calendars are read only for busy times. |
 
 Google sync details (as built): shoot times are the source of truth, so one deleted in Google is restored on the next pass, while appointments and time off deleted in Google are deleted locally. Edits made in Google to a time or place come back; a shoot time's title is always rebuilt from the shoot. Events created in the OpenPortrait Google calendar import as appointments. Other calendars store busy times only, never titles. All-day items end at the start of the day after their last day. Changes in the app are pushed within seconds, and a five-minute poll is the backstop. Setup guide: [`docs/google-calendar.md`](google-calendar.md).
-| **PayPal** | PayPal Checkout (Orders v2 API) for deposits and invoice payments, with webhooks for confirmation. The client ID and secret are entered in Settings. Payments go through a `PaymentProvider` interface, so Stripe and Square can be added as connectors later. |
+| **PayPal** | PayPal Checkout (Orders v2 API) for retainers and invoice payments, with webhooks for confirmation. The client ID and secret are entered in Settings. Payments go through a `PaymentProvider` interface, so Stripe and Square can be added as connectors later. |
 | **Email** | Any SMTP provider. |
 | **Studio data import** | As built: Settings > Import data takes CSV or JSON for clients, shoots, and invoices with payments. Columns are matched automatically and can be changed; a preview runs the real import in a transaction and rolls it back; re-importing never duplicates. See [`docs/import.md`](import.md). |
 | **Lightroom / Aftershoot** | Folder export (section 4). |
@@ -291,7 +291,7 @@ OpenPortrait ships a built-in MCP (Model Context Protocol) server so the owner c
 ### Principles
 
 1. **One service layer.** The UI, the API, and MCP tools all call the same domain services. Permission checks, validation, and audit logging live there once, so the AI can never do something the UI would refuse.
-2. **MCP parity.** Every feature module registers its tools next to its routes (`defineTool`), and a feature is not done until its tools exist. The business-core and gallery work grows the tool list without touching the MCP plumbing.
+2. **MCP parity.** Every feature module registers its tools next to its routes (`defineTool`), and a feature is not done until its tools exist. The business-core and gallery work grows the tool list without touching the MCP plumbing. Built-in definitions are made once and shared (frozen); everything mutable (extension tools, capability locks, grants and switches, removal counters) lives in one `ToolRegistry` per app on `ctx.tools`, so discovery, execution, resumed approvals, extension rollback and the startup approval sweep only ever see the owning app's tools.
 3. **Safe by default.** A new connection starts read-only. The AI can look at everything it is allowed to see, and anything that reaches a client or touches money waits for the owner's OK until the owner says otherwise.
 4. **Easy to connect, easy to cut off.** Connecting takes one pasted URL. One switch pauses all AI access.
 
@@ -335,7 +335,7 @@ Every tool declares an area and a **risk tier**. A connection's access level dec
 
 Controls that apply to every connection:
 
-- **Approval queue.** A queued action returns `pending_approval` with an id and a plain-language summary ("Send 'Your gallery is ready' to Dana Reyes"). It appears in an **Approvals** inbox in the app (badge in the sidebar, optional email to the owner) with the exact payload, Approve, Edit, and Decline. The AI can poll `get_approval` to see the outcome. Pending approvals expire after 7 days.
+- **Approval queue.** A queued action returns `pending_approval` with an id and a plain-language summary ("Send 'Your gallery is ready' to Dana Reyes"). It appears in an **Approvals** inbox in the app (badge in the sidebar, optional email to the owner) with the exact payload, Approve, Edit, and Decline. The AI can poll `get_approval` to see the outcome. Pending approvals expire after 7 days. **Execution-time gate.** A live call and an approved request resumed later run through the same gate (`apps/server/src/ai/gate.ts`), which re-resolves the connection and the tool, validates the arguments, and checks AI enabled/paused, area, tier, capability and feature policy, refusing when anything can't be confirmed. Each approval stores a binding of the tool's registration identity, the connection and the validated arguments; if any changed, the request expires instead of running, and requests queued before bindings existed expire. Tools also declare an effect (`read-existing`, `read`, `write`, `outbound`) that must agree with their tier.
 - **Auto-approve per action** is a per-action choice in Settings, off by default, and a separate setting for each of Outward and Money. A new action type introduced by an update starts as "approval required".
 - **Limits.** Per-connection rate limit, a daily cap on client emails (default 25), a per-action dollar cap for money, and recipients restricted to existing contacts (the AI cannot email an arbitrary address).
 - **Audit.** Every call, allowed or refused, is written to the AuditLog with the connection, tool, inputs (redacted where needed), result, and approver. **Settings > Connect your AI > Activity** shows it as a readable timeline, with an Undo button on reversible Draft actions where the service supports it.
@@ -385,14 +385,14 @@ Tests cover the auth paths, tier enforcement (a Read-only token cannot call a Dr
 - Outgoing email uses the studio's own SMTP account (Settings > Email), queued as a retrying job, with a log of recent sends. If email isn't configured, nothing fails; the client just isn't emailed.
 - Public pages live under `/inquire`, `/book/:slug` and `/book/cancel/:token`, backed by `/api/public/*`, which is rate limited. `?embed=1` drops the page frame for use in an iframe.
 - A booking page ("scheduler") has weekly hours, length, buffers, minimum notice and a horizon. Slots are computed from the weekly hours minus calendar busy time and re-checked when booked. Requests hold a "Pending" calendar entry until confirmed or declined. Details: [`booking.md`](booking.md).
-- Booking pages that include packages, contracts or deposits arrive with quotes and contracts (steps 3d and 3e). Contracts are built (`domain/contracts.ts`, `domain/contract-pdf.ts`; client page `/c/:token`; details in [`contracts.md`](contracts.md)). Requiring a signed contract before a booking's deposit is still to do.
+- Booking pages that include packages, contracts or retainers arrive with quotes and contracts (steps 3d and 3e). Contracts are built (`domain/contracts.ts`, `domain/contract-pdf.ts`; client page `/c/:token`; details in [`contracts.md`](contracts.md)). Requiring a signed contract before a booking's retainer is still to do.
 
 ### Quotes, invoices and payments (step 3d, first part)
 
 - One `order` row is a quote and then, when the client accepts it, the same row becomes the invoice, so history and the client link stay in one place. Quote and invoice numbers count up from 1001 and are never reused.
 - Money is whole cents in a single studio currency. Each line copies the name and price from the catalog. Tax is a single studio rate fixed on the document when it is saved.
-- A payment schedule (deposit, balance) says when money is due; recorded payments are applied to it in order. Refunds are negative payments. Manual payment methods work with no processor set up.
-- Client pages are `/o/:token`, backed by `/api/public/order/:token`. Details: [`orders.md`](orders.md). PayPal checkout (`domain/checkout.ts`, `payments/paypal.ts`; `payment_attempt` table; webhook at `/api/public/paypal/webhook` verified with the raw body) is built. Coupons (`domain/coupons.ts`; a code gives a share of an order's discount, stored as `coupon_cents`) Clients can type a coupon on a sent quote (`applyQuoteCoupon`: the deposit stays put and the balance absorbs the change; a code that would save less than the one already on the quote is refused). A coupon can be limited to one booking page (`coupon.scheduler_id`). A booking page with a price (`scheduler.price_cents`, deposit as percent or fixed) raises an invoice when someone books, with a Deposit and a Balance due on the day; the client pays the deposit through the same PayPal checkout, and the invoice is voided if the booking is cancelled unpaid. and client credit (`domain/credits.ts`; an append-only `credit_entry` ledger whose sum is the balance, spent as a `payment` with method `credit`) sit on the same `payment` ledger.
+- A payment schedule (retainer, balance) says when money is due; recorded payments are applied to it in order. Refunds are negative payments. Manual payment methods work with no processor set up.
+- Client pages are `/o/:token`, backed by `/api/public/order/:token`. Details: [`orders.md`](orders.md). PayPal checkout (`domain/checkout.ts`, `payments/paypal.ts`; `payment_attempt` table; webhook at `/api/public/paypal/webhook` verified with the raw body) is built. Coupons (`domain/coupons.ts`; a code gives a share of an order's discount, stored as `coupon_cents`) Clients can type a coupon on a sent quote (`applyQuoteCoupon`: the retainer stays put and the balance absorbs the change; a code that would save less than the one already on the quote is refused). A coupon can be limited to one booking page (`coupon.scheduler_id`). A booking page with a price (`scheduler.price_cents`, retainer as percent or fixed) raises an invoice when someone books, with a Retainer and a Balance due on the day; the client pays the retainer through the same PayPal checkout, and the invoice is voided if the booking is cancelled unpaid. and client credit (`domain/credits.ts`; an append-only `credit_entry` ledger whose sum is the balance, spent as a `payment` with method `credit`) sit on the same `payment` ledger.
 
 ### Extensions
 
@@ -411,9 +411,7 @@ OpenPortrait can load optional extension modules. An extension is an ES module (
 
 Each milestone ships as a tagged release that installs and runs on Unraid.
 
-## 12. Decisions
-
-Decided by Eric on 2026-11-01:
+## 12. Design choices
 
 1. **Contracts and e-signatures** are in 1.0.
 2. **Payments:** PayPal first, behind a provider interface. Manual payments are always available.
@@ -424,6 +422,6 @@ Decided by Eric on 2026-11-01:
 7. **In-camera upload:** a built-in SFTP/FTP server writes to an Incoming share, with a sorting screen that moves files into each shoot's `Originals/RAW/`. Because Cloudflare Tunnel can't carry it, both remote routes are supported, each with a setup wizard and docs: direct SFTP on a DNS-only Cloudflare record with dynamic DNS, and a WireGuard travel router through Unraid's VPN Manager. At home the camera uploads straight over the LAN (section 4).
 8. **Galleries:** private link by default, a payment-lock mode picked per gallery with the default in Settings, multiple favorites lists with optional caps, auto-publish per shoot type (off by default), and the watermark only while downloads are locked. Details are in `docs/GALLERIES.md`.
 
-9. **AI access:** proposed in section 10. Eric chose on 2026-11-01 that outward and money actions need approval by default. The rest of the design, the failsafe default, and the first clients to verify are awaiting confirmation.
+9. **AI access:** described in section 10. Outward and money actions need approval by default.
 
 The importer (section 3, [`import.md`](import.md)) reads generic CSV and JSON exports.

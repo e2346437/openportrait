@@ -3,8 +3,8 @@ import { Icon } from "@openportrait/ui";
 import { useSession } from "../lib/session.js";
 import { useLoad } from "../lib/useLoad.js";
 
-/** Where the Pro add-on is described. */
-export const ADDON_URL = "https://openportrait.app/pricing";
+/** Where the Pro add-on is described. During the limited beta this is the beta page; switch back to /pricing at launch. */
+export const ADDON_URL = "https://openportrait.app/beta";
 
 export type AddOnFeature = "quickbooks" | "microsoft365" | "bucket-storage" | "second-shooter";
 

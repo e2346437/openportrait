@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button, Callout, CopyValue, Dialog, Field, Panel, TextArea, TextInput, useToast } from "@openportrait/ui";
 import { api } from "../../lib/api.js";
-import { LOCK_LABELS, formatDate, type DownloadLock, type DownloadSize, type GalleryDetail } from "../../lib/galleries.js";
+import { LOCK_LABELS, formatDate, plural, type DownloadLock, type DownloadSize, type GalleryDetail } from "../../lib/galleries.js";
+import { formatBytes } from "../settings/Extensions.js";
 import { ProofingControls, proofSummary, type ProofPolicy } from "../../components/ProofingControls.js";
 import type { Patch } from "./GalleryDetail.js";
 
@@ -209,11 +210,12 @@ export function SettingsTab({ data, patch, onDeleted }: { data: GalleryDetail; p
         ) : null}
       </Panel>
 
-      <Panel title="Expiry" description="After this date the link stops working. Your photos stay on the share.">
-        <Field label="Expires on" hint="Leave empty to keep the gallery online.">
+      <Panel title="Expiry" description="After this date the link stops working and the gallery is packed into one zip in your Archive folder. Nothing is deleted. Clients on the shoot get reminder emails first.">
+        <Field label="Expires on" hint="Leave empty to keep the gallery online. New galleries get a date when you first publish them (Settings > Galleries).">
           {(p) => <input {...p} type="date" className="input date" value={dateInput(g.expiresAt)} onChange={(e) => patch("", { expiresAt: e.target.value ? new Date(`${e.target.value}T23:59:59`).getTime() : null })} />}
         </Field>
       </Panel>
+      <ArchivePanel data={data} patch={patch} />
 
       <Panel title="Folder">
         <dl className="kv">
@@ -276,5 +278,63 @@ export function SettingsTab({ data, patch, onDeleted }: { data: GalleryDetail; p
         }
       />
     </div>
+  );
+}
+
+/** The gallery's archive zips, with the folder they live in, a download link and Restore. */
+function ArchivePanel({ data, patch }: { data: GalleryDetail; patch: Patch }) {
+  const { archivedAt, items } = data.archive;
+  const toast = useToast();
+  const [confirm, setConfirm] = useState<"archive" | string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const run = async (path: string) => {
+    setBusy(true);
+    const next = await patch(path, {}, "POST");
+    setBusy(false);
+    setConfirm(null);
+    if (next) toast(path.endsWith("restore") ? "Restored as a draft. Publish it again when you're ready." : "Archived. The zip is in your Archive folder.", "ok");
+  };
+  return (
+    <Panel title="Archive" description="A zip of this gallery in the Archive folder next to your shoots, so it is safe even if the gallery is taken down.">
+      {archivedAt ? <Callout tone="warn" title={`Archived ${formatDate(archivedAt)}`}>Clients can't open this gallery. Restore it to edit or share it again.</Callout> : null}
+      {items.length === 0 ? (
+        <p className="hint">No archive yet. One is made automatically when the gallery expires.</p>
+      ) : (
+        <ul className="archive-list">
+          {items.map((a) => (
+            <li key={a.id}>
+              <div>
+                <b className="mono">{a.folder}/{a.fileName}</b>
+                <span className="hint">{plural(a.fileCount, "photo")} · {formatBytes(a.sizeBytes)} · {a.reason === "expired" ? "made when it expired" : "made by hand"} {formatDate(a.createdAt)}{a.restoredAt ? ` · restored ${formatDate(a.restoredAt)}` : ""}</span>
+                {!a.exists ? <span className="hint bad-text">The zip is no longer in the Archive folder.</span> : null}
+              </div>
+              {a.exists ? (
+                <div className="storage-actions">
+                  <a className="btn sm" href={`/api/studio/galleries/${data.gallery.id}/archive/${a.id}/download`} download>Download</a>
+                  {archivedAt ? <Button size="sm" onClick={() => setConfirm(a.id)}>Restore</Button> : null}
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!archivedAt ? (
+        <div className="storage-actions"><Button onClick={() => setConfirm("archive")}>Archive now…</Button></div>
+      ) : null}
+      <Dialog
+        open={confirm !== null}
+        onClose={() => setConfirm(null)}
+        title={confirm === "archive" ? "Archive this gallery?" : "Restore this gallery?"}
+        description={confirm === "archive" ? "It is packed into one zip and taken offline." : "Any missing photos are unpacked from the zip."}
+        footer={
+          <>
+            <Button onClick={() => setConfirm(null)}>Cancel</Button>
+            <Button variant="primary" loading={busy} onClick={() => void run(confirm === "archive" ? "/archive" : `/archive/${confirm}/restore`)}>{confirm === "archive" ? "Archive" : "Restore"}</Button>
+          </>
+        }
+      >
+        <p>{confirm === "archive" ? "Clients will see that the gallery has expired. Your photos stay where they are, nothing is deleted, and you can restore it later." : "The gallery comes back as a draft with a new expiry date. Publish it again to share it."}</p>
+      </Dialog>
+    </Panel>
   );
 }

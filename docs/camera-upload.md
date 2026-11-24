@@ -1,6 +1,8 @@
 # Camera upload
 
-OpenPortrait includes a server your camera can send photos to as you shoot. The photos land in the **Incoming** share, where the live view ([tethering.md](tethering.md)) shows them and you can sort them into shoots.
+OpenPortrait includes a server your camera can send photos to as you shoot. The photos land in the **Incoming** share, where the live view ([Tethering](tethering.md)) shows them and you can sort them into shoots.
+
+Your camera needs built-in FTP, SFTP or FTPS and a network connection, either Wi-Fi or Ethernet. Many professional and enthusiast bodies have this, often under a menu called **Connect to FTP server** or **FTP transfer**. A camera that only offers a phone app can't upload this way.
 
 Everything is set up in **Settings > Camera upload**.
 
@@ -45,7 +47,7 @@ Choose **Add a camera**, name it (for example "Nikon Z9"), and copy the values s
 | Password | The generated password. It is shown once. Use **New password** if you lose it. |
 | Destination folder | Leave empty, or enter `/` |
 
-Each camera has its own login. It can only see its own folder inside Incoming (for example `Incoming/Nikon Z9/`), it can send files, make folders and list them, and it **can't download or delete** anything, so a lost camera card or a leaked password can't be used to take photos out. Remove a login or pick **Disable** to lock a camera out immediately.
+Each camera has its own login. It can only see its own folder inside Incoming (for example `Incoming/Nikon Z9/`), it can send files, make folders and list them, and it **can't download** anything, so a lost camera card or a leaked password can't be used to take photos out. Over SFTP a login can delete single photos in its own folder (this is how a tethering app removes a shot you reject). A deleted photo is not gone straight away: it moves to a hidden `.deleted` folder inside that camera's folder and stays there for 7 days, so you can put it back by moving the file out with your file manager. The camera login can't see or reach that folder. It can't remove folders or touch anything outside its own folder, and each delete is written to the server log. Remove a login or pick **Disable** to lock a camera out immediately.
 
 By default each photo is filed into a folder for the day, such as `Incoming/Nikon Z9/2026-11-14/DSC_0001.NEF`. Turn that off in the same screen if you'd rather keep everything flat. Files arrive under a hidden temporary name and are renamed when the whole photo has arrived, so nothing sees a half-sent file.
 
@@ -93,7 +95,7 @@ If your camera's port field is fixed to 22 (SFTP) or 21 (FTP), the container's d
 
 On Unraid these are fields in the template. The SFTP and FTP ports and the passive range are published for you, but nothing listens on them until the server is opened in Settings.
 
-Away from home, a camera needs a route to the server. Cloudflare Tunnel carries web traffic only, so use a WireGuard connection (recommended) or forward a single SFTP port. See [SPEC.md](SPEC.md) section 4.
+Away from home, a camera needs a route to the server. Cloudflare Tunnel carries web traffic only, so use a travel router with a WireGuard or Tailscale connection (recommended) or forward a single SFTP port. The travel router setup is in [Camera upload away from home](camera-upload-wireguard.md).
 
 ## Troubleshooting
 

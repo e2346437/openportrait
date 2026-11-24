@@ -1,55 +1,134 @@
 name: Publish image
 
 on:
-  push:
-    branches: [main]
-    tags: ["v*"]
+  pull_request:
+    paths:
+      - ".github/workflows/image.yml"
+      - "security/**"
+      - "Dockerfile"
   workflow_dispatch:
+    inputs:
+      promote:
+        description: "Publish the verified candidate to GHCR"
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    shell: bash
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: image-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  publish:
+  candidate:
+    name: Build and verify release candidate
     runs-on: ubuntu-latest
+    outputs:
+      archive-sha256: ${{ steps.hash.outputs.sha256 }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - id: meta
-        uses: docker/metadata-action@v5
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check the release ref
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          PROMOTE: ${{ inputs.promote }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            node scripts/check-version.mjs "$GITHUB_REF_NAME"
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          elif [[ "$PROMOTE" == true && "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "Promotion requires main or a version tag from main." >&2
+            exit 1
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            # Until 1.0, "latest" follows main so the compose file and Unraid template work.
-            # At 1.0, switch it to tags only and keep "edge" for main.
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=edge,branch=main
-            type=sha,format=short
-      - id: stamp
-        run: echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "./packages/*" build
+      - run: node --test security/tests/gate.test.mjs
+      - run: pnpm --filter @openportrait/server exec vitest run test/security test/mfa.test.ts test/extensions.test.ts
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - run: sudo apt-get update && sudo apt-get install -y skopeo
+      - name: Build one immutable multi-platform candidate
+        env:
+          RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          version=edge
+          if [[ "$RELEASE" == true ]]; then version="$GITHUB_REF_NAME"; fi
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --provenance=false --sbom=false --output "type=oci,dest=$RUNNER_TEMP/candidate.tar" \
+            --build-arg "VERSION=$version" --build-arg "COMMIT=$GITHUB_SHA" \
+            --build-arg "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" .
+      - name: Verify both platform images
+        run: |
+          for arch in amd64 arm64; do
+            export IMAGE="openportrait:candidate-$arch"
+            export OUT="security/reports/$arch"
+            mkdir -p "$OUT"
+            skopeo --override-os linux --override-arch "$arch" copy \
+              "oci-archive:$RUNNER_TEMP/candidate.tar" "docker-daemon:$IMAGE"
+            security/scripts/scan.sh
+            security/scripts/run-local.sh
+            security/scripts/zap.sh
+            SECURITY_REPORTS_DIR="$OUT" node security/scripts/gate.mjs --enforce
+          done
+      - id: hash
+        run: echo "sha256=$(sha256sum "$RUNNER_TEMP/candidate.tar" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: github.event_name == 'workflow_dispatch' && inputs.promote
         with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
-            COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ steps.stamp.outputs.built }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          name: verified-image-candidate
+          path: ${{ runner.temp }}/candidate.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  promote:
+    name: Promote verified image
+    if: github.event_name == 'workflow_dispatch' && inputs.promote
+    needs: candidate
+    runs-on: ubuntu-latest
+    environment: image-promotion
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: verified-image-candidate
+          path: ${{ runner.temp }}/verified
+      - run: sudo apt-get update && sudo apt-get install -y skopeo
+      - name: Publish the tested manifest and layers without rebuilding
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_SHA256: ${{ needs.candidate.outputs.archive-sha256 }}
+        run: |
+          cd "$RUNNER_TEMP/verified"
+          echo "$EXPECTED_SHA256  candidate.tar" | sha256sum --check
+          printf '%s' "$GHCR_TOKEN" | skopeo login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+          source_image="oci-archive:$PWD/candidate.tar"
+          manifest_sha="$(skopeo inspect --raw "$source_image" | sha256sum | cut -d' ' -f1)"
+          case "$GITHUB_REF" in
+            refs/heads/main) tags=(latest edge) ;;
+            refs/tags/v*)
+              version="${GITHUB_REF_NAME#v}"
+              tags=("$version")
+              if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then tags+=("${version%.*}"); fi
+              ;;
+            *) exit 1 ;;
+          esac
+          tags+=("sha-${GITHUB_SHA:0:7}")
+          for tag in "${tags[@]}"; do
+            destination="docker://ghcr.io/${GITHUB_REPOSITORY,,}:$tag"
+            skopeo copy --all --preserve-digests "$source_image" "$destination"
+            published="$(skopeo inspect --raw "$destination" | sha256sum | cut -d' ' -f1)"
+            test "$published" = "$manifest_sha"
+          done

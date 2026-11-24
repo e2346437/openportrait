@@ -187,3 +187,143 @@ describe("client credit", () => {
     expect((await staff("GET", `/orders/${inv.id}`)).body.paidCents).toBe(60_000);
   });
 });
+
+describe("AI tool: orders_apply_credit approves one exact amount", () => {
+  const ai = (method: "GET" | "POST", url: string, payload?: object) => app.inject({ method, url: `/api/studio/ai${url}`, payload, headers: { cookie } });
+  const call = async (token: string, args: object) => {
+    const res = await app.inject({ method: "POST", url: "/mcp", payload: { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "orders_apply_credit", arguments: args } }, headers: { accept: "application/json, text/event-stream", authorization: `Bearer ${token}` } });
+    const result = res.json().result;
+    if (!result) return { isError: true, data: res.json().error?.message as string };
+    return { isError: !!result.isError, data: result.isError ? (result.content[0].text as string) : JSON.parse(result.content[0].text) };
+  };
+  const approve = (id: string) => ai("POST", `/approvals/${id}/approve`);
+  const sql = (q: string) => app.ctx.db.$client.prepare(q);
+  const state = (contactId: string, orderId: string) => ({
+    entries: (sql("SELECT COUNT(*) AS n FROM credit_entry WHERE contact_id = ?").get(contactId) as { n: number }).n,
+    payments: (sql("SELECT COUNT(*) AS n FROM payment WHERE order_id = ?").get(orderId) as { n: number }).n,
+  });
+  async function setup(creditCents: number) {
+    await app.inject({ method: "PUT", url: "/api/studio/ai", payload: { enabled: true }, headers: { cookie } });
+    const id = await contact();
+    const inv = await invoice(id); // 100_000 owed
+    await staff("POST", `/contacts/${id}/credit`, { amountCents: creditCents });
+    const j = (await ai("POST", "/connections", { label: "Claude", level: "full", areas: ["orders"] })).json();
+    return { id, inv, token: j.token as string };
+  }
+  const balance = async (id: string) => (await staff("GET", `/contacts/${id}/credit`)).body.balanceCents as number;
+
+  it("refuses a call with no amount, before anything is queued", async () => {
+    const { id, inv, token } = await setup(5_000);
+    const r = await call(token, { orderId: inv.id });
+    expect(r.isError).toBe(true);
+    expect((sql("SELECT COUNT(*) AS n FROM ai_approval").get() as { n: number }).n).toBe(0);
+    expect(state(id, inv.id)).toEqual({ entries: 1, payments: 0 });
+    expect(await balance(id)).toBe(5_000);
+  });
+
+  it("shows the exact amount to the owner, and credit added after queuing cannot raise it", async () => {
+    const { id, inv, token } = await setup(5_000);
+    const q = await call(token, { orderId: inv.id, amountCents: 5_000 });
+    expect(q.data.status).toBe("pending_approval");
+    const summary = (sql("SELECT summary FROM ai_approval WHERE id = ?").get(q.data.approvalId) as { summary: string }).summary;
+    expect(summary).toContain("50.00");
+    // Credit grows from $50 to $250 before the owner approves.
+    await staff("POST", `/contacts/${id}/credit`, { amountCents: 20_000 });
+    const done = (await approve(q.data.approvalId)).json();
+    expect(done).toMatchObject({ status: "approved", result: { appliedCents: 5_000, remainingCreditCents: 20_000 } });
+    expect(await balance(id)).toBe(20_000);
+    expect((await staff("GET", `/orders/${inv.id}`)).body.paidCents).toBe(5_000);
+  });
+
+  it("fails without any change when credit has dropped below the approved amount", async () => {
+    const { id, inv, token } = await setup(5_000);
+    const q = await call(token, { orderId: inv.id, amountCents: 5_000 });
+    await staff("POST", `/contacts/${id}/credit/remove`, { amountCents: 2_000, note: "Mistake" });
+    const before = state(id, inv.id);
+    const done = (await approve(q.data.approvalId)).json();
+    expect(done.status).toBe("failed");
+    expect(JSON.stringify(done.result)).toMatch(/Only \$30\.00 of credit is available/);
+    expect(state(id, inv.id)).toEqual(before);
+    expect(await balance(id)).toBe(3_000);
+  });
+
+  it("fails without any change when the invoice balance has dropped below the approved amount", async () => {
+    const { id, inv, token } = await setup(50_000);
+    const q = await call(token, { orderId: inv.id, amountCents: 40_000 });
+    // The client pays most of the invoice another way first, leaving $300 owed against the approved $400.
+    await staff("POST", `/contacts/${id}/credit`, { amountCents: 1 });
+    await staff("POST", `/orders/${inv.id}/payments`, { amountCents: 70_000, method: "cash" });
+    const before = state(id, inv.id);
+    const done = (await approve(q.data.approvalId)).json();
+    expect(done.status).toBe("failed");
+    expect(JSON.stringify(done.result)).toMatch(/more than the \$300\.00 still owed/);
+    expect(state(id, inv.id)).toEqual(before);
+    expect(await balance(id)).toBe(50_001);
+  });
+
+  describe("an approval that should not run never reaches the handler, and the audit trail says what happened", () => {
+    const audit = (action: string) => (sql("SELECT COUNT(*) AS n FROM audit_log WHERE action = ?").get(action) as { n: number }).n;
+    const unchanged = async (id: string, inv: { id: string }, before: ReturnType<typeof state>, credit: number) => {
+      expect(state(id, inv.id)).toEqual(before);
+      expect(await balance(id)).toBe(credit);
+    };
+
+    it("is refused while AI access is paused, and runs normally once resumed", async () => {
+      const { id, inv, token } = await setup(5_000);
+      const q = await call(token, { orderId: inv.id, amountCents: 5_000 });
+      const before = state(id, inv.id);
+      await ai("PUT", "", { paused: true });
+      const refused = (await approve(q.data.approvalId)).json();
+      expect(refused.status).toBe("failed");
+      expect(JSON.stringify(refused.result)).toMatch(/paused/);
+      await unchanged(id, inv, before, 5_000);
+      expect(audit("ai.approval.failed")).toBe(1);
+      expect(audit("ai.approval.approved")).toBe(0);
+    });
+
+    it("is refused once the connection is lowered to read-only", async () => {
+      const { id, inv, token } = await setup(5_000);
+      const q = await call(token, { orderId: inv.id, amountCents: 5_000 });
+      const before = state(id, inv.id);
+      sql("UPDATE ai_connection SET level = 'read'").run();
+      expect((await approve(q.data.approvalId)).json().status).toBe("failed");
+      await unchanged(id, inv, before, 5_000);
+    });
+
+    it("is refused, and marked expired, when the stored amount was raised after queuing", async () => {
+      const { id, inv, token } = await setup(30_000);
+      const q = await call(token, { orderId: inv.id, amountCents: 5_000 });
+      const before = state(id, inv.id);
+      sql("UPDATE ai_approval SET args = ? WHERE id = ?").run(JSON.stringify({ orderId: inv.id, amountCents: 30_000 }), q.data.approvalId);
+      const done = (await approve(q.data.approvalId)).json();
+      expect(done.status).toBe("expired");
+      expect(JSON.stringify(done.result)).toMatch(/out of date/);
+      await unchanged(id, inv, before, 30_000);
+      expect(audit("ai.approval.expired")).toBe(1);
+    });
+
+    it("applies a money approval exactly once when approved twice at the same time", async () => {
+      const { id, inv, token } = await setup(5_000);
+      const q = await call(token, { orderId: inv.id, amountCents: 5_000 });
+      const [a, b] = await Promise.all([approve(q.data.approvalId), approve(q.data.approvalId)]);
+      expect([a.statusCode, b.statusCode].sort()).toEqual([200, 409]);
+      expect(state(id, inv.id)).toEqual({ entries: 2, payments: 1 }); // the grant, plus one use
+      expect(await balance(id)).toBe(0);
+      expect(audit("ai.approval.approved")).toBe(1);
+    });
+
+    it("cannot be approved after a decline or after it expired", async () => {
+      const { id, inv, token } = await setup(10_000);
+      const declined = await call(token, { orderId: inv.id, amountCents: 5_000 });
+      expect((await ai("POST", `/approvals/${declined.data.approvalId}/decline`)).json().status).toBe("declined");
+      const lapsed = await call(token, { orderId: inv.id, amountCents: 4_000 });
+      sql("UPDATE ai_approval SET expires_at = 1 WHERE id = ?").run(lapsed.data.approvalId);
+      const before = state(id, inv.id);
+      expect((await approve(declined.data.approvalId)).statusCode).toBe(409);
+      expect((await approve(lapsed.data.approvalId)).statusCode).toBe(409);
+      await unchanged(id, inv, before, 10_000);
+      expect(audit("ai.approval.approved")).toBe(0);
+      expect(audit("ai.approval.declined")).toBe(1);
+    });
+  });
+});

@@ -23,6 +23,7 @@ export function register(api) {
   // api.settingsCard({ ... }) a card in Settings > Extensions, with status and actions
   // api.lockCapability(id)    hide a capability group until an extension grants it
   // api.grantCapability(id) / api.revokeCapability(id)
+  // api.featurePolicy(fn)     a synchronous yes/no check run before each of this module's tools executes
   // api.crewPanel(route)      a "Photographers" panel on each shoot (see Crew panel below)
   // api.createCameraLogin / resetCameraLogin / setCameraLoginDisabled   camera upload logins
   // api.onClose(fn)           cleanup when the server stops
@@ -33,6 +34,22 @@ export function register(api) {
 A page is a description, not UI code. Its `slug` must be lowercase letters, digits and dashes, and the app draws it at `/studio/x/<extension>/<slug>` from the data you give, with the records supplied by the extension's own routes. A route can answer `{ "locked": "message" }` to show a message in place of the records.
 
 Capability groups let an extension supply tools that stay hidden until it grants them. Use `lockCapability` to mark a group as provided by an extension, and `grantCapability` or `revokeCapability` to switch it on or off as a whole. The built-in tool groups, including invoicing, are part of OpenPortrait itself and are never locked.
+
+Everything a module registers (tools, capability locks and grants, feature policies) is staged while `register()` runs. Nothing is visible until it returns, and if it throws, or the module fails to finish loading, all of it is removed. Registrations are owned by the module that made them: one module can't lock, grant, revoke or add tools to another module's group, and its feature policy only applies to its own tools and the groups it locked. Each tool declares an `effect` that must agree with its tier: `read-existing` (reads one record that must exist) and `read` for read tools, `write` for draft tools, `outbound` for outward tools, `write` or `outbound` for money tools, and `write` for sensitive tools. A tool that leaves it out gets the stricter default for its tier. A registration is frozen once made.
+
+Every tool call, live or an owner-approved request resumed later, goes through one gate at the moment it runs. It looks up the connection and the tool again, validates the arguments, and checks that AI access is on and not paused, the connection's area and level, the capability group, and every feature policy. A policy that throws, returns a promise or returns anything but `true` (or `{ allow: true }`) refuses. An approval records a binding of the tool's identity (module build, tier, effect, area, capability and input shape), the connection and the validated arguments; if any of them changed by the time the owner approves, the request expires instead of running. Removing a tool also counts as a change: if a module's registrations are rolled back and the same tool is registered again with identical metadata, the new registration has a different identity, so approvals queued before the removal expire rather than running against the replacement. The expiry is written to the database when the tool is removed, so it survives a restart: a pending approval issued before a removal stays expired even if an identical registration returns after the server restarts. A pending approval whose tool isn't registered when the server starts, for example because its module was deleted while the server was down, expires at startup, before any request is accepted. If removing a module's tools can't be written to the database, the server stops starting and says why, rather than serving a half-loaded module. An ordinary restart removes nothing, so a module that loads unchanged after a restart (same file, same tool definitions) keeps its identity and its pending approvals stay valid; a changed module file, tool or input shape expires them. Tool inputs must give the same result when validated twice, so don't use transforms that aren't idempotent.
+
+## Card layout
+
+A settings card is a description that the app draws. Besides the chip, rows, stats, lists and switches, a card can use these parts (all optional, and the field names are in `SettingsCard` in `apps/server/src/extensions.ts`):
+
+- `summary`: the key of a one-line string in the status JSON. On Settings > Extensions, a card that has one folds down to that line while its chip is healthy. A card whose chip is `warn` or `bad` opens by itself. The owner's choice is remembered in that browser. Cards without a summary stay open.
+- `facts`: a strip of headline values, each with a smaller line under it.
+- `features`: a list of what is switched on, with locked items shown as such. An item can link to another card of the same extension.
+- `steps`: setup steps for a service that must be connected. The status JSON supplies each step's label, an optional detail and whether it is done, current or still to come.
+- `details`: rows tucked into a "Technical details" disclosure.
+- `links`: plain buttons that open another site.
+- Rows with `format: "copy"` get a Copy button, for an address the owner must paste somewhere else. An action with `danger: true` is drawn as a quiet red button.
 
 ## Crew panel
 
@@ -50,8 +67,6 @@ Passwords come from `api.createCameraLogin({ label })` and `api.resetCameraLogin
 ## Pointers to add-on features
 
 Where a feature that an optional add-on provides would appear (QuickBooks Online, Microsoft 365, S3 and B2 bucket storage, second shooters), the owner sees one quiet line saying the add-on provides it, with a link. It shows only to the owner, disappears once the add-on is installed, and can be dismissed for good.
-
-For the full design, see the Extensions section of [the product spec](SPEC.md#extensions).
 
 ## Sending email through an outside mailbox
 

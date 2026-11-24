@@ -6,6 +6,7 @@ import { tables, type Db } from "@openportrait/db";
 
 export const SESSION_COOKIE = "op_session";
 const SESSION_DAYS = 30;
+const SESSION_IDLE_MS = 24 * 60 * 60_000;
 
 export type SessionUser = Pick<typeof tables.user.$inferSelect, "id" | "email" | "name" | "role">;
 
@@ -49,15 +50,16 @@ export function destroySession(db: Db, token: string): void {
 }
 
 export function lookupSession(db: Db, token: string): SessionUser | null {
+  const now = Date.now();
   const row = db
     .select({ id: tables.user.id, email: tables.user.email, name: tables.user.name, role: tables.user.role, sessionId: tables.session.id, lastSeenAt: tables.session.lastSeenAt })
     .from(tables.session)
     .innerJoin(tables.user, eq(tables.session.userId, tables.user.id))
-    .where(and(eq(tables.session.id, sha256(token)), gt(tables.session.expiresAt, new Date()), isNull(tables.user.disabledAt)))
+    .where(and(eq(tables.session.id, sha256(token)), gt(tables.session.expiresAt, new Date(now)), gt(tables.session.lastSeenAt, new Date(now - SESSION_IDLE_MS)), isNull(tables.user.disabledAt)))
     .get();
   if (!row) return null;
-  if (Date.now() - row.lastSeenAt.getTime() > 5 * 60_000) {
-    db.update(tables.session).set({ lastSeenAt: new Date() }).where(eq(tables.session.id, row.sessionId)).run();
+  if (now - row.lastSeenAt.getTime() > 5 * 60_000) {
+    db.update(tables.session).set({ lastSeenAt: new Date(now) }).where(eq(tables.session.id, row.sessionId)).run();
   }
   return { id: row.id, email: row.email, name: row.name, role: row.role };
 }
@@ -81,3 +83,4 @@ export async function requireOwner(req: FastifyRequest, reply: FastifyReply): Pr
 export function generateLoginPassword(): string {
   return crypto.randomBytes(15).toString("base64url");
 }
+

@@ -4,6 +4,7 @@ import { tables, type Db } from "@openportrait/db";
 import type { Settings } from "../settings.js";
 import { ymdIn } from "../domain/time.js";
 import { CameraAccounts, type CameraLogin } from "./accounts.js";
+import { sweepStaleUploads, sweepTrash } from "./files.js";
 import { FtpUploadServer } from "./ftp.js";
 import { scheduleProblem, scheduleState, type ScheduleWindow } from "./schedule.js";
 import { SftpServer, loadHostKey } from "./sftp.js";
@@ -68,6 +69,7 @@ export class UploadManager {
   private forceClosedUntil = 0;
   /** After a failed start, wait until this time before trying again on its own. */
   private retryAt = 0;
+  private nextSweepAt = 0;
   private lastFile: UploadStatus["lastFile"] = null;
   private fails = new Map<string, { at: number[]; blockedUntil: number; lastLogged: number }>();
 
@@ -184,9 +186,23 @@ export class UploadManager {
     return this.pendingTick;
   }
 
+  /** Once an hour: empties photos that camera logins deleted more than 7 days ago, and partial uploads left by a power cut. */
+  private housekeeping(now: number): void {
+    if (now < this.nextSweepAt) return;
+    this.nextSweepAt = now + 60 * MIN;
+    try {
+      const trashed = sweepTrash(this.deps.config.incomingDir, undefined, now);
+      const partial = sweepStaleUploads(this.deps.config.incomingDir, undefined, now);
+      if (trashed || partial) this.deps.log.info({ trashed, partial }, "camera upload housekeeping removed old files");
+    } catch (err) {
+      this.deps.log.warn({ err: String(err) }, "camera upload housekeeping failed");
+    }
+  }
+
   private async doTick(): Promise<void> {
     {
       const now = Date.now();
+      this.housekeeping(now);
       const want = this.decide(now);
       await this.change(async () => {
         if (want.open) {

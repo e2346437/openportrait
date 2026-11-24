@@ -211,6 +211,27 @@
       "when": 1793894091489,
       "tag": "0029_acoustic_iron_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1793894849043,
+      "tag": "0030_large_sasquatch",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1794800825188,
+      "tag": "0031_adorable_wrecker",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1794806105008,
+      "tag": "0032_greedy_santa_claus",
+      "breakpoints": true
     }
   ]
 }

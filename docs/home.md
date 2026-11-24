@@ -23,7 +23,7 @@ flowchart LR
 
 1. **The header.** A greeting with a one-line summary of the week, quick actions (**Lead**, **Shoot**, **Open galleries**) and the cover of your latest gallery behind it.
 2. **The pulse row.** Open leads and new inquiries this week, shoots this month and what you have invoiced, money outstanding with the number overdue, and galleries waiting to be delivered.
-3. **Up next.** Shoots and appointments for the next seven days. Each shoot shows whether its contract is signed, the deposit is paid and its questionnaire is done.
+3. **Up next.** Shoots and appointments for the next seven days. Each shoot shows whether its contract is signed, the retainer is paid and its questionnaire is done.
 4. **Needs you.** What is waiting on you: inquiries to answer, overdue invoices, unsigned contracts, questionnaires that are out, and galleries ready to share. Each row has a button to act on it, such as **Remind**, **Reply** or **Nudge**. A row disappears when you've dealt with it.
 5. **Recent galleries.** Your latest work as clients see it. A gallery marked **Ready to share** hasn't been sent yet.
 6. **Get your studio ready.** A short setup checklist. It collapses once the first steps are done, and **Hide** removes it.

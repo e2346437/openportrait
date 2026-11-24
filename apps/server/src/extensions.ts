@@ -11,7 +11,8 @@ import { financialReport, resolveRange, type FinancialReport } from "./domain/re
 import { VERSION, type AppContext } from "./app.js";
 import { hashPassword, generateLoginPassword } from "./auth.js";
 import { backupProviders, incomingSubfolderHooks, mailSenders, shootScopeHooks } from "./extension-hooks.js";
-import { defineTool, grantCapability, lockCapability, revokeCapability } from "./ai/registry.js";
+import { expireForRemovedTools } from "./ai/approvals.js";
+import type { defineTool, FeaturePolicy, RegistryScope } from "./ai/registry.js";
 import { registerSiteExtension, registerSiteTemplate, unregisterSiteExtension, unregisterSiteTemplate, type SiteExtension, type SiteTemplate } from "./site/registry.js";
 
 /**
@@ -32,7 +33,21 @@ export interface SettingsCard {
     route: string;
     /** Picks a status chip from a key of the status JSON. */
     chip?: { key: string; values: Record<string, { label: string; tone: "ok" | "warn" | "bad" | "neutral" }> };
-    rows?: Array<{ key: string; label: string; format?: "date" | "text" }>;
+    rows?: Array<{ key: string; label: string; format?: "date" | "text" | "copy" }>;
+    /** Key of a one-line string in the status JSON. A card that has one folds down to it on the Extensions page while it is healthy. */
+    summary?: string;
+    /** Headline facts in a strip at the top: `data[key]` is the value, `data[subKey]` a smaller line under it. Empty values are skipped. */
+    facts?: Array<{ key: string; label: string; subKey?: string; mono?: boolean }>;
+    /** Which optional features are on. `data[key]` lists the ids that are; an item may link to another card of the same extension by its title. */
+    features?: { key: string; title: string; items: Array<{ id: string; label: string; hint?: string; card?: string }> };
+    /** Rows tucked into a "Technical details" disclosure. */
+    details?: Array<{ key: string; label: string; format?: "date" | "text" | "copy" }>;
+    /** Setup steps. `data[key]` is an array of `{ label, detail?, state: "done" | "now" | "todo" }`. */
+    steps?: { key: string };
+    /** Plain links to other sites, shown as buttons. */
+    links?: Array<{ label: string; href: string; when?: { key: string; equals: string | boolean } }>;
+    /** Open on first sight even while healthy, such as the license card. The owner's own choice wins afterwards. */
+    startOpen?: boolean;
     /** A key whose string value is shown as a warning when present. */
     notice?: string;
     /** Progress bars. `data[key]` is a {@link CardMeter}, or null/absent when nothing is in progress. */
@@ -71,6 +86,8 @@ export interface SettingsCard {
     label: string;
     route: string;
     primary?: boolean;
+    /** A quiet red button for removing or releasing something. */
+    danger?: boolean;
     /** Shown as a button in the connection block instead of in the card body. */
     inline?: boolean;
     /**
@@ -236,6 +253,12 @@ export interface ExtensionApi {
   lockCapability(id: string): void;
   grantCapability(id: string): void;
   revokeCapability(id: string): void;
+  /**
+   * Adds a generic feature policy that is checked every time one of this module's tools (or a group it locked) is about
+   * to run, whether the call is live or an approval resumed later. Return `true` to allow; `false`, `{ allow: false,
+   * message }`, a throw or anything else refuses. It can only restrict. Keep it synchronous and quick.
+   */
+  featurePolicy(policy: FeaturePolicy): void;
   /** Shows a card under Settings > Extensions (owner only). */
   settingsCard(card: SettingsCard): void;
   /** Adds a section to the Reports page (owner only). */
@@ -300,6 +323,8 @@ export interface ExtensionInfo {
   shootCards: SettingsCard[];
   /** Route of the crew panel this add-on shows on each shoot, if any. */
   crewPanel?: string;
+  /** How many of this add-on's cards were registered before the crew panel, so the Extensions page can draw the panel in that spot. */
+  crewPanelAt?: number;
   pages: ExtensionPage[];
 }
 
@@ -328,8 +353,16 @@ export function runExtensionMigration(ctx: AppContext, id: string, name: string,
   })();
 }
 
+/** Optional operator-managed allowlist. An explicitly empty or invalid list authorizes no modules. */
+function extensionDigests(raw: string | undefined): ReadonlySet<string> | null {
+  if (raw === undefined) return null;
+  const entries = raw.trim() ? raw.trim().split(/\s*,\s*/) : [];
+  return new Set(entries.every((value) => /^[a-f0-9]{64}$/.test(value)) ? entries : []);
+}
+
 export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Promise<ExtensionInfo[]> {
   const dir = extensionsDir(ctx);
+  const allowedDigests = extensionDigests(process.env.OPENPORTRAIT_EXTENSION_SHA256);
   const infos: ExtensionInfo[] = [];
   let files: string[] = [];
   try {
@@ -342,9 +375,12 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
     const full = path.join(dir, file);
     const info: ExtensionInfo = { id, file, sha256: "", status: "failed", cards: [], reports: [], shootCards: [], pages: [] };
     infos.push(info);
+    let scope: RegistryScope | undefined;
     try {
       if (!ID.test(id)) throw new Error("file name must be lowercase letters, digits and dashes");
+      if (allowedDigests && !fs.lstatSync(full).isFile()) throw new Error("managed extension must be a regular file");
       info.sha256 = crypto.createHash("sha256").update(fs.readFileSync(full)).digest("hex");
+      if (allowedDigests && !allowedDigests.has(info.sha256)) throw new Error("extension digest is not approved");
       const mod = (await import(`${pathToFileURL(full).href}?h=${info.sha256}`)) as { register?: (api: ExtensionApi) => void | Promise<void>; version?: unknown };
       if (typeof mod.register !== "function") throw new Error("module has no register() export");
       if (typeof mod.version === "string" && /^[\w.+-]{1,40}$/.test(mod.version)) info.version = mod.version;
@@ -354,12 +390,17 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       const shootCards: SettingsCard[] = [];
       const pages: ExtensionPage[] = [];
       let crewPanel: string | undefined;
+      let crewPanelAt: number | undefined;
+      // Tools, capability locks and grants, and feature policies are staged: nothing is visible until register() finishes, and a failure anywhere below removes them all.
+      // Removing this module's tools expires their pending approvals in this app's own database.
+      scope = ctx.tools.createScope(`ext:${id}`, info.sha256, { onRemove: (names) => expireForRemovedTools(ctx, names) });
+      const staged = scope;
       await mod.register({
         id,
         appVersion: VERSION,
         ctx,
         log: app.log,
-        defineTool,
+        defineTool: staged.defineTool,
         originals: ctx.originals,
         z,
         routes: (plugin) => void routes.push(plugin),
@@ -406,6 +447,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         crewPanel: (route) => {
           if (!/^\/[\w\-/{}]*$/.test(route)) throw new Error(`crew panel route "${route}" must be a path such as /crew`);
           crewPanel = route;
+          crewPanelAt = cards.length;
         },
         backupProvider: (provider) => {
           if (provider.kind === "folder") throw new Error('backup provider kind "folder" is built in');
@@ -422,9 +464,10 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
           if (pages.some((p) => p.slug === page.slug)) throw new Error(`duplicate page slug "${page.slug}"`);
           pages.push(page);
         },
-        lockCapability,
-        grantCapability,
-        revokeCapability,
+        lockCapability: staged.lockCapability,
+        grantCapability: staged.grantCapability,
+        revokeCapability: staged.revokeCapability,
+        featurePolicy: staged.registerFeaturePolicy,
         site: {
           registerTemplate: (t) => registerSiteTemplate({ ...t, extra: true }),
           unregisterTemplate: unregisterSiteTemplate,
@@ -433,6 +476,7 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
         },
         onClose: (fn) => void app.addHook("onClose", async () => void (await fn())),
       });
+      staged.commit();
       for (const plugin of routes) {
         await app.register(
           async (scope) => {
@@ -446,10 +490,19 @@ export async function loadExtensions(app: FastifyInstance, ctx: AppContext): Pro
       info.reports = reports;
       info.shootCards = shootCards;
       info.crewPanel = crewPanel;
+      info.crewPanelAt = crewPanelAt;
       info.pages = pages;
       info.status = "loaded";
       app.log.info({ extension: id, sha256: info.sha256 }, "extension loaded");
     } catch (err) {
+      try {
+        scope?.rollback(); // drops whatever was staged, or removes what was already published
+      } catch (rollbackErr) {
+        // The database write that expires this module's pending approvals failed, so its tools are still published. Carrying on would serve a half-loaded extension, so startup stops here.
+        const detail = `${(err as Error).message}; rollback failed: ${(rollbackErr as Error).message}`;
+        app.log.fatal({ extension: id, err: detail }, "extension could not be removed, stopping");
+        throw new Error(`Extension "${id}" failed to load and could not be removed (${detail}). The server will not start with it half loaded.`, { cause: rollbackErr });
+      }
       info.error = (err as Error).message;
       app.log.error({ extension: id, err: info.error }, "extension skipped");
     }
@@ -463,3 +516,4 @@ export const extensionRoutes =
   async (app) => {
     app.get("/", { preHandler: requireOwner }, async () => ({ extensions: infos }));
   };
+

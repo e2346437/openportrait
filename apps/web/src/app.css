@@ -1231,3 +1231,52 @@ input.mfa-code { font-family: var(--mono); letter-spacing: 0.12em; font-size: 18
 .proof-size { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
 .proof-size .range { flex: 1 1 200px; min-width: 0; }
 @media (max-width: 520px) { .proof-preview { grid-template-columns: minmax(0, 1fr); } }
+
+/* Extensions page: jump bar and anchors */
+.ext-anchor { scroll-margin-top: var(--s5); }
+.ext-jump { display: flex; gap: var(--s2); overflow-x: auto; padding: 2px 0 4px; scrollbar-width: thin; }
+.ext-jump a { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: 13px; font-weight: 600; text-decoration: none; }
+.ext-jump a:hover { background: var(--surface-2); color: var(--ink); }
+.ext-jump a i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.ext-jump a i.w { background: var(--warn); }
+.ext-jump a i.n { background: var(--line-2); }
+.ext-folded .panel-body { display: none; }
+.ext-folded .panel-head { border-bottom: 0; }
+
+/* Card parts: facts strip, steps, features, copy field, details */
+.ext-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--surface); }
+.ext-fact { display: grid; gap: 2px; align-content: start; padding: var(--s3) var(--s4); border-left: 1px solid var(--line); min-width: 0; }
+.ext-fact:first-child { border-left: 0; }
+.ext-fact .k { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.ext-fact .v { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.ext-fact .v.mono { font-family: var(--mono); font-size: 14px; }
+.ext-fact .s { font-size: 12.5px; color: var(--ink-3); }
+@media (max-width: 560px) { .ext-fact { border-left: 0; border-top: 1px solid var(--line); } .ext-fact:first-child { border-top: 0; } }
+.ext-feat { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--s2); }
+.ext-feat > * { display: flex; gap: 10px; align-items: center; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); font-size: 14px; text-decoration: none; color: var(--ink); background: var(--surface); }
+.ext-feat > a:hover { background: var(--surface-2); }
+.ext-feat small { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); }
+.ext-feat .ic { flex: none; width: 20px; text-align: center; color: var(--ok); font-weight: 700; }
+.ext-feat .off { color: var(--ink-3); background: var(--surface-2); border-style: dashed; }
+.ext-feat .off .ic { color: var(--ink-3); font-size: 13px; }
+.ext-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 0; }
+.ext-steps li { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--s3); padding-bottom: var(--s4); position: relative; }
+.ext-steps li:not(:last-child)::before { content: ""; position: absolute; left: 15px; top: 34px; bottom: 2px; width: 2px; background: var(--line); }
+.ext-steps .s-n { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line-2); }
+.ext-steps .s-done .s-n { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.ext-steps .s-now .s-n { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.ext-steps .s-t { display: grid; align-content: center; min-height: 32px; min-width: 0; }
+.ext-steps .s-t small { color: var(--ink-3); font-size: 13px; overflow-wrap: anywhere; }
+.ext-steps .s-todo .s-t strong { color: var(--ink-3); }
+.ext-copy { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border-radius: var(--r-sm); padding: 4px 4px 4px 10px; min-width: 0; }
+.ext-copy code { font-family: var(--mono); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.ext-more > summary { cursor: pointer; font-weight: 600; font-size: 13.5px; color: var(--ink-2); }
+.ext-more[open] > summary { margin-bottom: var(--s2); }
+.btn.danger-quiet { background: transparent; border-color: transparent; color: var(--bad); }
+.btn.danger-quiet:hover { background: var(--bad-soft); }
+@media (min-width: 720px) { .ext-jump { flex-wrap: wrap; overflow: visible; } }
+.ext-head-actions { display: flex; align-items: center; gap: var(--s2); margin-left: auto; }
+.ext-anchor .panel-head > div:first-child { flex: 1 1 260px; min-width: 0; }
+.ext-btn-row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.ext-btn-row .push-right { margin-left: auto; }
+@media (max-width: 560px) { .ext-btn-row .push-right { margin-left: 0; } }

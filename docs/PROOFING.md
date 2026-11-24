@@ -1,6 +1,6 @@
 # Protected proofing: design notes
 
-Status: built (first version). Companion to [GALLERIES.md](GALLERIES.md).
+Status: built (first version). Companion to [Galleries design notes](GALLERIES.md).
 
 ## What it is and is not
 

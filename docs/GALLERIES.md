@@ -1,8 +1,6 @@
 # Galleries: design
 
-Status: reviewed by Eric (decisions in section 11). This expands sections 2, 4 and 5 of [`SPEC.md`](SPEC.md) for milestone 4. Where the two disagree, this file is newer, and SPEC.md gets updated when it merges.
-
-Clickable prototype of every screen below: https://claude.ai/artifact/EEJivTCVktFUipZEGrUYug (private to the project owner).
+This expands sections 2, 4 and 5 of [`SPEC.md`](SPEC.md). Where the two disagree, this file is newer.
 
 ## 1. Goals
 
@@ -96,7 +94,7 @@ Built by the job queue with sharp, stored in `/cache/<gallery id>/`, never next 
 | `thumb` | 640 px | WebP | Grid (covers 2x density at 320 px tiles) |
 | `preview` | 2048 px | WebP | Lightbox, cover image |
 | `web` | 2048 px | JPEG, sRGB, EXIF kept except GPS | "Web size" downloads |
-| `pf-*` | up to the policy's long edge (Light 1800, Balanced 1400, Strong 1000) | WebP | Protected previews, built on demand when a viewer's gallery state calls for protection. Named by a fingerprint of the look. See [PROOFING.md](PROOFING.md) |
+| `pf-*` | up to the policy's long edge (Light 1800, Balanced 1400, Strong 1000) | WebP | Protected previews, built on demand when a viewer's gallery state calls for protection. Named by a fingerprint of the look. See [Protected proofing: design notes](PROOFING.md) |
 
 - Orientation is applied, everything is converted to sRGB, and GPS data is stripped from anything served to clients.
 - A tiny blurred placeholder (about 24 px, stored inline in the database) shows while each thumbnail loads, so the grid never jumps.
@@ -139,10 +137,10 @@ OpenPortrait is always exposed through Cloudflare Tunnel (SPEC.md section 9), so
 
 1. **Galleries list.** Cover thumbnail, title, client, shoot type and date, status chip, photo count, processing progress, views, favorites, downloads, and expiry. Filters by status, search by client, subject or type, sorted by most recent activity.
 2. **Gallery detail.** A header with status, client, the share link (copy), "Preview as client", and the primary action (Publish, or Email client again). Tabs:
-   - **Photos:** sets as a sidebar list (reorder, rename, hide), the photo grid with per-photo state (processing, updated, missing, hidden), multi-select to hide, move, or set the cover, and sort by capture time, filename, or manual order. Drag to reorder.
-   - **Favorites:** each client's lists with counts, submitted state, and notes; export the filenames as a Lightroom-ready search string (`DSC_0012 OR DSC_0047 …`) and as CSV.
-   - **Activity:** views, downloads (which photos, which size), favorites, and emails sent, in one timeline.
-   - **Settings:** access, download size, download lock, favorites lists, expiry, and the linked order or invoice.
+    - **Photos:** sets as a sidebar list (reorder, rename, hide), the photo grid with per-photo state (processing, updated, missing, hidden), multi-select to hide, move, or set the cover, and sort by capture time, filename, or manual order. Drag to reorder.
+    - **Favorites:** each client's lists with counts, submitted state, and notes; export the filenames as a Lightroom-ready search string (`DSC_0012 OR DSC_0047 …`) and as CSV.
+    - **Activity:** views, downloads (which photos, which size), favorites, and emails sent, in one timeline.
+    - **Settings:** access, download size, download lock, favorites lists, expiry, and the linked order or invoice.
 3. **Unmatched inbox.** Folders waiting for a shoot, each with its path, photo count, capture date range, sample thumbnails, state (still copying, or ready), and suggested shoots. Actions: attach, create a new shoot from the folder, or ignore.
 4. **Upload.** Choose a gallery and set (or create one), drop files, and watch progress. The same page is reachable from the gallery detail with the gallery preselected.
 5. **Incoming** (in-camera uploads, specified in SPEC.md section 4). Camera files grouped by camera and capture time, shown with the JPEG preview embedded in each RAW. Each group gets a suggested shoot (capture time against the calendar). Select photos or a whole group, then **Move to shoot**, which moves them into that shoot's `Originals/RAW/` with checksums verified first. A banner shows the network path of `/incoming` for photographers who would rather point Lightroom or Aftershoot at it directly. Nothing here ever reaches a client gallery. Only exports into `Gallery/` do.
@@ -193,9 +191,9 @@ Focal points are stored as percentages (`focal_x`, `focal_y`, 0 to 100) and appl
 
 - **Download size**, per gallery: no downloads, web size only, or web size and full resolution.
 - **Download lock**, tied to the shoot's final invoice. The studio owner picks one of three modes when publishing, starting from the studio default in Settings › Galleries:
-  - **Lock until paid:** nothing downloads until the balance is paid.
-  - **Highlights early:** the Highlights set (any set marked "early") downloads now; the rest unlocks when paid.
-  - **No lock:** downloads open as soon as the gallery is published.
+    - **Lock until paid:** nothing downloads until the balance is paid.
+    - **Highlights early:** the Highlights set (any set marked "early") downloads now; the rest unlocks when paid.
+    - **No lock:** downloads open as soon as the gallery is published.
 - While anything is locked, the download dialog says why ("Full gallery downloads open once your final balance is paid") and links to the invoice. When the payment clears, the photographer lifts the lock from the gallery with the unlock switch. Lifting it automatically when a payment clears (PayPal webhook or a manual payment entry) is planned, not built yet.
 - **Watermark:** previews and thumbnails of photos whose downloads are still waiting on payment carry the studio's mark (Settings › Galleries). The mark is the studio's wording (default the studio name), the studio logo, or a custom image. Wording can use one of six bundled fonts, bold or italic, any color, and a size relative to the photo; every kind has an opacity, a size, and a position (nine spots, or repeated diagonally). Uploaded images are trimmed, kept at 1200 px wide at most, and scaled down for each preview, so no size preparation is needed. Settings shows a live preview drawn by the same code. Paying removes the mark with no extra step, a gallery with no lock never shows one, and downloaded files are never watermarked. Sets marked for early download stay clean.
 - Optional download PIN, separate from the gallery password.
@@ -217,7 +215,7 @@ Emails go through the shared email base (Settings > Email, logged in `email_log`
 
 ## 7. Data model
 
-Adds to the Gallery entities in SPEC.md section 5. Names follow the Drizzle schema conventions set up in milestone 2.
+Adds to the Gallery entities in SPEC.md section 5. Names follow the project's Drizzle schema conventions.
 
 | Table | Key columns |
 |---|---|
@@ -256,14 +254,14 @@ Client (gallery session cookie, scoped to one gallery): `GET /g/:slug`, `GET /g/
 
 ## 10. Where the code goes
 
-Following the milestone 2 layout (tentative until the skeleton lands):
+The code is laid out as follows:
 
 - Schema: `packages/db/src/schema/galleries.ts`, migrations in `packages/db/migrations`.
 - Watcher, matcher, importer, derivatives and zip jobs: `apps/server/src/galleries/`, registered with `defineJob` from `packages/jobs`. Paths come from `GALLERIES_DIR` and `CACHE_DIR` in `packages/config`.
 - Admin screens: `apps/web` admin layout. Client gallery: `apps/web` client layout.
 - Shared pieces (justified grid, lightbox, upload queue, status chip): `packages/ui`.
 
-## 11. Decisions (from Eric, 2026-11-01)
+## 11. Design choices
 
 1. **Access:** new galleries default to a private link; the email is captured at the first favorite or download. Password and invited-email access stay available per gallery, and the default is a setting.
 2. **Downloads and payment:** all three lock modes (lock until paid, Highlights early, no lock). The owner picks per gallery when publishing; the studio default lives in Settings › Galleries.

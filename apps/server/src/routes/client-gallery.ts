@@ -1,3 +1,4 @@
+import { requestIsHttps } from "../client-ip.js";
 import fs from "node:fs";
 import path from "node:path";
 import { and, eq, gt, inArray } from "drizzle-orm";
@@ -216,7 +217,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
         .run();
     }
     const value = `${Buffer.from(addr).toString("base64url")}.${secrets.sign("client", addr)}`;
-    reply.setCookie(CLIENT_COOKIE, value, { path: "/", httpOnly: true, sameSite: "lax", secure: req.protocol === "https" || req.headers["x-forwarded-proto"] === "https", maxAge: CLIENT_COOKIE_DAYS * 86_400 });
+    reply.setCookie(CLIENT_COOKIE, value, { path: "/", httpOnly: true, sameSite: "lax", secure: requestIsHttps(req), maxAge: CLIENT_COOKIE_DAYS * 86_400 });
     return { me: me(g, addr) };
   };
 
@@ -261,7 +262,7 @@ export async function clientGalleryRoutes(app: FastifyInstance) {
     if (!body) return;
     const ok = g.passwordHash ? await verifyPassword(g.passwordHash, body.password) : false;
     if (!ok) return reply.code(401).send({ error: "wrong_password", field: "password", message: "That password isn't right. Check it with your photographer." });
-    reply.setCookie(passCookie(g), passToken(g), { path: "/", httpOnly: true, sameSite: "lax", secure: req.protocol === "https" || req.headers["x-forwarded-proto"] === "https", maxAge: 30 * 86_400 });
+    reply.setCookie(passCookie(g), passToken(g), { path: "/", httpOnly: true, sameSite: "lax", secure: requestIsHttps(req), maxAge: 30 * 86_400 });
     return { ok: true };
   });
 
@@ -530,3 +531,4 @@ function contentType(file: string): string {
     "application/octet-stream"
   );
 }
+

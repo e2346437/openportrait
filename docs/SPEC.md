@@ -415,7 +415,7 @@ Each milestone ships as a tagged release that installs and runs on Unraid.
 
 1. **Contracts and e-signatures** are in 1.0.
 2. **Payments:** PayPal first, behind a provider interface. Manual payments are always available.
-3. **License:** AGPL-3.0 (see `LICENSE`). Outside contributions are accepted under a contributor agreement (see `CONTRIBUTING.md`), so a future paid edition can be offered under a separate license.
+3. **License:** AGPL-3.0 (see `LICENSE`). Outside contributions are accepted under a contributor agreement (see `CONTRIBUTING.md`), so the optional paid add-on can be offered under a separate license.
 4. **Print store:** after 1.0.
 5. **Database:** SQLite only in 1.0, with the code kept Postgres-ready (Drizzle) so Postgres can be added later. Keep `/config` on a cache pool or disk path, not a `/mnt/user` FUSE path.
 6. **Internet access:** always through a Cloudflare Tunnel, with cloudflared built into the container, an in-app setup guide, and docs (section 9).

@@ -1,6 +1,6 @@
 # Client galleries: a step-by-step guide
 
-A gallery is a folder of finished photos that your client opens in a web page: they look, favorite, and download. This page follows one gallery from the camera to the client and says what each choice means. For the full design, see [Galleries: design](GALLERIES.md).
+A gallery is a folder of finished photos that your client opens in a web page: they look, favorite, and download. This page follows one gallery from the camera to the client and says what each choice means.
 
 ## The path of a gallery
 

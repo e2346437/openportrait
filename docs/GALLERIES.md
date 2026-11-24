@@ -1,8 +1,6 @@
 # Galleries: design
 
-Status: reviewed by Eric (decisions in section 11). This expands sections 2, 4 and 5 of [`SPEC.md`](SPEC.md) for milestone 4. Where the two disagree, this file is newer, and SPEC.md gets updated when it merges.
-
-Clickable prototype of every screen below: https://claude.ai/artifact/EEJivTCVktFUipZEGrUYug (private to the project owner).
+This expands sections 2, 4 and 5 of [`SPEC.md`](SPEC.md). Where the two disagree, this file is newer.
 
 ## 1. Goals
 
@@ -217,7 +215,7 @@ Emails go through the shared email base (Settings > Email, logged in `email_log`
 
 ## 7. Data model
 
-Adds to the Gallery entities in SPEC.md section 5. Names follow the Drizzle schema conventions set up in milestone 2.
+Adds to the Gallery entities in SPEC.md section 5. Names follow the project's Drizzle schema conventions.
 
 | Table | Key columns |
 |---|---|
@@ -256,14 +254,14 @@ Client (gallery session cookie, scoped to one gallery): `GET /g/:slug`, `GET /g/
 
 ## 10. Where the code goes
 
-Following the milestone 2 layout (tentative until the skeleton lands):
+The code is laid out as follows:
 
 - Schema: `packages/db/src/schema/galleries.ts`, migrations in `packages/db/migrations`.
 - Watcher, matcher, importer, derivatives and zip jobs: `apps/server/src/galleries/`, registered with `defineJob` from `packages/jobs`. Paths come from `GALLERIES_DIR` and `CACHE_DIR` in `packages/config`.
 - Admin screens: `apps/web` admin layout. Client gallery: `apps/web` client layout.
 - Shared pieces (justified grid, lightbox, upload queue, status chip): `packages/ui`.
 
-## 11. Decisions (from Eric, 2026-11-01)
+## 11. Design choices
 
 1. **Access:** new galleries default to a private link; the email is captured at the first favorite or download. Password and invited-email access stay available per gallery, and the default is a setting.
 2. **Downloads and payment:** all three lock modes (lock until paid, Highlights early, no lock). The owner picks per gallery when publishing; the studio default lives in Settings › Galleries.

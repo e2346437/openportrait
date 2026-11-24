@@ -357,3 +357,6 @@
 @media print {
   .md-typeset img:not(.twemoji) { box-shadow: none; }
 }
+
+/* The repo badge reads the latest full GitHub release, which lags the beta. Hide the version only. */
+.md-source__fact--version { display: none; }

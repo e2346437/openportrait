@@ -1,3 +1,8 @@
+---
+home: true
+description: Install, set up and run OpenPortrait, the self-hosted studio CRM for photographers. Guides for Docker, Unraid, client galleries, bookings, contracts and camera upload.
+---
+
 <div class="op-hero" markdown>
 <span class="op-hero__eyebrow">Documentation</span>
 

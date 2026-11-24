@@ -9,9 +9,12 @@ with synthetic accounts, photos and credentials. **Production was not touched** 
 SEC-001, SEC-002, SEC-003, SEC-005 and SEC-008 were fixed on the same branch and re-verified: the in-process suite (233
 passed, 5 expected-fail for the findings still open), the live suite against hardened containers (26 checks: 19 pass,
 6 open, 1 info, 0 failed) and the isolation checks. Each fix flipped its test from an open finding to a control. The
-sections below keep the original evidence; the status column shows the current state. A second batch (SEC-004, 006, 007, 010, 011, 015, 017) was fixed afterwards. SEC-009 (CSP) and SEC-012 (visitor email proof when email is set up) followed. Still open: SEC-016 (MFA), plus the accepted SEC-013. SEC-014 is mostly fixed: npm, corepack and yarn are gone from the runtime image and `cloudflared` is bumped to 2026.10.7, which cleared its vulnerabilities. `gosu` still carries an older Go standard library (excepted, with an expiry, because it only drops privileges and opens no sockets). The release gate passes with that exception.
+sections below keep the original evidence; the status column shows the current state. A second batch (SEC-004, 006, 007, 010, 011, 015, 017) was fixed afterwards. SEC-009 (CSP) and SEC-012 (visitor email proof when email is set up) followed. SEC-016 followed: authenticator-app sign-in with recovery codes and a 24-hour idle timeout are in; passkeys are still open. SEC-013 is accepted. SEC-014 is mostly fixed: npm, corepack and yarn are gone from the runtime image and `cloudflared` is bumped to 2026.10.7, which cleared its vulnerabilities. `gosu` still carries an older Go standard library (excepted, with an expiry, because it only drops privileges and opens no sockets). The release gate passes with that exception.
 
 ## 1. Verdict
+
+> **Status note (main, after PR #166).** The verdict and the numbered list in this section describe the build audited on 2026-11-02. They are kept as the original record. `security/findings.json` is the current registry: every finding from SEC-001 to SEC-019 is fixed, mitigated or accepted except SEC-014, which is partly fixed. SEC-014 still has one excepted item (the Go runtime inside the `gosu` helper) with an exception that expires on 2026-12-31. The status column in section 2 has been updated to match the registry.
+
 
 OpenPortrait is **not ready to be exposed to the public internet by an unattended installer yet, but it is close.** The
 fundamentals are sound: every one of the 162 protected staff routes refuses anonymous callers, passwords are Argon2id, sessions and
@@ -48,25 +51,25 @@ One sandbox note: the sandbox's TLS-inspecting proxy blocked the Semgrep registr
 Severity is the audit's judgement for the most exposed deployment. CVSS v4.0 vectors are *estimated base vectors*; scores
 were deliberately not calculated. **Confirmed** = observed on the running sandbox. Registry: `security/findings.json`.
 
-| ID | Severity | Status | Title |
+| ID | Severity | Status (current) | Title |
 |---|---|---|---|
-| SEC-001 | **High** | **Fixed** (verified) | Rate limits key on an address the caller controls |
-| SEC-002 | Medium | **Fixed** (verified) | A new install can be claimed by the first visitor |
-| SEC-003 | Medium | **Fixed** (verified) | No Origin / Fetch-Metadata check on state-changing requests |
-| SEC-004 | Medium | Confirmed | Signed photo URLs never expire and outlive unpublishing |
-| SEC-005 | Medium | **Fixed** (verified) | Gallery link entropy ~31 bits; public gallery endpoints unthrottled |
-| SEC-006 | Medium | Confirmed | AI untrusted-text wrapper can be closed early; names not wrapped |
-| SEC-007 | Low | Confirmed | Camera logins can overwrite existing photos |
-| SEC-008 | Medium | **Fixed** (verified) | Container runs with Docker defaults (root entrypoint, default caps) |
-| SEC-009 | Low | Confirmed | No CSP, HSTS or Permissions-Policy |
-| SEC-010 | Low | Confirmed | OAuth/MCP discovery URLs built from the Host header |
-| SEC-011 | Low | Confirmed | MCP endpoint ignores Origin; anonymous OAuth client registration with any name |
-| SEC-012 | Low | Confirmed | Visitor email is unverified; password gate not applied to identify |
-| SEC-013 | Info | Confirmed, accepted | Full-size downloads keep GPS |
-| SEC-014 | Medium | **Unverified** scanner result | Vulnerable components in the image |
-| SEC-015 | Low | Confirmed | Key stored beside data; GCM tag length not pinned |
-| SEC-016 | Low | Confirmed (missing control) | No MFA, no idle timeout (ASVS L2 gap) |
-| SEC-017 | Info | Confirmed | A real home-network address used as the example in shipped text |
+| SEC-001 | **High** | **Fixed** | Rate limits key on an address the caller controls |
+| SEC-002 | Medium | **Fixed** | A new install can be claimed by the first visitor |
+| SEC-003 | Medium | **Fixed** | No Origin / Fetch-Metadata check on state-changing requests |
+| SEC-004 | Medium | **Fixed** | Signed photo URLs never expire and outlive unpublishing |
+| SEC-005 | Medium | **Fixed** | Gallery link entropy ~31 bits; public gallery endpoints unthrottled |
+| SEC-006 | Medium | **Fixed** | AI untrusted-text wrapper can be closed early; names not wrapped |
+| SEC-007 | Low | **Fixed** | Camera logins can overwrite existing photos |
+| SEC-008 | Medium | **Fixed** | Container runs with Docker defaults (root entrypoint, default caps) |
+| SEC-009 | Low | **Fixed** | No CSP, HSTS or Permissions-Policy |
+| SEC-010 | Low | **Fixed** | OAuth/MCP discovery URLs built from the Host header |
+| SEC-011 | Low | **Fixed** | MCP endpoint ignores Origin; anonymous OAuth client registration with any name |
+| SEC-012 | Low | **Mitigated** | Visitor email is unverified; password gate not applied to identify |
+| SEC-013 | Info | Accepted | Full-size downloads keep GPS |
+| SEC-014 | Medium | **Open** (partly fixed) | Vulnerable components in the image |
+| SEC-015 | Low | **Mitigated** | Key stored beside data; GCM tag length not pinned |
+| SEC-016 | Low | **Mitigated** | No MFA, no idle timeout (ASVS L2 gap) |
+| SEC-017 | Info | **Fixed** | A real home-network address used as the example in shipped text |
 
 Each finding has an automated test that **fails today and will pass after the fix** (vitest `it.fails` in the normal CI run;
 `SECURITY_STRICT=1` shows the real failure), except SEC-008/013/014/015/016/017 which are covered by scan or container checks

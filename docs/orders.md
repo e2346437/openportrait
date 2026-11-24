@@ -2,15 +2,15 @@
 
 ## Prices
 
-**Settings > Prices** holds your price list (packages and single items) and the defaults for quotes: currency, sales tax rate, how long a quote stays valid, how clients can pay you directly, and your standard terms. Each quote copies the name and price of what you pick, so changing your price list never changes a quote you've already sent.
+**Settings > Prices** holds your price list (products and packages), your coupon codes, and the defaults for quotes: currency, how long a quote stays valid, how clients can pay you directly, and your standard terms. Sales tax rates live under **Settings > Sales tax**, one for each state or place you collect tax in. Each quote copies the name and price of what you pick, so changing your price list never changes a quote you've already sent.
 
 All amounts are stored as whole cents in one currency.
 
 ## Writing a quote
 
-**Orders > New quote** lets you choose the client, add lines (from your price list or typed in), apply a discount, and decide when money is due. By default the client pays once, in full. Tick **Split into a retainer and balance** to set a retainer (30% to start) and give each payment an optional due date. The payments must add up to the total, and the editor tells you what's left over.
+**Orders > New quote** opens the editor. Pick **Quote**, or **Invoice** to bill for work already agreed. Then choose the client, add lines (from your price list or typed in), apply a discount, and decide when money is due. By default the client pays once, in full. Tick **Split into a retainer and balance** to set a retainer (30% to start) and give each payment an optional due date. The payments must add up to the total, and the editor tells you what's left over.
 
-- Tax is added to taxable lines at your current rate. A discount reduces the taxable amount in proportion, so tax is only charged on what the client actually pays. The rate is fixed when you save, so a later rate change does not rewrite old quotes.
+- Tax is added to taxable lines at your default rate, and you can switch to another of your rates on each quote. A discount reduces the taxable amount in proportion, so tax is only charged on what the client actually pays. The rate is fixed when you save, so a later rate change does not rewrite old quotes.
 - A draft can be edited freely. **Send** emails the client a private link, and records it on their timeline.
 - A quote that has been sent can be taken back to a draft until the client accepts it.
 
@@ -39,7 +39,7 @@ Once connected, and once your public address is set, an unpaid invoice shows **P
 
 Create codes in **Settings > Prices > Coupon codes**. A code takes a percentage or a fixed amount off, and can be limited to one product on your price list, an expiry date, or a number of uses. Codes are saved in capitals, so `spring25` and `SPRING25` are the same.
 
-Type the code into **Coupon code** when you write a quote. The editor shows what it takes off, the client's copy shows it as its own line, and tax is worked out on what they actually pay. It sits next to the hand-typed discount; the two add up.
+Type the code into **Coupon code** when you write a quote. Clients can also type a code themselves on a sent quote or on a paid booking page. The editor shows what it takes off, the client's copy shows it as its own line, and tax is worked out on what they actually pay. It sits next to the hand-typed discount; the two add up.
 
 - A code is checked when you add it: it must exist, be switched on, be unexpired and not used up. A quote that already carries a code keeps it as promised, even if the code expires or runs out afterwards.
 - A quote that uses a code counts as one use. Deleting the draft, declining the quote or voiding it gives the use back.

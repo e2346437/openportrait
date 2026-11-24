@@ -33,7 +33,7 @@ Everything above the storage step is free and open source. Cloud storage for ori
 
 | Option | Best for | Pros | Cons | Cost |
 |---|---|---|---|---|
-| **Unraid app** | Anyone with an Unraid server | Fill-in form for every setting, app icon, one-click updates | Needs an Unraid server. You paste the template address once, because the app isn't in Community Applications yet | Free |
+| **Unraid app** | Anyone with an Unraid server | Fill-in form for every setting, app icon, updates by changing one version number | Needs an Unraid server. You paste the template address once, because the app isn't in Community Applications yet | Free |
 | **Docker Compose** | Linux, Synology, TrueNAS, Docker Desktop | Hardened settings come ready-made, easy to copy and back up | You edit a text file | Free |
 | **`docker run`** | Quick tests, custom setups | One command | You must keep the safety flags yourself | Free |
 

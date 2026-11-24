@@ -6,15 +6,17 @@ OpenPortrait is one container image, `ghcr.io/e2346437/openportrait`, built for 
 
 - A machine that runs Docker: Unraid, Synology, TrueNAS, any Linux server, or Docker Desktop.
 - A folder (or share) for your photos. OpenPortrait creates one folder per shoot inside it.
-- For client access from the internet: a domain on Cloudflare. The free plan is fine. See [cloudflare-tunnel.md](cloudflare-tunnel.md).
+- For client access from the internet: a domain on Cloudflare. The free plan is fine. See [Internet access with Cloudflare Tunnel](cloudflare-tunnel.md).
 
 ## Unraid
 
-1. Open **Apps**, search for **OpenPortrait**, and click **Install**. (Until the app is listed in Community Applications, go to **Docker > Add Container**, paste `https://raw.githubusercontent.com/e2346437/openportrait/main/unraid/openportrait.xml` into **Template**, and continue.)
+OpenPortrait is not listed in Unraid's Community Applications yet, so you add its template by hand. It takes one paste.
+
+1. Go to **Docker > Add Container**, paste `https://raw.githubusercontent.com/e2346437/openportrait/main/unraid/openportrait.xml` into **Template**, and continue.
 2. Check the three paths:
-   - **App data** (`/mnt/user/appdata/openportrait`): the database, encryption key and backups.
-   - **Galleries** (`/mnt/user/galleries`): your photo share.
-   - **Incoming** (`/mnt/user/incoming`): photos sent straight from the camera.
+    - **App data** (`/mnt/user/appdata/openportrait`): the database, encryption key and backups.
+    - **Galleries** (`/mnt/user/galleries`): your photo share.
+    - **Incoming** (`/mnt/user/incoming`): photos sent straight from the camera.
 3. Leave **Cloudflare Tunnel token** empty for now unless you already have one. The app walks you through it.
 4. Click **Apply**, then open the WebUI from the container's menu.
 
@@ -82,12 +84,13 @@ The first visit opens a two-step setup: your studio's name and time zone, then t
 | `UMASK` | `022` | Permission mask for new files. `002` lets the group write; on Unraid use `000` so SMB users can edit and delete. |
 | `TZ` | `UTC` | Time zone for logs. Booking times use the studio time zone from Settings. |
 | `CLOUDFLARE_TUNNEL_TOKEN` | empty | Starts the built-in Cloudflare Tunnel. Can be set in the app instead. |
-| `LAN_URL` | empty | This server's address on your home network with the mapped port, such as `http://192.168.1.20:8090`. Used by Tethering and camera upload. Can be set in Settings > Internet access instead. |
+| `LAN_URL` | empty | This server's address on your home network with the mapped port, such as `http://192.168.1.20:8080`. Used by Tethering and camera upload. Can be set in Settings > Internet access instead. |
 | `SETUP_CODE` | empty | Optional code for the first-run setup screen. Left empty, a random one is printed to the log. Not needed once the owner exists. |
-| `TRUSTED_PROXIES` | empty | Only if cloudflared runs in a separate container: its address (comma-separated IPs or IPv4 CIDRs, for example `172.18.0.0/16`). The built-in tunnel needs nothing. Without it, rate limits see every visitor as that container. |
+| `TRUSTED_PROXIES` | empty | Only if cloudflared runs in a separate container: its address (comma-separated IPs or IPv4 CIDRs, for example `172.18.0.0/16`). The same applies to your own reverse proxy in another container. The built-in tunnel needs nothing. Without it, rate limits see every visitor as that container, and sign-in and gallery cookies are not marked secure, because the app only treats a request as HTTPS when the connection itself is HTTPS or it comes from a trusted proxy. |
+| `OPENPORTRAIT_EXTENSION_SHA256` | unset | Optional lock on add-ons. A comma-separated list of SHA-256 digests (64 lowercase hex characters each). Only add-on files in `extensions/` whose digest is on the list are loaded. Unset, add-ons load as before. Set but empty, or with any invalid entry, no add-on loads. Good for a locked-down server; the cost is that you must update the list every time an add-on file changes. |
 | `APP_URL` | empty | Public address such as `https://studio.example.com`. Taken from the tunnel when empty. |
 | `PORT` | `8080` | Port inside the container. |
-| `SFTP_PORT`, `FTP_PORT` | `2222`, `2121` | Camera upload ports inside the container. See [camera-upload.md](camera-upload.md). |
+| `SFTP_PORT`, `FTP_PORT` | `2222`, `2121` | Camera upload ports inside the container. See [Camera upload](camera-upload.md). |
 | `FTP_PASSIVE_MIN`, `FTP_PASSIVE_MAX` | `30000`, `30009` | FTP/FTPS passive data ports. Publish the same range. |
 | `UPLOAD_PROTOCOL`, `UPLOAD_ACCESS_MODE` | `sftp`, `on_demand` | First-run defaults for Settings > Camera upload. |
 | `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug` or `trace`. |

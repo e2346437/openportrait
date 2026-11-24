@@ -22,7 +22,7 @@ class FakeGoogle implements GoogleApi {
   expireTokens = false;
 
   constructor() {
-    this.add("primary", "Eric", "owner");
+    this.add("primary", "Sam", "owner");
   }
   add(id: string, name: string, accessRole: string) {
     this.calendars.set(id, { info: { id, name, primary: id === "primary", accessRole }, events: new Map(), log: [] });

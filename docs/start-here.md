@@ -67,7 +67,7 @@ Provider prices change. Check the provider's current price page before you commi
 - **Studio:** clients, households, leads, shoots with a day-of timeline, tasks, and a calendar with Google Calendar sync.
 - **Selling:** booking pages, quotes, invoices, coupons, client credit, PayPal payments, contracts with e-signatures, questionnaires.
 - **Photos:** client galleries with favorites, downloads and download limits, camera upload by SFTP, FTPS or FTP, and tethering.
-- **Safety:** two-step sign-in, nightly backups, hardened container.
+- **Safety:** two-step sign-in, nightly backups, hardened container. A studio sign-in ends after 24 hours without activity, and after 30 days in any case, so expect to sign in again after a day away.
 - **Reach:** a studio website builder and AI access so an assistant can read your studio data.
 - **Yours:** AGPL open source, no per-gallery fees, and you can export your data at any time.
 

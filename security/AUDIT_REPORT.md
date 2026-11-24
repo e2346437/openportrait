@@ -23,7 +23,7 @@ What stands between the current build and a public launch is one High and a hand
 
 1. **SEC-001 (High): login rate limiting can be bypassed** by anyone who can reach the port directly. 25 to 30 wrong passwords in a row from one machine produced no throttling.
 2. **SEC-002 (Medium): a new install can be taken over** by the first visitor to the setup page.
-3. **SEC-003 (Medium): no Origin / Fetch-Metadata check** on state-changing requests, which matters when the studio shares a parent domain with other sites (as `studio.erwphotography.net` does).
+3. **SEC-003 (Medium): no Origin / Fetch-Metadata check** on state-changing requests, which matters when the studio shares a parent domain with other sites.
 4. **SEC-004 and SEC-005 (Medium): gallery privacy.** Photo URLs never expire and survive unpublishing; gallery links carry about 31 bits of randomness and public gallery endpoints are not throttled.
 5. **SEC-008 (Medium; High for anyone hosting other people's studios): the container runs with Docker's defaults.** A hardened profile was built and verified: it starts, passes the whole live suite, and blocks the privilege paths. It just isn't the default yet.
 

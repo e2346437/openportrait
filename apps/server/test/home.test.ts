@@ -85,4 +85,19 @@ describe("home summary", () => {
     const h = await home();
     expect(h.pulse).toMatchObject({ monthShoots: 1, monthBookedCents: 12_500, outstandingCents: 12_500, overdueInvoices: 0 });
   });
+  it("names the oldest unpaid overdue invoice, never a settled one", async () => {
+    const contactId = await contact();
+    const make = async (title: string, dueDate: string, pay: boolean) => {
+      const inv = (await call("POST", "/orders", { kind: "invoice", contactId, title, lines: [{ description: "Session", unitCents: 10_000, taxable: false }], schedule: [{ label: "Balance", amountCents: 10_000, dueDate }] })).body;
+      await call("POST", `/orders/${inv.id}/send`);
+      if (pay) await call("POST", `/orders/${inv.id}/payments`, { amountCents: 10_000, method: "cash" });
+    };
+    await make("Settled long ago", "2020-01-01", true);
+    const recent = new Date(Date.now() - 5 * DAY).toISOString().slice(0, 10);
+    await make("Unpaid recently", recent, false);
+    const h = await home();
+    expect(h.pulse).toMatchObject({ overdueInvoices: 1 });
+    const overdue = h.needs.find((n: { key: string }) => n.key === "overdue");
+    expect(overdue.detail).toMatch(/due [4-6] days ago/);
+  });
 });
